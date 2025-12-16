@@ -13,7 +13,7 @@ interface KanbanBoardProps {
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onLeadClick, user }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sellerFilter, setSellerFilter] = useState<string>('all');
+  const [sellerFilter, setSellerFilter] = useState<'all' | string>('all');
   const [operatorFilter, setOperatorFilter] = useState<string>('all');
 
   // Derive unique lists for filters
@@ -39,9 +39,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onL
                             lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             lead.id.toString().includes(searchTerm);
       
-      const matchesSeller = user.role === 'ADMIN' 
-        ? (sellerFilter === 'all' || lead.vendedor === sellerFilter)
-        : true;
+      const matchesSeller = user.role === 'ADMIN'
+      ? (sellerFilter === 'all' || lead.vendedor === sellerFilter)
+      : true;
       
       const matchesOperator = operatorFilter === 'all' || lead.operadora === operatorFilter;
         
