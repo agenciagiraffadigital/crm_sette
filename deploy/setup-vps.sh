@@ -4,7 +4,7 @@
 echo "🚀 Configurando VPS para CRM Sette..."
 
 # Variáveis
-DOMAIN="crm.seudominio.com.br"
+DOMAIN="sistema.settesaude.com.br"
 PROJECT_PATH="/var/www/crm_sette"
 
 # Copiar configuração nginx
