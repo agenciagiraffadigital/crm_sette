@@ -43,6 +43,11 @@ export interface LeadMessage {
   created_at: string;
 }
 
+export interface DocumentFile {
+  name: string;
+  url: string;
+}
+
 export interface Lead {
   id: number;
   // Core Identifiers
@@ -85,7 +90,7 @@ export interface Lead {
   endereco: Address;
   beneficiarios: Beneficiary[];
   mensagens: LeadMessage[]; // For Admin <-> Seller comms
-  documentos: string[]; // List of file names
+  documentos: (string | DocumentFile)[]; // List of file names or DocumentFile objects
   
   // Legacy/Internal
   origem: string;

@@ -16,7 +16,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onL
   const [sellerFilter, setSellerFilter] = useState<'all' | string>('all');
   const [operatorFilter, setOperatorFilter] = useState<string>('all');
 
-  // Derive unique lists for filters
   const { sellers, operators } = useMemo(() => {
     const allSellers = new Set<string>();
     const allOperators = new Set<string>();
@@ -32,7 +31,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onL
     };
   }, [leads]);
 
-  // Filter leads
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
       const matchesSearch = lead.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 

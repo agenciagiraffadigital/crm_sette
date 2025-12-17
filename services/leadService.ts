@@ -222,5 +222,54 @@ export const leadService = {
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
+  },
+
+  // Upload de arquivo
+  uploadFile: async (leadId: number, file: File): Promise<{ name: string; url: string }> => {
+    if (!file.type.match(/application\/pdf|image\/(png|jpeg)/)) {
+      throw new Error('Apenas PDF, PNG e JPEG são permitidos');
+    }
+
+    // Sanitizar nome do arquivo: remover espaços e caracteres especiais
+    const sanitizedName = file.name
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/_{2,}/g, '_');
+    
+    const fileName = `lead_${leadId}_${Date.now()}_${sanitizedName}`;
+    console.log('Nome do arquivo sanitizado:', fileName);
+    
+    const { error: uploadError } = await supabase.storage
+      .from('leads-documents')
+      .upload(fileName, file);
+      
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('leads-documents')
+      .getPublicUrl(fileName);
+
+    return {
+      name: file.name, // Manter nome original para exibição
+      url: data.publicUrl,
+    };
+  },
+
+  // Download de arquivo
+  downloadFile: async (filePath: string) => {
+    const { data, error } = await supabase.storage
+      .from('leads-documents')
+      .download(filePath);
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Deletar arquivo
+  deleteFile: async (filePath: string) => {
+    const { error } = await supabase.storage
+      .from('leads-documents')
+      .remove([filePath]);
+
+    if (error) throw error;
   }
 };

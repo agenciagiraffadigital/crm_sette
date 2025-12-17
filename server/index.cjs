@@ -68,17 +68,24 @@ app.post('/webhook/make', async (req, res) => {
   try {
     console.log('Raw body:', JSON.stringify(req.body, null, 2))
     
-    const first = req.body?.value?.[0]
-    const contact = first?.contact
-    const nome = contact?.name?.trim()
-    const email = contact?.email?.trim()
-    const telefone = contact?.phone?.trim()
+    const oportunidade = req.body?.oportunidades?.[0]
+    const contato = oportunidade?.contato
+    const nome = contato?.nome?.trim()
+    const email = contato?.email?.trim()
+    const telefone = contato?.telefone1?.trim()
     
-    console.log(`Extraído: nome=${nome}, email=${email}, telefone=${telefone}`)
+    // Extrair operadora de personalizados
+    let operadora = null
+    if (oportunidade?.personalizados && Array.isArray(oportunidade.personalizados)) {
+      const operadoraField = oportunidade.personalizados.find(p => p.titulo === 'Operadora')
+      operadora = operadoraField?.valor ?? null
+    }
+    
+    console.log(`Extraído: nome=${nome}, email=${email}, telefone=${telefone}, operadora=${operadora}`)
     
     if (!nome || !email || !telefone) {
       console.log('Erro: campos faltando')
-      return res.status(400).json({ ok: false, error: 'nome/email/telefone obrigatórios' })
+      return res.status(400).json({ ok: false, error: 'nome/email/telefone1 obrigatórios' })
     }
 
     const seller = await pickSeller()
@@ -87,8 +94,8 @@ app.post('/webhook/make', async (req, res) => {
       nome,
       email,
       telefone,
-      origem: first?.sales_channel?.name ?? 'MAKE',
-      operadora: first?.custom_fields?.Operadora ?? null,
+      origem: 'MAKE',
+      operadora,
       status_kanban: 'ENVIADA',
       vendedor: seller?.name ?? null,
       vendedor_email: seller?.email ?? null,

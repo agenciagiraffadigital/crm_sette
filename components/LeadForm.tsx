@@ -56,8 +56,7 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
   const [formData, setFormData] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'beneficiarios' | 'docs' | 'chat'>('info');
-  const [newMessage, setNewMessage] = useState('');
+  const [activeTab, setActiveTab] = useState<'info' | 'beneficiarios' | 'docs'>('info');
   
   // Available products based on selected Operator
   const availableProducts = PRODUCTS_LIST.find(p => p.operadora === formData?.operadora)?.produtos || [];
@@ -142,39 +141,49 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
       setFormData({ ...formData, beneficiarios: formData.beneficiarios.filter(b => b.id !== id) });
   };
 
-  const handleSendMessage = () => {
-      if (!formData || !newMessage.trim()) return;
-      const msg: LeadMessage = {
-          id: Math.random().toString(36).substr(2, 9),
-          user_name: currentUser.name,
-          role: currentUser.role,
-          message: newMessage,
-          created_at: new Date().toISOString()
-      };
-      setFormData({ ...formData, mensagens: [...formData.mensagens, msg] });
-      setNewMessage('');
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (!formData || !event.target.files) return;
+      const file = event.target.files[0];
+      
+      try {
+        console.log('Iniciando upload:', file.name, file.type, file.size);
+        const { name, url } = await leadService.uploadFile(formData.id, file);
+        console.log('Upload sucesso:', name, url);
+        setFormData({ 
+          ...formData, 
+          documentos: [...formData.documentos, { name, url }] 
+        });
+      } catch (error: any) {
+        console.error('Erro no upload:', error);
+        alert(`Erro ao fazer upload: ${error.message}`);
+      }
   };
 
-  const handleFileUpload = () => {
-      // Mock file upload
-      if (!formData) return;
-      const mockFile = `Documento_${new Date().getTime()}.pdf`;
-      setFormData({ ...formData, documentos: [...formData.documentos, mockFile] });
+  const handleDownload = (fileUrl: string, fileName: string) => {
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const handleDownload = (fileName: string) => {
-    // Simulate file download
-    const text = `Este é um arquivo simulado para: ${fileName}\n\nEm um ambiente real, este seria o download do arquivo armazenado no servidor/bucket.`;
-    const blob = new Blob([text], { type: 'application/pdf' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-};
+  const handleDeleteDocument = async (fileName: string) => {
+    if (!window.confirm(`Deseja deletar "${fileName}"?`)) return;
+    
+    try {
+      const filePath = `lead_${formData?.id}_${fileName}`;
+      await leadService.deleteFile(filePath);
+      setFormData(prev => 
+        prev ? { ...prev, documentos: prev.documentos.filter(doc => 
+          (typeof doc === 'string' ? doc : doc.name) !== fileName
+        )} : null
+      );
+    } catch (error: any) {
+      console.error('Erro ao deletar:', error);
+      alert(`Erro ao deletar: ${error.message}`);
+    }
+  };
 
   const handleSubmit = async () => {
       if (!formData) return;
@@ -270,8 +279,7 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
           {[
               { id: 'info', label: 'Dados do Cliente' },
               { id: 'beneficiarios', label: `Beneficiários (${formData.beneficiarios.length})` },
-              { id: 'docs', label: `Documentos (${formData.documentos.length})` },
-              { id: 'chat', label: 'Mensagens / Validação' }
+              { id: 'docs', label: `Documentos (${formData.documentos.length})` }
           ].map(tab => (
               <button
                 key={tab.id}
@@ -435,14 +443,22 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
             {/* TAB: DOCUMENTS */}
             {activeTab === 'docs' && (
                 <div className="space-y-6 animate-fade-in">
-                    <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-slate-50 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer" onClick={handleFileUpload}>
-                        <div className="bg-white p-4 rounded-full shadow-sm mb-4">
-                            <Paperclip className="w-8 h-8 text-blue-500" />
-                        </div>
-                        <h4 className="font-bold text-slate-700">Clique para enviar documentos</h4>
-                        <p className="text-sm text-slate-500 max-w-sm mt-2">
-                            Faça o upload de RGs, CNH, Contrato Social, Cartão CNPJ e Comprovantes de Endereço.
-                        </p>
+                    <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-slate-50 hover:bg-blue-50 hover:border-blue-300 transition-colors relative group cursor-pointer">
+                        <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
+                            <div className="bg-white p-4 rounded-full shadow-sm mb-4">
+                                <Paperclip className="w-8 h-8 text-blue-500" />
+                            </div>
+                            <h4 className="font-bold text-slate-700">Clique para enviar documentos</h4>
+                            <p className="text-sm text-slate-500 max-w-sm mt-2">
+                                Aceita: PDF, PNG e JPEG (máx. 10MB)
+                            </p>
+                            <input 
+                                type="file" 
+                                accept=".pdf,.png,.jpg,.jpeg" 
+                                onChange={handleFileUpload}
+                                className="hidden"
+                            />
+                        </label>
                     </div>
 
                     <div>
@@ -451,70 +467,36 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                             {formData.documentos.map((doc, i) => (
                                 <div key={i} className="flex flex-col items-center p-4 bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-shadow relative group">
                                     <FileText className="w-10 h-10 text-slate-400 mb-2" />
-                                    <span className="text-xs font-medium text-slate-700 truncate w-full text-center" title={doc}>{doc}</span>
-                                    <span className="text-[10px] text-slate-400 mb-3">Documento PDF</span>
+                                    <span className="text-xs font-medium text-slate-700 truncate w-full text-center" title={typeof doc === 'string' ? doc : doc.name}>
+                                      {typeof doc === 'string' ? doc : doc.name}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 mb-3">Documento</span>
                                     
-                                    <button 
-                                        onClick={() => handleDownload(doc)}
-                                        className="flex items-center justify-center w-full text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 py-2 rounded transition-colors"
-                                    >
-                                        <Download className="w-3 h-3 mr-1.5" />
-                                        Baixar
-                                    </button>
+                                    <div className="flex gap-2 w-full">
+                                      <button 
+                                          onClick={() => {
+                                            const docObj = typeof doc === 'string' ? { name: doc, url: doc } : doc;
+                                            handleDownload(docObj.url, docObj.name);
+                                          }}
+                                          className="flex-1 flex items-center justify-center text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 py-2 rounded transition-colors"
+                                          title="Baixar documento"
+                                      >
+                                          <Download className="w-3 h-3" />
+                                      </button>
+                                      <button 
+                                          onClick={() => handleDeleteDocument(typeof doc === 'string' ? doc : doc.name)}
+                                          className="flex-1 flex items-center justify-center text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 py-2 rounded transition-colors"
+                                          title="Deletar documento"
+                                      >
+                                          <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
                                 </div>
                             ))}
                              {formData.documentos.length === 0 && (
                                 <p className="text-slate-500 text-sm col-span-full">Nenhum documento anexado ainda.</p>
                             )}
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* TAB: CHAT */}
-            {activeTab === 'chat' && (
-                <div className="space-y-6 animate-fade-in flex flex-col h-[600px]">
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
-                        <p className="text-sm text-blue-800">
-                            <strong>Área de Validação:</strong> Utilize este espaço para comunicação entre Vendedor e Administrativo sobre pendências de documentos ou dados faltantes.
-                        </p>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto space-y-4 p-4 bg-slate-50 rounded-lg border border-slate-200 custom-scrollbar">
-                        {formData.mensagens.length === 0 && (
-                            <p className="text-center text-slate-400 text-sm italic mt-10">Nenhuma mensagem registrada.</p>
-                        )}
-                        {formData.mensagens.map(msg => (
-                            <div key={msg.id} className={`flex flex-col ${msg.role === currentUser.role ? 'items-end' : 'items-start'}`}>
-                                <div className={`max-w-[80%] rounded-2xl p-4 ${
-                                    msg.role === 'ADMIN' ? 'bg-amber-100 text-amber-900 rounded-tl-none' : 'bg-blue-100 text-blue-900 rounded-tr-none'
-                                }`}>
-                                    <p className="text-xs font-bold mb-1 opacity-70">{msg.user_name} ({msg.role})</p>
-                                    <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                                </div>
-                                <span className="text-[10px] text-slate-400 mt-1 px-2">
-                                    {new Date(msg.created_at).toLocaleString()}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="flex items-center space-x-2 pt-2">
-                        <input 
-                            type="text" 
-                            value={newMessage}
-                            onChange={e => setNewMessage(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                            placeholder="Digite uma mensagem ou observação..."
-                            className="flex-1 bg-white border border-slate-300 rounded-full px-6 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button 
-                            onClick={handleSendMessage}
-                            className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full transition-colors shadow-lg"
-                            aria-label="Enviar mensagem"
-                        >
-                            <Send className="w-5 h-5" />
-                        </button>
                     </div>
                 </div>
             )}
