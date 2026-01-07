@@ -33,8 +33,6 @@ jobs:
         key: ${{ secrets.VPS_SSH_KEY }}
         timeout: 300s
         command_timeout: 600s
-        retry: 3
-        retry_delay: 10s
         script: |
           set -e
           cd /var/www/crm_sette
@@ -45,7 +43,7 @@ jobs:
           echo "=== DEPOIS DO PULL ==="
           git log -1 --oneline
           
-          npm ci --production
+          npm ci
           npm run build
           
           echo "=== VERIFICANDO ARQUIVOS ==="
