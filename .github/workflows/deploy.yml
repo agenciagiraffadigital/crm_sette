@@ -37,13 +37,17 @@ jobs:
           npm ci --production
           npm run build
           
-          # Executar migração se necessário (verificar se tabela users_profile existe)
-          echo "Verificando se precisa executar migração..."
+          # Copiar arquivos estáticos se necessário
+          cp -f public/* dist/ 2>/dev/null || true
+          
+          # Limpar cache do nginx
+          sudo rm -rf /var/cache/nginx/* 2>/dev/null || true
           
           # Reiniciar serviços
           pm2 restart crm-webhook || pm2 start server/index.cjs --name "crm-webhook"
           
-          # Recarregar nginx
+          # Forçar reload do nginx
           sudo systemctl reload nginx
+          sudo systemctl restart nginx
           
           echo "Deploy completed successfully!"
