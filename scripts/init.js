@@ -13,7 +13,7 @@ async function initDatabase() {
 
   // Limpar leads primeiro (por causa da foreign key)
   await supabase.from('leads').delete().neq('id', 0);
-  await supabase.from('users').delete().neq('id', 0);
+  await supabase.from('users_profile').delete().neq('id', 0);
 
   // Deletar auth users existentes
   const emails = ['admin@sette.com.br', 'joao@sette.com.br', 'maria@sette.com.br', 'pedro@sette.com.br', 'ana@sette.com.br'];
@@ -24,11 +24,11 @@ async function initDatabase() {
     }
   }
 
-  console.log('Inserindo usuários...');
+  console.log('Criando usuários...');
 
-  // Inserir usuários (criar auth users primeiro)
+  // Criar usuários usando apenas Supabase Auth
   const users = [
-    { email: 'admin@sette.com.br', password: '123', name: 'Admin', role: 'ADMIN' },
+    { email: 'admin@sette.com.br', password: '123', name: 'Admin Sette', role: 'ADMIN' },
     { email: 'joao@sette.com.br', password: '123', name: 'João Silva', role: 'SELLER' },
     { email: 'maria@sette.com.br', password: '123', name: 'Maria Santos', role: 'SELLER' },
     { email: 'pedro@sette.com.br', password: '123', name: 'Pedro Oliveira', role: 'SELLER' },
@@ -36,23 +36,37 @@ async function initDatabase() {
   ];
 
   for (const user of users) {
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: user.email,
-      password: user.password,
-      email_confirm: true,
-    });
-    if (authError) {
-      console.log(`Erro ao criar auth user ${user.email}:`, authError.message);
-      continue;
-    }
+    try {
+      // Criar usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: user.email,
+        password: user.password,
+        email_confirm: true,
+      });
+      
+      if (authError) {
+        console.log(`Erro ao criar auth user ${user.email}:`, authError.message);
+        continue;
+      }
 
-    const { error: insertError } = await supabase.from('users').insert({
-      auth_id: authData.user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
-    if (insertError) console.log(`Erro ao inserir user ${user.email}:`, insertError.message);
+      // Inserir na tabela users
+      const { error: insertError } = await supabase.from('users_profile').insert({
+        auth_id: authData.user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      });
+      
+      if (insertError) {
+        console.log(`Erro ao inserir user ${user.email}:`, insertError.message);
+        // Se falhar, deletar o usuário do auth
+        await supabase.auth.admin.deleteUser(authData.user.id);
+      } else {
+        console.log(`Usuário criado: ${user.email}`);
+      }
+    } catch (error) {
+      console.log(`Erro geral ao criar ${user.email}:`, error.message);
+    }
   }
 
   console.log('Inserindo leads...');
@@ -71,7 +85,7 @@ async function initDatabase() {
       nome: leadData.nome,
       email: leadData.email,
       telefone: leadData.telefone,
-      tipo_cliente: null, // Opcional
+      tipo_cliente: null,
       cpf_cnpj: '',
       rg_ie: '',
       data_nascimento_abertura: '',
@@ -89,14 +103,14 @@ async function initDatabase() {
       documentos: [],
       origem: 'Inicial',
       raw_json: null,
-      vendedor: '', // será preenchido
+      vendedor: '',
       vendedor_email: '',
       vendedor_id: leadData.vendedor_id,
       status_kanban: 'ENVIADA',
     };
 
     // Buscar nome do vendedor
-    const { data: seller } = await supabase.from('users').select('name, email').eq('id', leadData.vendedor_id).single();
+    const { data: seller } = await supabase.from('users_profile').select('name, email').eq('id', leadData.vendedor_id).single();
     if (seller) {
       lead.vendedor = seller.name;
       lead.vendedor_email = seller.email;
@@ -107,6 +121,8 @@ async function initDatabase() {
   }
 
   console.log('Inicialização concluída!');
+  console.log('Usuários criados:');
+  users.forEach(u => console.log(`- ${u.email} / ${u.password} (${u.role})`));
 }
 
 initDatabase().catch(console.error);

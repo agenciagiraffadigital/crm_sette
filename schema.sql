@@ -3,11 +3,10 @@
 -- ============================================
 CREATE TABLE users (
   id BIGSERIAL PRIMARY KEY,
-  auth_id UUID UNIQUE,
+  auth_id UUID UNIQUE NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('ADMIN', 'SELLER')),
-  password TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -112,13 +111,48 @@ FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
--- Inserir usuários padrão (1 ADMIN + 2 SELLERS)
+-- RLS (Row Level Security) Policies
 -- ============================================
-INSERT INTO users (name, email, role, password) VALUES
-  ('Admin Sette', 'admin@settesaude.com.br', 'ADMIN', '123'),
-  ('João Vendedor', 'joao@settesaude.com.br', 'SELLER', '123'),
-  ('Maria Vendedor', 'maria@settesaude.com.br', 'SELLER', '123')
-ON CONFLICT (email) DO NOTHING;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+
+-- Users podem ver apenas seu próprio registro
+CREATE POLICY "Users can view own profile" ON users
+  FOR SELECT USING (auth.uid() = auth_id);
+
+-- Admins podem ver todos os usuários
+CREATE POLICY "Admins can view all users" ON users
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM users 
+      WHERE auth_id = auth.uid() AND role = 'ADMIN'
+    )
+  );
+
+-- Vendedores podem ver apenas seus próprios leads
+CREATE POLICY "Sellers can view own leads" ON leads
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users 
+      WHERE auth_id = auth.uid() AND id = leads.vendedor_id
+    )
+  );
+
+-- Admins podem ver todos os leads
+CREATE POLICY "Admins can view all leads" ON leads
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM users 
+      WHERE auth_id = auth.uid() AND role = 'ADMIN'
+    )
+  );
+
+-- Service role pode fazer tudo (para webhooks)
+CREATE POLICY "Service role full access" ON leads
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Service role full access users" ON users
+  FOR ALL USING (auth.role() = 'service_role');
 
 -- ============================================
 -- Inserir alguns leads de exemplo

@@ -4,55 +4,33 @@
 
 1. Instale as dependências: `npm install`
 2. Configure o `.env.local` com as chaves do Supabase.
-3. Execute o SQL abaixo no painel do Supabase para criar tabelas organizadas.
-
-## SQL para Supabase
-
-```sql
--- Criar tabelas organizadas
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  auth_id UUID REFERENCES auth.users(id),
-  name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('ADMIN', 'SELLER'))
-);
-
-CREATE TABLE leads (
-  id SERIAL PRIMARY KEY,
-  nome TEXT NOT NULL,
-  email TEXT NOT NULL,
-  telefone TEXT NOT NULL,
-  tipo_cliente TEXT CHECK (tipo_cliente IN ('PF', 'PJ', 'ADESAO')),
-  cpf_cnpj TEXT,
-  rg_ie TEXT,
-  data_nascimento_abertura TEXT,
-  dados_responsavel JSONB,
-  havera_remissao BOOLEAN,
-  operadora TEXT,
-  produto TEXT,
-  valor_produto NUMERIC,
-  reducao_carencia BOOLEAN,
-  coparticipacao TEXT,
-  vigencia TEXT,
-  endereco JSONB,
-  beneficiarios JSONB,
-  mensagens JSONB,
-  documentos JSONB,
-  origem TEXT,
-  raw_json JSONB,
-  vendedor TEXT,
-  vendedor_email TEXT,
-  vendedor_id INTEGER REFERENCES users(id),
-  status_kanban TEXT CHECK (status_kanban IN ('ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
+3. Execute o SQL de migração no painel do Supabase: `migration.sql`
 4. Execute o script de inicialização: `node scripts/init.js`
 
-Isso criará 5 usuários (com senhas '123') e 6 leads iniciais.
+## Migração para Supabase Auth
+
+O sistema agora usa autenticação nativa do Supabase:
+
+### Passos da Migração
+1. **Execute migration.sql** no painel SQL do Supabase
+2. **Execute init.js** para criar usuários de teste
+3. **Teste o login** com os usuários criados
+
+### Usuários Criados
+- admin@sette.com.br / 123 (ADMIN)
+- joao@sette.com.br / 123 (SELLER)
+- maria@sette.com.br / 123 (SELLER)
+- pedro@sette.com.br / 123 (SELLER)
+- ana@sette.com.br / 123 (SELLER)
+
+### Funcionalidades
+- ✅ Login/logout seguro via Supabase Auth
+- ✅ Senhas hasheadas automaticamente
+- ✅ Sessões JWT gerenciadas automaticamente
+- ✅ RLS (Row Level Security) implementado
+- ✅ Vendedores veem apenas seus leads
+- ✅ Admins têm acesso total
+- ✅ Reset de senha via interface admin
 
 ## Testando o Projeto
 

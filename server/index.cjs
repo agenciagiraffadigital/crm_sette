@@ -38,7 +38,7 @@ app.use((req, res, next) => {
 
 async function pickSeller() {
   const { data: sellers } = await supabase
-    .from('users')
+    .from('users_profile')
     .select('id,name,email,role')
     .eq('role', 'SELLER')
     .order('id')

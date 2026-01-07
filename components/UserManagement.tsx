@@ -42,8 +42,6 @@ export const UserManagement: React.FC = () => {
       if (currentUserData.id) {
         // Edit
         const { id, ...data } = currentUserData;
-        // If password is empty, don't update it
-        if (!data.password) delete data.password;
         await authService.updateUser(id, data);
       } else {
         // Create
@@ -52,7 +50,7 @@ export const UserManagement: React.FC = () => {
             setLoading(false);
             return;
         }
-        await authService.createUser(currentUserData as User);
+        await authService.createUser(currentUserData as Omit<User, 'id'>, currentUserData.password);
       }
       setIsEditing(false);
       loadUsers();
@@ -60,6 +58,18 @@ export const UserManagement: React.FC = () => {
       alert(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (userId: number) => {
+    const newPassword = prompt('Digite a nova senha:');
+    if (!newPassword) return;
+    
+    try {
+      await authService.resetUserPassword(userId, newPassword);
+      alert('Senha alterada com sucesso!');
+    } catch (error: any) {
+      alert('Erro ao alterar senha: ' + error.message);
     }
   };
 
@@ -125,16 +135,21 @@ export const UserManagement: React.FC = () => {
                 <div className="flex items-center mb-2">
                     <Key className="w-4 h-4 text-slate-400 mr-2" />
                     <label className="text-xs font-bold text-slate-500 uppercase">
-                        {currentUserData.id ? 'Alterar Senha (Opcional)' : 'Definir Senha'}
+                        {currentUserData.id ? 'Nova Senha (Opcional)' : 'Definir Senha'}
                     </label>
                 </div>
                 <input 
                     type="password"
-                    placeholder={currentUserData.id ? "Deixe em branco para manter a atual" : "Digite a senha"}
+                    placeholder={currentUserData.id ? "Deixe em branco para não alterar" : "Digite a senha"}
                     value={currentUserData.password || ''}
                     onChange={e => setCurrentUserData({...currentUserData, password: e.target.value})}
                     className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
+                {currentUserData.id && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Para alterar senha, use o botão "Resetar Senha" na lista de usuários
+                  </p>
+                )}
             </div>
 
             <div className="flex justify-end pt-4 space-x-3">
@@ -189,6 +204,13 @@ export const UserManagement: React.FC = () => {
                                     title="Editar"
                                 >
                                     <Edit className="w-4 h-4" />
+                                </button>
+                                <button 
+                                    onClick={() => handleResetPassword(user.id)}
+                                    className="p-2 text-slate-400 hover:text-yellow-600 hover:bg-yellow-50 rounded transition-colors"
+                                    title="Resetar Senha"
+                                >
+                                    <Key className="w-4 h-4" />
                                 </button>
                                 <button 
                                     onClick={() => handleDelete(user.id)}

@@ -18,13 +18,36 @@ function App() {
   const [initializing, setInitializing] = useState(true);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
 
-  // Check for existing session
+  // Check for existing session and setup auth listener
   useEffect(() => {
-    const storedUser = authService.getCurrentUser();
-    if (storedUser) {
-      setUser(storedUser);
-    }
-    setInitializing(false);
+    let mounted = true;
+
+    const initAuth = async () => {
+      try {
+        setInitializing(false);
+      } catch (error) {
+        if (mounted) {
+          setInitializing(false);
+        }
+      }
+    };
+
+    initAuth();
+
+    // Setup auth state listener
+    const { data: { subscription } } = authService.onAuthStateChange((user) => {
+      if (mounted) {
+        setUser(user);
+        if (!user) {
+          setSelectedLeadId(null);
+        }
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   // Fetch leads when user changes or is set
@@ -50,8 +73,12 @@ function App() {
     setActiveTab('kanban');
   };
 
-  const handleLogout = () => {
-    authService.logout();
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     setUser(null);
     setSelectedLeadId(null);
   };
@@ -87,7 +114,11 @@ function App() {
   }, []);
 
   if (initializing) {
-    return <div className="h-screen w-full bg-slate-100" />;
+    return (
+      <div className="h-screen w-full bg-slate-100 flex items-center justify-center">
+        <div className="text-slate-600">Carregando...</div>
+      </div>
+    );
   }
 
   if (!user) {
