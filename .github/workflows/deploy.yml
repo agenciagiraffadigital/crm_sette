@@ -36,6 +36,14 @@ jobs:
           git pull origin master
           npm ci --production
           npm run build
+          
+          # Executar migração se necessário (verificar se tabela users_profile existe)
+          echo "Verificando se precisa executar migração..."
+          
+          # Reiniciar serviços
           pm2 restart crm-webhook || pm2 start server/index.cjs --name "crm-webhook"
+          
+          # Recarregar nginx
           sudo systemctl reload nginx
+          
           echo "Deploy completed successfully!"
