@@ -31,23 +31,28 @@ jobs:
         host: ${{ secrets.VPS_HOST }}
         username: ${{ secrets.VPS_USER }}
         key: ${{ secrets.VPS_SSH_KEY }}
+        timeout: 300s
+        command_timeout: 600s
+        retry: 3
+        retry_delay: 10s
         script: |
+          set -e
           cd /var/www/crm_sette
+          echo "=== ANTES DO PULL ==="
+          git log -1 --oneline
+          
           git pull origin master
+          echo "=== DEPOIS DO PULL ==="
+          git log -1 --oneline
+          
           npm ci --production
           npm run build
           
-          # Copiar arquivos estáticos se necessário
-          cp -f public/* dist/ 2>/dev/null || true
+          echo "=== VERIFICANDO ARQUIVOS ==="
+          ls -la dist/
+          ls -la dist/favicon.png || echo "Favicon não encontrado"
           
-          # Limpar cache do nginx
-          sudo rm -rf /var/cache/nginx/* 2>/dev/null || true
-          
-          # Reiniciar serviços
-          pm2 restart crm-webhook || pm2 start server/index.cjs --name "crm-webhook"
-          
-          # Forçar reload do nginx
+          pm2 restart crm-webhook
           sudo systemctl reload nginx
-          sudo systemctl restart nginx
           
-          echo "Deploy completed successfully!"
+          echo "=== DEPLOY COMPLETED ==="
