@@ -38,9 +38,10 @@ app.use((req, res, next) => {
 
 async function pickSeller() {
   const { data: sellers } = await supabase
-    .from('users')
+    .from('users_profile')
     .select('id,name,email,role')
     .eq('role', 'SELLER')
+    .eq('active_for_distribution', true);
     .eq('active_for_distribution', true)
     .order('id')
   if (!sellers?.length) return null
@@ -116,7 +117,7 @@ app.post('/webhook/make', async (req, res) => {
 
     // Update seller's assignment tracking
     await supabase
-      .from('users')
+      .from('users_profile')
       .update({ 
         last_lead_assigned_at: new Date().toISOString(),
         total_leads_assigned: supabase.raw('total_leads_assigned + 1')

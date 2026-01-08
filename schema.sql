@@ -124,7 +124,7 @@ CREATE POLICY "Users can view own profile" ON users
 CREATE POLICY "Admins can view all users" ON users
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM users 
+      SELECT 1 FROM users_profile 
       WHERE auth_id = auth.uid() AND role = 'ADMIN'
     )
   );
@@ -133,7 +133,7 @@ CREATE POLICY "Admins can view all users" ON users
 CREATE POLICY "Sellers can view own leads" ON leads
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM users 
+      SELECT 1 FROM users_profile 
       WHERE auth_id = auth.uid() AND id = leads.vendedor_id
     )
   );
@@ -142,7 +142,7 @@ CREATE POLICY "Sellers can view own leads" ON leads
 CREATE POLICY "Admins can view all leads" ON leads
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM users 
+      SELECT 1 FROM users_profile 
       WHERE auth_id = auth.uid() AND role = 'ADMIN'
     )
   );

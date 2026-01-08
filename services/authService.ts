@@ -13,9 +13,9 @@ export const authService = {
     if (error) throw new Error(error.message);
     if (!data.user) throw new Error('Usuário não encontrado');
 
-    // Buscar dados do usuário na tabela users APENAS no login
+    // Buscar dados do usuário na tabela users_profile APENAS no login
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('users_profile')
       .select('*')
       .eq('auth_id', data.user.id)
       .single();
@@ -48,7 +48,7 @@ export const authService = {
       if (!session?.user) return null;
 
       const { data: userData, error } = await supabase
-        .from('users')
+        .from('users_profile')
         .select('*')
         .eq('auth_id', session.user.id)
         .single();
@@ -85,7 +85,7 @@ export const authService = {
 
   // Admin Only: Get all users
   getAllUsers: async (): Promise<User[]> => {
-    const { data, error } = await supabase.from('users').select('*');
+    const { data, error } = await supabase.from('users_profile').select('*');
     if (error) throw error;
     return data.map(u => ({
       id: u.id,
@@ -125,8 +125,8 @@ export const authService = {
         throw new Error('Falha ao criar usuário na autenticação');
       }
 
-      // Inserir na tabela users
-      const { data, error } = await supabase.from('users').insert({
+      // Inserir na tabela users_profile
+      const { data, error } = await supabase.from('users_profile').insert({
         auth_id: authData.user.id,
         name: user.name,
         email: user.email,
@@ -161,7 +161,7 @@ export const authService = {
     if (data.active_for_distribution !== undefined) updateData.active_for_distribution = data.active_for_distribution;
 
     const { data: updated, error } = await supabase
-      .from('users')
+      .from('users_profile')
       .update(updateData)
       .eq('id', id)
       .select()
@@ -193,7 +193,7 @@ export const authService = {
   // Admin Only: Reset user password
   resetUserPassword: async (userId: number, newPassword: string): Promise<void> => {
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('users_profile')
       .select('auth_id')
       .eq('id', userId)
       .single();
@@ -210,7 +210,7 @@ export const authService = {
   // Admin Only: Delete user
   deleteUser: async (id: number): Promise<void> => {
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('users_profile')
       .select('auth_id')
       .eq('id', id)
       .single();
@@ -225,7 +225,7 @@ export const authService = {
   // Helper for Round Robin logic - only active sellers
   getActiveSellers: async (): Promise<User[]> => {
     const { data, error } = await supabase
-      .from('users')
+      .from('users_profile')
       .select('*')
       .eq('role', 'SELLER')
       .eq('active_for_distribution', true);
@@ -247,7 +247,7 @@ export const authService = {
   // Update user login timestamp
   updateLastLogin: async (userId: number): Promise<void> => {
     const { error } = await supabase
-      .from('users')
+      .from('users_profile')
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', userId);
     
@@ -257,7 +257,7 @@ export const authService = {
   // Update lead assignment tracking
   updateLeadAssignmentTracking: async (userId: number): Promise<void> => {
     const { error } = await supabase
-      .from('users')
+      .from('users_profile')
       .update({ 
         last_lead_assigned_at: new Date().toISOString(),
         total_leads_assigned: supabase.raw('total_leads_assigned + 1')
@@ -274,7 +274,7 @@ export const authService = {
     }
 
     const { data, error } = await supabase
-      .from('users')
+      .from('users_profile')
       .update({ active_for_distribution: active })
       .eq('id', userId)
       .select()

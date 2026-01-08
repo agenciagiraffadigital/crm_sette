@@ -368,7 +368,7 @@ export const opportunityService = {
     
     // Get new seller info
     const { data: newSeller, error: sellerError } = await supabase
-      .from('users')
+      .from('users_profile')
       .select('id, name, email')
       .eq('id', newSellerId)
       .single();

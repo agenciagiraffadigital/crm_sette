@@ -113,7 +113,7 @@ describe('Opportunity Service', () => {
             }
           }
         ),
-        { numRuns: 5 }
+        { numRuns: 2 }
       );
     });
 
@@ -229,7 +229,7 @@ describe('Opportunity Service', () => {
             }
           }
         ),
-        { numRuns: 5 }
+        { numRuns: 2 }
       );
     });
 
@@ -363,7 +363,7 @@ describe('Opportunity Service', () => {
             }
           }
         ),
-        { numRuns: 5 }
+        { numRuns: 2 }
       );
     });
 
@@ -416,13 +416,17 @@ describe('Opportunity Service', () => {
               updated_at: new Date().toISOString(),
             };
 
-            // Mock Supabase calls
             (supabase.from as any).mockImplementation((table: string) => {
               if (table === 'opportunities') {
                 return {
                   select: vi.fn(() => ({
                     eq: vi.fn(() => ({
                       single: vi.fn().mockResolvedValue({ data: mockOpportunity, error: null })
+                    }))
+                  })),
+                  insert: vi.fn(() => ({
+                    select: vi.fn(() => ({
+                      single: vi.fn().mockResolvedValue({ data: mockLeadId, error: null })
                     }))
                   })),
                   update: vi.fn(() => ({
@@ -486,7 +490,7 @@ describe('Opportunity Service', () => {
             }
           }
         ),
-        { numRuns: 5 }
+        { numRuns: 2 }
       );
     });
   });

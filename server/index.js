@@ -18,9 +18,10 @@ app.use(express.json({ limit: '1mb' }))
 
 async function pickSeller() {
   const { data: sellers } = await supabase
-    .from('users')
+    .from('users_profile')
     .select('id,name,email,role')
     .eq('role', 'SELLER')
+    .eq('active_for_distribution', true);
     .order('id')
   if (!sellers?.length) return null
 

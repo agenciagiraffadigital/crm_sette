@@ -41,26 +41,26 @@ Este plano implementa a refatoração completa do CRM criando uma **arquitetura 
   - **Property 5: Loss Tracking Completeness**
   - **Validates: Requirements 2.1, 2.7, 2.8**
 
-- [ ] 3. Desenvolver sistema de oportunidades com kanban
+- [x] 3. Desenvolver sistema de oportunidades com kanban
   - Implementar OpportunitiesBoard component
   - Criar OpportunityCard component com drag-and-drop
   - Implementar lógica de transição de status (OPORTUNIDADES → EM_CONTATO → NEGOCIAÇÃO)
   - Adicionar validação de valor obrigatório para avançar para NEGOCIAÇÃO
   - _Requirements: 2.2, 2.3, 2.5_
 
-- [ ] 3.1 Write property tests for opportunity status transitions
+- [x] 3.1 Write property tests for opportunity status transitions
   - **Property 2: Opportunity Status Transitions**
   - **Property 3: Value Validation and Storage**
   - **Validates: Requirements 2.2, 2.3, 2.4, 2.5**
 
-- [ ] 4. Implementar conversão de oportunidades para propostas
+- [x] 4. Implementar conversão de oportunidades para propostas
   - Criar função de conversão de opportunity para lead
   - Implementar transferência de dados entre sistemas
   - Adicionar rastreamento de conversão com timestamps
   - Criar interface para aceitar/rejeitar oportunidades
   - _Requirements: 2.6_
 
-- [ ] 4.1 Write property tests for opportunity conversion
+- [x] 4.1 Write property tests for opportunity conversion
   - **Property 4: Opportunity to Proposal Conversion**
   - **Validates: Requirements 2.6**
 
