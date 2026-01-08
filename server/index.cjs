@@ -38,14 +38,16 @@ app.use((req, res, next) => {
 
 async function pickSeller() {
   const { data: sellers } = await supabase
-    .from('users_profile')
+    .from('users')
     .select('id,name,email,role')
     .eq('role', 'SELLER')
+    .eq('active_for_distribution', true)
     .order('id')
   if (!sellers?.length) return null
 
+  // Get opportunity counts for round-robin distribution
   const { data: counts } = await supabase
-    .from('leads')
+    .from('opportunities')
     .select('vendedor_id, count:id', { count: 'exact', head: false })
     .not('vendedor_id', 'is', null)
 
@@ -89,52 +91,64 @@ app.post('/webhook/make', async (req, res) => {
     }
 
     const seller = await pickSeller()
+    if (!seller) {
+      console.log('Erro: nenhum vendedor ativo disponível')
+      return res.status(500).json({ ok: false, error: 'Nenhum vendedor ativo disponível para distribuição' })
+    }
 
-    const { error: insertError } = await supabase.from('leads').insert({
+    // Create opportunity instead of lead
+    const { data: opportunity, error: insertError } = await supabase.from('opportunities').insert({
       nome,
       email,
       telefone,
       origem: 'MAKE',
-      operadora,
-      status_kanban: 'ENVIADA',
-      vendedor: seller?.name ?? null,
-      vendedor_email: seller?.email ?? null,
-      vendedor_id: seller?.id ?? null,
-      tipo_cliente: 'PF',
-      cpf_cnpj: '',
-      data_nascimento_abertura: null,
-      rg_ie: '',
-      endereco: {
-        cep: '',
-        logradouro: '',
-        numero: '',
-        bairro: '',
-        cidade: '',
-        uf: ''
-      },
-      produto: '',
-      valor_produto: null,
-      coparticipacao: 'PARCIAL',
-      reducao_carencia: false,
-      havera_remissao: false,
-      vigencia: null,
-      beneficiarios: [],
-      documentos: [],
-      mensagens: [],
-      dados_responsavel: {
-        nome: '',
-        cpf: '',
-        endereco: '',
-        data_nascimento: ''
-      },
+      status: 'OPORTUNIDADES',
+      vendedor: seller.name,
+      vendedor_email: seller.email,
+      vendedor_id: seller.id,
       raw_json: req.body,
-    })
+    }).select().single()
+
     if (insertError) {
-      console.error('Erro ao inserir:', insertError)
+      console.error('Erro ao inserir oportunidade:', insertError)
       return res.status(500).json({ ok: false, error: insertError.message })
     }
-    console.log(`Lead criado: ${nome} -> vendedor ${seller?.name}`)
-    return res.json({ ok: true, lead: { nome, email, telefone, vendedor: seller?.name ?? null } })
+
+    // Update seller's assignment tracking
+    await supabase
+      .from('users')
+      .update({ 
+        last_lead_assigned_at: new Date().toISOString(),
+        total_leads_assigned: supabase.raw('total_leads_assigned + 1')
+      })
+      .eq('id', seller.id)
+
+    // Log the activity
+    await supabase.from('activity_logs').insert({
+      opportunity_id: opportunity.id,
+      type: 'STATUS_CHANGE',
+      description: `Oportunidade criada via webhook MAKE e atribuída a ${seller.name}`,
+      user_id: seller.id,
+      user_name: seller.name,
+      metadata: { 
+        origem: 'MAKE',
+        operadora,
+        webhook_data: req.body
+      }
+    })
+
+    console.log(`Oportunidade criada: ${nome} -> vendedor ${seller.name}`)
+    return res.json({ 
+      ok: true, 
+      opportunity: { 
+        id: opportunity.id,
+        nome, 
+        email, 
+        telefone, 
+        vendedor: seller.name,
+        status: 'OPORTUNIDADES'
+      } 
+    })
   } catch (err) {
     console.error('Erro no webhook:', err)
     return res.status(500).json({ ok: false, error: err.message })

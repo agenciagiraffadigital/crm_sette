@@ -13,7 +13,7 @@ async function initDatabase() {
 
   // Limpar leads primeiro (por causa da foreign key)
   await supabase.from('leads').delete().neq('id', 0);
-  await supabase.from('users_profile').delete().neq('id', 0);
+  await supabase.from('users').delete().neq('id', 0);
 
   // Deletar auth users existentes
   const emails = ['admin@sette.com.br', 'joao@sette.com.br', 'maria@sette.com.br', 'pedro@sette.com.br', 'ana@sette.com.br'];
@@ -50,11 +50,13 @@ async function initDatabase() {
       }
 
       // Inserir na tabela users
-      const { error: insertError } = await supabase.from('users_profile').insert({
+      const { error: insertError } = await supabase.from('users').insert({
         auth_id: authData.user.id,
         name: user.name,
         email: user.email,
         role: user.role,
+        active_for_distribution: user.role === 'SELLER',
+        total_leads_assigned: 0,
       });
       
       if (insertError) {
@@ -110,7 +112,7 @@ async function initDatabase() {
     };
 
     // Buscar nome do vendedor
-    const { data: seller } = await supabase.from('users_profile').select('name, email').eq('id', leadData.vendedor_id).single();
+    const { data: seller } = await supabase.from('users').select('name, email').eq('id', leadData.vendedor_id).single();
     if (seller) {
       lead.vendedor = seller.name;
       lead.vendedor_email = seller.email;
