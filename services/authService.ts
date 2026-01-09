@@ -224,13 +224,21 @@ export const authService = {
 
   // Helper for Round Robin logic - only active sellers
   getActiveSellers: async (): Promise<User[]> => {
+    console.log('🔍 Buscando vendedores ativos na tabela users_profile...');
     const { data, error } = await supabase
       .from('users_profile')
       .select('*')
       .eq('role', 'SELLER')
       .eq('active_for_distribution', true);
-    if (error) throw error;
-    return data.map(u => ({
+    
+    if (error) {
+      console.error('❌ Erro ao buscar vendedores:', error);
+      throw error;
+    }
+    
+    console.log('✅ Dados brutos do Supabase:', data);
+    
+    const mappedUsers = data.map(u => ({
       id: u.id,
       name: u.name,
       email: u.email,
@@ -242,6 +250,9 @@ export const authService = {
       created_at: u.created_at,
       updated_at: u.updated_at,
     }));
+    
+    console.log('✅ Vendedores mapeados:', mappedUsers);
+    return mappedUsers;
   },
 
   // Update user login timestamp
@@ -256,11 +267,20 @@ export const authService = {
 
   // Update lead assignment tracking
   updateLeadAssignmentTracking: async (userId: number): Promise<void> => {
+    // First get current count
+    const { data: currentUser } = await supabase
+      .from('users_profile')
+      .select('total_leads_assigned')
+      .eq('id', userId)
+      .single();
+    
+    const newCount = (currentUser?.total_leads_assigned || 0) + 1;
+    
     const { error } = await supabase
       .from('users_profile')
       .update({ 
         last_lead_assigned_at: new Date().toISOString(),
-        total_leads_assigned: supabase.raw('total_leads_assigned + 1')
+        total_leads_assigned: newCount
       })
       .eq('id', userId);
     

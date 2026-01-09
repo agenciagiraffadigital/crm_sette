@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Opportunity, OpportunityStatus, User, LossReason } from '../types';
 import { OpportunityCard } from './OpportunityCard';
+import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
+import { OPPORTUNITY_COLUMNS } from '../constants';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { Select } from '../src/components/ui/Select';
@@ -164,6 +166,18 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   currentUser
 }) => {
   const { showToast } = useToast();
+  const [searchFilters, setSearchFilters] = useState<FilterState>({
+    searchTerm: '',
+    sellers: [],
+    operators: [],
+    dateRange: {},
+    status: [],
+    source: [],
+    valueRange: {}
+  });
+  
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  
   const [valueModalState, setValueModalState] = useState<{
     isOpen: boolean;
     opportunityId: number | null;
@@ -184,45 +198,64 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     opportunityName: ''
   });
 
-  // Filter opportunities based on current filters
+  // Extract filter options from opportunities
+  const { sellers, sourceOptions, statusOptions } = useMemo(() => {
+    const allSellers = new Set<string>();
+    const allSources = new Set<string>();
+    
+    opportunities.forEach(opportunity => {
+      if (opportunity.vendedor) allSellers.add(opportunity.vendedor);
+      if (opportunity.origem) allSources.add(opportunity.origem);
+    });
+
+    return {
+      sellers: Array.from(allSellers),
+      sourceOptions: Array.from(allSources),
+      statusOptions: OPPORTUNITY_COLUMNS.map(col => col.id)
+    };
+  }, [opportunities]);
+
+  // Filter opportunities based on search filters
   const filteredOpportunities = useMemo(() => {
     return opportunities.filter(opportunity => {
-      // Search filter
-      if (filters.search) {
-        const searchTerm = filters.search.toLowerCase();
-        const matchesSearch = 
-          opportunity.nome.toLowerCase().includes(searchTerm) ||
-          opportunity.email.toLowerCase().includes(searchTerm) ||
-          opportunity.telefone.includes(searchTerm) ||
-          opportunity.id.toString().includes(searchTerm);
-        
-        if (!matchesSearch) return false;
+      // Only show active opportunities (not lost or converted)
+      if (opportunity.lost_at || opportunity.converted_to_proposal_at) {
+        return false;
       }
 
+      // Search term filter
+      const matchesSearch = !searchFilters.searchTerm || 
+        opportunity.nome.toLowerCase().includes(searchFilters.searchTerm.toLowerCase()) || 
+        opportunity.email.toLowerCase().includes(searchFilters.searchTerm.toLowerCase()) ||
+        opportunity.telefone.includes(searchFilters.searchTerm) ||
+        opportunity.id.toString().includes(searchFilters.searchTerm);
+      
       // Seller filter
-      if (filters.seller && opportunity.vendedor !== filters.seller) {
-        return false;
-      }
-
-      // Origin filter
-      if (filters.origem && opportunity.origem !== filters.origem) {
-        return false;
-      }
-
+      const matchesSeller = currentUser.role === 'ADMIN'
+        ? (searchFilters.sellers.length === 0 || searchFilters.sellers.includes(opportunity.vendedor))
+        : true;
+      
+      // Status filter
+      const matchesStatus = searchFilters.status.length === 0 || searchFilters.status.includes(opportunity.status);
+      
+      // Source filter
+      const matchesSource = searchFilters.source.length === 0 || searchFilters.source.includes(opportunity.origem);
+      
       // Date range filter
-      if (filters.dateRange) {
+      const matchesDateRange = (() => {
+        if (!searchFilters.dateRange.start && !searchFilters.dateRange.end) return true;
         const opportunityDate = new Date(opportunity.created_at);
-        const startDate = new Date(filters.dateRange.start);
-        const endDate = new Date(filters.dateRange.end);
+        const startDate = searchFilters.dateRange.start ? new Date(searchFilters.dateRange.start) : null;
+        const endDate = searchFilters.dateRange.end ? new Date(searchFilters.dateRange.end) : null;
         
-        if (opportunityDate < startDate || opportunityDate > endDate) {
-          return false;
-        }
-      }
-
-      return true;
+        if (startDate && opportunityDate < startDate) return false;
+        if (endDate && opportunityDate > endDate) return false;
+        return true;
+      })();
+        
+      return matchesSearch && matchesSeller && matchesStatus && matchesSource && matchesDateRange;
     });
-  }, [opportunities, filters]);
+  }, [opportunities, searchFilters, currentUser.role]);
 
   // Group opportunities by status
   const opportunitiesByStatus = useMemo(() => {
@@ -233,13 +266,33 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     };
 
     filteredOpportunities.forEach(opportunity => {
-      if (!opportunity.lost_at && !opportunity.converted_to_proposal_at) {
-        groups[opportunity.status].push(opportunity);
-      }
+      groups[opportunity.status].push(opportunity);
     });
 
     return groups;
   }, [filteredOpportunities]);
+
+  const handleFiltersChange = useCallback((newFilters: FilterState) => {
+    setSearchFilters(newFilters);
+  }, []);
+
+  const handleSaveFilter = useCallback((name: string, filterState: FilterState) => {
+    const newFilter: SavedFilter = {
+      id: Date.now().toString(),
+      name,
+      filters: filterState,
+      createdAt: new Date().toISOString()
+    };
+    setSavedFilters(prev => [...prev, newFilter]);
+  }, []);
+
+  const handleLoadFilter = useCallback((savedFilter: SavedFilter) => {
+    setSearchFilters(savedFilter.filters);
+  }, []);
+
+  const handleDeleteFilter = useCallback((filterId: string) => {
+    setSavedFilters(prev => prev.filter(f => f.id !== filterId));
+  }, []);
 
   const handleMoveOpportunity = async (opportunityId: number, targetStatus: OpportunityStatus) => {
     const opportunity = opportunities.find(o => o.id === opportunityId);
@@ -345,83 +398,87 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     }
   };
 
-  const statusColumns: { status: OpportunityStatus; title: string; color: string }[] = [
-    { status: 'OPORTUNIDADES', title: 'OPORTUNIDADES', color: 'bg-blue-50 border-blue-200' },
-    { status: 'EM_CONTATO', title: 'EM CONTATO', color: 'bg-yellow-50 border-yellow-200' },
-    { status: 'NEGOCIAÇÃO', title: 'NEGOCIAÇÃO', color: 'bg-green-50 border-green-200' }
-  ];
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStatus: OpportunityStatus) => {
+    e.preventDefault();
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const { opportunityId, currentStatus } = data;
+      
+      if (currentStatus !== targetStatus) {
+        handleMoveOpportunity(opportunityId, targetStatus);
+      }
+    } catch (error) {
+      console.error('Error handling drop:', error);
+    }
+  };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Filters */}
-      <Card variant="outlined" padding="md" className="mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Input
-            placeholder="Buscar por nome, email, telefone ou ID..."
-            value={filters.search || ''}
-            onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-          />
-          <Select
-            placeholder="Filtrar por vendedor"
-            value={filters.seller || ''}
-            onChange={(e) => onFiltersChange({ ...filters, seller: e.target.value })}
-            options={[
-              { value: '', label: 'Todos os vendedores' },
-              ...Array.from(new Set(opportunities.map(o => o.vendedor)))
-                .map(seller => ({ value: seller, label: seller }))
-            ]}
-          />
-          <Select
-            placeholder="Filtrar por origem"
-            value={filters.origem || ''}
-            onChange={(e) => onFiltersChange({ ...filters, origem: e.target.value })}
-            options={[
-              { value: '', label: 'Todas as origens' },
-              ...Array.from(new Set(opportunities.map(o => o.origem)))
-                .map(origem => ({ value: origem, label: origem }))
-            ]}
-          />
-          <Button
-            variant="outline"
-            onClick={() => onFiltersChange({})}
-          >
-            Limpar Filtros
-          </Button>
-        </div>
-      </Card>
+    <div className="h-full flex flex-col space-y-4">
+      {/* Header with Search and Filters */}
+      <SearchAndFilters
+        title={currentUser.role === 'ADMIN' ? 'Quadro Geral de Oportunidades' : 'Minhas Oportunidades'}
+        filters={searchFilters}
+        onFiltersChange={handleFiltersChange}
+        sellers={sellers}
+        operators={[]} // Opportunities don't have operators
+        statusOptions={statusOptions}
+        sourceOptions={sourceOptions}
+        showSellerFilter={currentUser.role === 'ADMIN'}
+        savedFilters={savedFilters}
+        onSaveFilter={handleSaveFilter}
+        onLoadFilter={handleLoadFilter}
+        onDeleteFilter={handleDeleteFilter}
+      />
 
-      {/* Kanban Board */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
-        {statusColumns.map(({ status, title, color }) => (
-          <div key={status} className="flex flex-col min-h-0">
-            <div className={`p-3 rounded-t-lg border-b-2 ${color}`}>
-              <h3 className="font-semibold text-gray-800">
-                {title} ({opportunitiesByStatus[status].length})
-              </h3>
-            </div>
-            <div className="flex-1 p-2 bg-gray-50 rounded-b-lg overflow-y-auto">
-              <div className="space-y-2">
-                {opportunitiesByStatus[status].map(opportunity => (
-                  <OpportunityCard
-                    key={opportunity.id}
-                    opportunity={opportunity}
-                    onMove={handleMoveOpportunity}
-                    onClick={() => onOpenOpportunity(opportunity)}
-                    onMarkAsLost={() => handleMarkAsLost(opportunity.id)}
-                    onConvertToProposal={() => handleConvertToProposal(opportunity.id)}
-                    currentUser={currentUser}
-                    data-testid={`opportunity-card-${opportunity.id}`}
-                  />
-                ))}
-                {opportunitiesByStatus[status].length === 0 && (
-                  <div className="text-center text-gray-500 py-8">
-                    Nenhuma oportunidade em {title.toLowerCase()}
-                  </div>
-                )}
+      {/* Board Columns */}
+      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <div className="flex h-full gap-4 min-w-[1200px] pb-4">
+          {OPPORTUNITY_COLUMNS.map((column) => {
+            const columnOpportunities = opportunitiesByStatus[column.id as OpportunityStatus];
+            return (
+              <div 
+                key={column.id} 
+                className="flex-1 flex flex-col min-w-[280px] bg-slate-50 rounded-xl border border-slate-200"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, column.id as OpportunityStatus)}
+              >
+                {/* Column Header */}
+                <div className={`p-3 border-b border-slate-200 rounded-t-xl flex justify-between items-center ${column.color.split(' ')[0]}`}>
+                  <h3 className={`font-semibold text-sm ${column.color.split(' ')[1]}`}>{column.label}</h3>
+                  <span className={`text-xs font-bold px-2 py-0.5 bg-white bg-opacity-50 rounded-full ${column.color.split(' ')[1]}`}>
+                    {columnOpportunities.length}
+                  </span>
+                </div>
+                
+                {/* Column Body */}
+                <div className="p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                  {columnOpportunities.map(opportunity => (
+                    <OpportunityCard
+                      key={opportunity.id}
+                      opportunity={opportunity}
+                      onMove={handleMoveOpportunity}
+                      onClick={() => onOpenOpportunity(opportunity)}
+                      onMarkAsLost={() => handleMarkAsLost(opportunity.id)}
+                      onConvertToProposal={() => handleConvertToProposal(opportunity.id)}
+                      currentUser={currentUser}
+                      data-testid={`opportunity-card-${opportunity.id}`}
+                    />
+                  ))}
+                  {columnOpportunities.length === 0 && (
+                    <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg m-2">
+                      <p className="text-xs text-slate-400">Nenhuma oportunidade</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
 
       {/* Modals */}

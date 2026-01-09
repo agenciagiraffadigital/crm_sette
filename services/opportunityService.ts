@@ -517,4 +517,20 @@ export const opportunityService = {
       created_at: history.created_at,
     }));
   },
+
+  // Get opportunities by user (seller)
+  getOpportunitiesByUser: async (userId: number): Promise<Opportunity[]> => {
+    const { data, error } = await supabase
+      .from('opportunities')
+      .select('*')
+      .eq('vendedor_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user opportunities:', error);
+      return [];
+    }
+
+    return data || [];
+  },
 };

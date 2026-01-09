@@ -1,13 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { User, Role } from '../types';
+import { User, Role, Lead, Opportunity, ActivityLog, AssignmentHistory } from '../types';
 import { authService } from '../services/authService';
-import { Plus, Edit, Trash2, Save, X, Key, Shield } from 'lucide-react';
+import { leadService } from '../services/leadService';
+import { opportunityService } from '../services/opportunityService';
+import { notificationService } from '../services/notificationService';
+import { Plus, Edit, Trash2, Save, X, Key, Shield, ToggleLeft, ToggleRight, Users, Activity, TrendingUp, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [currentUserData, setCurrentUserData] = useState<Partial<User>>({});
   const [loading, setLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showPerformanceModal, setShowPerformanceModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [userPerformance, setUserPerformance] = useState<any>(null);
+  const [userActivity, setUserActivity] = useState<ActivityLog[]>([]);
+  const [reassignmentData, setReassignmentData] = useState<{
+    type: 'lead' | 'opportunity';
+    items: (Lead | Opportunity)[];
+    targetUserId: number;
+    reason: string;
+  }>({
+    type: 'lead',
+    items: [],
+    targetUserId: 0,
+    reason: '',
+  });
 
   useEffect(() => {
     loadUsers();
@@ -73,6 +93,190 @@ export const UserManagement: React.FC = () => {
     }
   };
 
+  const handleToggleDistribution = async (userId: number, currentStatus: boolean) => {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('crm_user') || '{}');
+      await authService.toggleUserDistribution(userId, !currentStatus, currentUser);
+      loadUsers(); // Reload to show updated status
+      alert(`Status de distribuição ${!currentStatus ? 'ativado' : 'desativado'} com sucesso!`);
+    } catch (error: any) {
+      alert('Erro ao alterar status de distribuição: ' + error.message);
+    }
+  };
+
+  const handleViewPerformance = async (user: User) => {
+    setSelectedUser(user);
+    setLoading(true);
+    try {
+      // Get user's leads and opportunities for performance metrics
+      const leads = await leadService.getLeadsByUser(user.id);
+      const opportunities = await opportunityService.getOpportunitiesByUser(user.id);
+      
+      // Calculate performance metrics
+      const totalLeads = leads.length;
+      const convertedLeads = leads.filter(l => l.status_kanban === 'IMPLANTADA').length;
+      const totalOpportunities = opportunities.length;
+      const convertedOpportunities = opportunities.filter(o => o.converted_to_proposal_at).length;
+      
+      const performance = {
+        totalLeads,
+        convertedLeads,
+        conversionRate: totalLeads > 0 ? ((convertedLeads / totalLeads) * 100).toFixed(1) : '0',
+        totalOpportunities,
+        convertedOpportunities,
+        opportunityConversionRate: totalOpportunities > 0 ? ((convertedOpportunities / totalOpportunities) * 100).toFixed(1) : '0',
+        totalAssigned: user.total_leads_assigned || 0,
+        lastActivity: user.last_login_at,
+      };
+      
+      setUserPerformance(performance);
+      setShowPerformanceModal(true);
+    } catch (error: any) {
+      alert('Erro ao carregar métricas: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewActivity = async (user: User) => {
+    setSelectedUser(user);
+    setLoading(true);
+    try {
+      // Get activity logs for this user
+      const activities: ActivityLog[] = [];
+      
+      // Get activities from leads
+      const leads = await leadService.getLeadsByUser(user.id);
+      for (const lead of leads) {
+        if (lead.activity_log) {
+          activities.push(...lead.activity_log.filter(log => log.user_id === user.id));
+        }
+      }
+      
+      // Get activities from opportunities
+      const opportunities = await opportunityService.getOpportunitiesByUser(user.id);
+      for (const opportunity of opportunities) {
+        const oppActivities = await opportunityService.getOpportunityActivityLogs(opportunity.id);
+        activities.push(...oppActivities.filter(log => log.user_id === user.id));
+      }
+      
+      // Sort by date (most recent first)
+      activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setUserActivity(activities.slice(0, 50)); // Show last 50 activities
+      setShowActivityModal(true);
+    } catch (error: any) {
+      alert('Erro ao carregar atividades: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReassignItems = async (user: User) => {
+    setSelectedUser(user);
+    setLoading(true);
+    try {
+      // Get user's leads and opportunities
+      const leads = await leadService.getLeadsByUser(user.id);
+      const opportunities = await opportunityService.getOpportunitiesByUser(user.id);
+      
+      setReassignmentData({
+        type: 'lead',
+        items: [...leads, ...opportunities],
+        targetUserId: 0,
+        reason: '',
+      });
+      setShowReassignModal(true);
+    } catch (error: any) {
+      alert('Erro ao carregar itens para reatribuição: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeReassignment = async () => {
+    if (!selectedUser || !reassignmentData.targetUserId) {
+      alert('Selecione um usuário de destino');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('crm_user') || '{}');
+      const targetUser = users.find(u => u.id === reassignmentData.targetUserId);
+      
+      if (!targetUser) {
+        alert('Usuário de destino não encontrado');
+        return;
+      }
+      
+      // Filter items by type
+      const leads = reassignmentData.items.filter(item => 'status_kanban' in item) as Lead[];
+      const opportunities = reassignmentData.items.filter(item => 'status' in item) as Opportunity[];
+      
+      // Reassign leads
+      for (const lead of leads) {
+        await leadService.reassignLead(lead.id, reassignmentData.targetUserId, currentUser);
+        
+        // Send notifications
+        await notificationService.notifyReassignment(selectedUser.id, {
+          type: 'lead',
+          itemName: lead.nome,
+          fromUser: currentUser.name,
+          toUser: targetUser.name,
+          reason: reassignmentData.reason,
+          isReceiver: false,
+        });
+        
+        await notificationService.notifyReassignment(reassignmentData.targetUserId, {
+          type: 'lead',
+          itemName: lead.nome,
+          fromUser: currentUser.name,
+          toUser: targetUser.name,
+          reason: reassignmentData.reason,
+          isReceiver: true,
+        });
+      }
+      
+      // Reassign opportunities
+      for (const opportunity of opportunities) {
+        await opportunityService.reassignOpportunity(
+          opportunity.id, 
+          reassignmentData.targetUserId, 
+          currentUser, 
+          reassignmentData.reason
+        );
+        
+        // Send notifications
+        await notificationService.notifyReassignment(selectedUser.id, {
+          type: 'opportunity',
+          itemName: opportunity.nome,
+          fromUser: currentUser.name,
+          toUser: targetUser.name,
+          reason: reassignmentData.reason,
+          isReceiver: false,
+        });
+        
+        await notificationService.notifyReassignment(reassignmentData.targetUserId, {
+          type: 'opportunity',
+          itemName: opportunity.nome,
+          fromUser: currentUser.name,
+          toUser: targetUser.name,
+          reason: reassignmentData.reason,
+          isReceiver: true,
+        });
+      }
+      
+      alert(`${leads.length + opportunities.length} itens reatribuídos com sucesso!`);
+      setShowReassignModal(false);
+      loadUsers(); // Refresh user data
+    } catch (error: any) {
+      alert('Erro na reatribuição: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
@@ -131,6 +335,23 @@ export const UserManagement: React.FC = () => {
               </select>
             </div>
 
+            {currentUserData.role === 'SELLER' && (
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase">Distribuição de Leads</label>
+                <div className="mt-1">
+                  <label className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox"
+                      checked={currentUserData.active_for_distribution !== false}
+                      onChange={e => setCurrentUserData({...currentUserData, active_for_distribution: e.target.checked})}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-slate-700">Ativo para receber leads automaticamente</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
             <div className="pt-4 border-t border-slate-100">
                 <div className="flex items-center mb-2">
                     <Key className="w-4 h-4 text-slate-400 mr-2" />
@@ -180,6 +401,8 @@ export const UserManagement: React.FC = () => {
                         <th className="p-4 text-xs font-bold text-slate-500 uppercase">Nome</th>
                         <th className="p-4 text-xs font-bold text-slate-500 uppercase">E-mail</th>
                         <th className="p-4 text-xs font-bold text-slate-500 uppercase">Função</th>
+                        <th className="p-4 text-xs font-bold text-slate-500 uppercase">Distribuição</th>
+                        <th className="p-4 text-xs font-bold text-slate-500 uppercase">Métricas</th>
                         <th className="p-4 text-xs font-bold text-slate-500 uppercase text-right">Ações</th>
                     </tr>
                 </thead>
@@ -197,7 +420,67 @@ export const UserManagement: React.FC = () => {
                                     {user.role}
                                 </span>
                             </td>
+                            <td className="p-4">
+                                {user.role === 'SELLER' && (
+                                    <button
+                                        onClick={() => handleToggleDistribution(user.id, user.active_for_distribution || false)}
+                                        className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                            user.active_for_distribution 
+                                                ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                        title={user.active_for_distribution ? 'Ativo para distribuição' : 'Inativo para distribuição'}
+                                    >
+                                        {user.active_for_distribution ? (
+                                            <>
+                                                <ToggleRight className="w-3 h-3" />
+                                                <span>Ativo</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ToggleLeft className="w-3 h-3" />
+                                                <span>Inativo</span>
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </td>
+                            <td className="p-4 text-sm text-slate-600">
+                                <div className="space-y-1">
+                                    <div>Leads: {user.total_leads_assigned || 0}</div>
+                                    {user.last_login_at && (
+                                        <div className="text-xs text-slate-500">
+                                            Último login: {new Date(user.last_login_at).toLocaleDateString('pt-BR')}
+                                        </div>
+                                    )}
+                                </div>
+                            </td>
                             <td className="p-4 text-right space-x-2">
+                                {user.role === 'SELLER' && (
+                                    <>
+                                        <button 
+                                            onClick={() => handleViewPerformance(user)}
+                                            className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                                            title="Ver Performance"
+                                        >
+                                            <TrendingUp className="w-4 h-4" />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleViewActivity(user)}
+                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                            title="Ver Atividades"
+                                        >
+                                            <Activity className="w-4 h-4" />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleReassignItems(user)}
+                                            className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                                            title="Reatribuir Leads/Oportunidades"
+                                        >
+                                            <Users className="w-4 h-4" />
+                                        </button>
+                                    </>
+                                )}
                                 <button 
                                     onClick={() => handleEdit(user)}
                                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -224,6 +507,213 @@ export const UserManagement: React.FC = () => {
                     ))}
                 </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Performance Modal */}
+      {showPerformanceModal && selectedUser && userPerformance && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Performance - {selectedUser.name}
+                </h3>
+                <button 
+                  onClick={() => setShowPerformanceModal(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                    <span className="font-semibold text-blue-800">Propostas</span>
+                  </div>
+                  <div className="text-2xl font-bold text-blue-900">{userPerformance.totalLeads}</div>
+                  <div className="text-sm text-blue-600">
+                    {userPerformance.convertedLeads} convertidas ({userPerformance.conversionRate}%)
+                  </div>
+                </div>
+                
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                    <span className="font-semibold text-green-800">Oportunidades</span>
+                  </div>
+                  <div className="text-2xl font-bold text-green-900">{userPerformance.totalOpportunities}</div>
+                  <div className="text-sm text-green-600">
+                    {userPerformance.convertedOpportunities} convertidas ({userPerformance.opportunityConversionRate}%)
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Users className="w-5 h-5 text-purple-600" />
+                    <span className="font-semibold text-purple-800">Total Atribuído</span>
+                  </div>
+                  <div className="text-2xl font-bold text-purple-900">{userPerformance.totalAssigned}</div>
+                  <div className="text-sm text-purple-600">Leads recebidos</div>
+                </div>
+                
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Clock className="w-5 h-5 text-orange-600" />
+                    <span className="font-semibold text-orange-800">Última Atividade</span>
+                  </div>
+                  <div className="text-sm text-orange-900">
+                    {userPerformance.lastActivity 
+                      ? new Date(userPerformance.lastActivity).toLocaleString('pt-BR')
+                      : 'Nunca'
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activity Modal */}
+      {showActivityModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Atividades Recentes - {selectedUser.name}
+                </h3>
+                <button 
+                  onClick={() => setShowActivityModal(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {userActivity.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Activity className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                  <p>Nenhuma atividade registrada</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userActivity.map((activity, index) => (
+                    <div key={index} className="flex items-start space-x-3 p-4 bg-slate-50 rounded-lg">
+                      <div className={`w-2 h-2 rounded-full mt-2 ${
+                        activity.type === 'STATUS_CHANGE' ? 'bg-blue-500' :
+                        activity.type === 'REASSIGNMENT' ? 'bg-orange-500' :
+                        activity.type === 'CONVERSION' ? 'bg-green-500' :
+                        'bg-gray-500'
+                      }`} />
+                      <div className="flex-1">
+                        <div className="font-medium text-slate-800">{activity.description}</div>
+                        <div className="text-sm text-slate-500 mt-1">
+                          {new Date(activity.created_at).toLocaleString('pt-BR')}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reassignment Modal */}
+      {showReassignModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Reatribuir Itens - {selectedUser.name}
+                </h3>
+                <button 
+                  onClick={() => setShowReassignModal(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Reatribuir Para</label>
+                  <select 
+                    value={reassignmentData.targetUserId}
+                    onChange={e => setReassignmentData({...reassignmentData, targetUserId: parseInt(e.target.value)})}
+                    className="w-full mt-1 p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                  >
+                    <option value={0}>Selecione um usuário</option>
+                    {users.filter(u => u.id !== selectedUser.id && u.role === 'SELLER').map(user => (
+                      <option key={user.id} value={user.id}>{user.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Motivo</label>
+                  <input 
+                    value={reassignmentData.reason}
+                    onChange={e => setReassignmentData({...reassignmentData, reason: e.target.value})}
+                    placeholder="Motivo da reatribuição"
+                    className="w-full mt-1 p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <div className="text-sm font-semibold text-slate-700 mb-2">
+                  Itens para reatribuir ({reassignmentData.items.length}):
+                </div>
+                <div className="max-h-60 overflow-y-auto border border-slate-200 rounded">
+                  {reassignmentData.items.length === 0 ? (
+                    <div className="p-4 text-center text-slate-500">
+                      Nenhum item encontrado para reatribuição
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {reassignmentData.items.map((item, index) => (
+                        <div key={index} className="p-3 hover:bg-slate-50">
+                          <div className="font-medium text-slate-800">
+                            {'status_kanban' in item ? 'Proposta' : 'Oportunidade'}: {item.nome}
+                          </div>
+                          <div className="text-sm text-slate-500">{item.email}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button 
+                  onClick={() => setShowReassignModal(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={executeReassignment}
+                  disabled={loading || !reassignmentData.targetUserId || reassignmentData.items.length === 0}
+                  className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center font-semibold"
+                >
+                  {loading ? 'Reatribuindo...' : 'Reatribuir Itens'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

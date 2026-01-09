@@ -271,5 +271,101 @@ export const leadService = {
       .remove([filePath]);
 
     if (error) throw error;
-  }
+  },
+
+  // Admin Only: Reassign lead to different seller
+  reassignLead: async (leadId: number, newSellerId: number, currentUser: User): Promise<Lead> => {
+    if (currentUser.role !== 'ADMIN') {
+      throw new Error('Apenas administradores podem reatribuir leads');
+    }
+
+    // Get the new seller info
+    const { data: sellerData, error: sellerError } = await supabase
+      .from('users_profile')
+      .select('id, name, email')
+      .eq('id', newSellerId)
+      .eq('role', 'SELLER')
+      .single();
+
+    if (sellerError || !sellerData) {
+      throw new Error('Vendedor não encontrado');
+    }
+
+    // Update the lead
+    const { data, error } = await supabase
+      .from('leads')
+      .update({
+        vendedor: sellerData.name,
+        vendedor_email: sellerData.email,
+        vendedor_id: sellerData.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', leadId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Create assignment history record (if table exists)
+    try {
+      await supabase.from('assignment_history').insert({
+        lead_id: leadId,
+        new_seller_id: newSellerId,
+        assigned_by_user_id: currentUser.id,
+        assigned_by_name: currentUser.name,
+        reason: 'Admin reassignment',
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      // Assignment history table might not exist yet, ignore error
+      console.log('Assignment history not recorded:', e);
+    }
+
+    return {
+      id: data.id,
+      nome: data.nome,
+      email: data.email,
+      telefone: data.telefone,
+      tipo_cliente: data.tipo_cliente,
+      cpf_cnpj: data.cpf_cnpj,
+      rg_ie: data.rg_ie,
+      data_nascimento_abertura: data.data_nascimento_abertura,
+      dados_responsavel: data.dados_responsavel,
+      havera_remissao: data.havera_remissao,
+      operadora: data.operadora,
+      produto: data.produto,
+      valor_produto: data.valor_produto,
+      reducao_carencia: data.reducao_carencia,
+      coparticipacao: data.coparticipacao,
+      vigencia: data.vigencia,
+      endereco: data.endereco,
+      beneficiarios: data.beneficiarios,
+      mensagens: data.mensagens,
+      documentos: data.documentos,
+      origem: data.origem,
+      raw_json: data.raw_json,
+      vendedor: data.vendedor,
+      vendedor_email: data.vendedor_email,
+      vendedor_id: data.vendedor_id,
+      status_kanban: data.status_kanban,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  },
+
+  // Get leads by user (seller)
+  getLeadsByUser: async (userId: number): Promise<Lead[]> => {
+    const { data, error } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('vendedor_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user leads:', error);
+      return [];
+    }
+
+    return data || [];
+  },
 };

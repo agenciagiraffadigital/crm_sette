@@ -4,7 +4,7 @@ import { User } from '../types';
 export interface Notification {
   id: string;
   user_id: number;
-  type: 'NEW_OPPORTUNITY' | 'OPPORTUNITY_ASSIGNED' | 'PROPOSAL_STATUS_CHANGED' | 'DOCUMENT_UPLOADED' | 'DEADLINE_APPROACHING' | 'SYSTEM_MAINTENANCE';
+  type: 'NEW_OPPORTUNITY' | 'OPPORTUNITY_ASSIGNED' | 'PROPOSAL_STATUS_CHANGED' | 'DOCUMENT_UPLOADED' | 'DEADLINE_APPROACHING' | 'SYSTEM_MAINTENANCE' | 'REASSIGNMENT';
   title: string;
   message: string;
   data?: any;
@@ -155,6 +155,29 @@ export const notificationService = {
       title: 'Prazo Próximo',
       message: `O prazo para ${deadlineData.leadName} vence em ${deadlineData.daysLeft} dias`,
       data: deadlineData
+    });
+  },
+
+  // Notify reassignment
+  notifyReassignment: async (userId: number, reassignmentData: { 
+    type: 'lead' | 'opportunity'; 
+    itemName: string; 
+    fromUser: string; 
+    toUser: string; 
+    reason?: string;
+    isReceiver: boolean;
+  }) => {
+    const typeLabel = reassignmentData.type === 'opportunity' ? 'oportunidade' : 'proposta';
+    const message = reassignmentData.isReceiver 
+      ? `A ${typeLabel} ${reassignmentData.itemName} foi reatribuída para você por ${reassignmentData.fromUser}`
+      : `A ${typeLabel} ${reassignmentData.itemName} foi reatribuída de você para ${reassignmentData.toUser}`;
+    
+    await notificationService.sendNotification({
+      user_id: userId,
+      type: 'REASSIGNMENT',
+      title: 'Reatribuição de Item',
+      message,
+      data: reassignmentData
     });
   },
 

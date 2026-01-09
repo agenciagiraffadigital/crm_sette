@@ -7,6 +7,12 @@ export const KANBAN_COLUMNS = [
   { id: 'CANCELADA', label: 'Cancelada', color: 'bg-red-100 text-red-800 border-red-200' },
 ] as const;
 
+export const OPPORTUNITY_COLUMNS = [
+  { id: 'OPORTUNIDADES', label: 'Oportunidades', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  { id: 'EM_CONTATO', label: 'Em Contato', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  { id: 'NEGOCIAÇÃO', label: 'Negociação', color: 'bg-green-100 text-green-800 border-green-200' },
+] as const;
+
 export const PRODUCTS_LIST = [
   { operadora: "Amil", produtos: ["Amil S380", "Amil S450", "Amil S750", "Amil One"] },
   { operadora: "Bradesco", produtos: ["Efetivo", "Nacional Flex", "Top Nacional", "Top Nacional Plus"] },
