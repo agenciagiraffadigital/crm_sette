@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import { leadService } from '../services/leadService';
 import { opportunityService } from '../services/opportunityService';
 import { notificationService } from '../services/notificationService';
+import { SystemModal } from './SystemModal';
 import { Plus, Edit, Trash2, Save, X, Key, Shield, ToggleLeft, ToggleRight, Users, Activity, TrendingUp, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 export const UserManagement: React.FC = () => {
@@ -17,6 +18,13 @@ export const UserManagement: React.FC = () => {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [userPerformance, setUserPerformance] = useState<any>(null);
   const [userActivity, setUserActivity] = useState<ActivityLog[]>([]);
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'success' | 'error';
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+  }>({ isOpen: false, type: 'alert', title: '', message: '' });
   const [reassignmentData, setReassignmentData] = useState<{
     type: 'lead' | 'opportunity';
     items: (Lead | Opportunity)[];
@@ -49,10 +57,26 @@ export const UserManagement: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
-      await authService.deleteUser(id);
-      loadUsers();
-    }
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Confirmar Exclusão',
+      message: 'Tem certeza que deseja excluir este usuário?',
+      onConfirm: async () => {
+        try {
+          await authService.deleteUser(id);
+          loadUsers();
+          setModal({ isOpen: false, type: 'alert', title: '', message: '' });
+        } catch (error: any) {
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Erro',
+            message: error.message
+          });
+        }
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,16 +90,26 @@ export const UserManagement: React.FC = () => {
       } else {
         // Create
         if (!currentUserData.password) {
-            alert("Senha é obrigatória para novos usuários");
-            setLoading(false);
-            return;
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Erro',
+            message: 'Senha é obrigatória para novos usuários'
+          });
+          setLoading(false);
+          return;
         }
         await authService.createUser(currentUserData as Omit<User, 'id'>, currentUserData.password);
       }
       setIsEditing(false);
       loadUsers();
     } catch (error: any) {
-      alert(error.message);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -87,9 +121,19 @@ export const UserManagement: React.FC = () => {
     
     try {
       await authService.resetUserPassword(userId, newPassword);
-      alert('Senha alterada com sucesso!');
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Sucesso',
+        message: 'Senha alterada com sucesso!'
+      });
     } catch (error: any) {
-      alert('Erro ao alterar senha: ' + error.message);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: 'Erro ao alterar senha: ' + error.message
+      });
     }
   };
 
@@ -98,9 +142,19 @@ export const UserManagement: React.FC = () => {
       const currentUser = JSON.parse(localStorage.getItem('crm_user') || '{}');
       await authService.toggleUserDistribution(userId, !currentStatus, currentUser);
       loadUsers(); // Reload to show updated status
-      alert(`Status de distribuição ${!currentStatus ? 'ativado' : 'desativado'} com sucesso!`);
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Sucesso',
+        message: `Status de distribuição ${!currentStatus ? 'ativado' : 'desativado'} com sucesso!`
+      });
     } catch (error: any) {
-      alert('Erro ao alterar status de distribuição: ' + error.message);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: 'Erro ao alterar status de distribuição: ' + error.message
+      });
     }
   };
 
@@ -132,7 +186,12 @@ export const UserManagement: React.FC = () => {
       setUserPerformance(performance);
       setShowPerformanceModal(true);
     } catch (error: any) {
-      alert('Erro ao carregar métricas: ' + error.message);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: 'Erro ao carregar métricas: ' + error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -166,7 +225,12 @@ export const UserManagement: React.FC = () => {
       setUserActivity(activities.slice(0, 50)); // Show last 50 activities
       setShowActivityModal(true);
     } catch (error: any) {
-      alert('Erro ao carregar atividades: ' + error.message);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: 'Erro ao carregar atividades: ' + error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -188,7 +252,12 @@ export const UserManagement: React.FC = () => {
       });
       setShowReassignModal(true);
     } catch (error: any) {
-      alert('Erro ao carregar itens para reatribuição: ' + error.message);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: 'Erro ao carregar itens para reatribuição: ' + error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -196,7 +265,12 @@ export const UserManagement: React.FC = () => {
 
   const executeReassignment = async () => {
     if (!selectedUser || !reassignmentData.targetUserId) {
-      alert('Selecione um usuário de destino');
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: 'Selecione um usuário de destino'
+      });
       return;
     }
 
@@ -206,7 +280,12 @@ export const UserManagement: React.FC = () => {
       const targetUser = users.find(u => u.id === reassignmentData.targetUserId);
       
       if (!targetUser) {
-        alert('Usuário de destino não encontrado');
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Erro',
+          message: 'Usuário de destino não encontrado'
+        });
         return;
       }
       
@@ -267,11 +346,21 @@ export const UserManagement: React.FC = () => {
         });
       }
       
-      alert(`${leads.length + opportunities.length} itens reatribuídos com sucesso!`);
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Sucesso',
+        message: `${leads.length + opportunities.length} itens reatribuídos com sucesso!`
+      });
       setShowReassignModal(false);
       loadUsers(); // Refresh user data
     } catch (error: any) {
-      alert('Erro na reatribuição: ' + error.message);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: 'Erro na reatribuição: ' + error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -402,7 +491,6 @@ export const UserManagement: React.FC = () => {
                         <th className="p-4 text-xs font-bold text-slate-500 uppercase">E-mail</th>
                         <th className="p-4 text-xs font-bold text-slate-500 uppercase">Função</th>
                         <th className="p-4 text-xs font-bold text-slate-500 uppercase">Distribuição</th>
-                        <th className="p-4 text-xs font-bold text-slate-500 uppercase">Métricas</th>
                         <th className="p-4 text-xs font-bold text-slate-500 uppercase text-right">Ações</th>
                     </tr>
                 </thead>
@@ -424,63 +512,20 @@ export const UserManagement: React.FC = () => {
                                 {user.role === 'SELLER' && (
                                     <button
                                         onClick={() => handleToggleDistribution(user.id, user.active_for_distribution || false)}
-                                        className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-semibold transition-colors ${
-                                            user.active_for_distribution 
-                                                ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                                            user.active_for_distribution ? 'bg-green-600' : 'bg-gray-200'
                                         }`}
                                         title={user.active_for_distribution ? 'Ativo para distribuição' : 'Inativo para distribuição'}
                                     >
-                                        {user.active_for_distribution ? (
-                                            <>
-                                                <ToggleRight className="w-3 h-3" />
-                                                <span>Ativo</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <ToggleLeft className="w-3 h-3" />
-                                                <span>Inativo</span>
-                                            </>
-                                        )}
+                                        <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                user.active_for_distribution ? 'translate-x-6' : 'translate-x-1'
+                                            }`}
+                                        />
                                     </button>
                                 )}
                             </td>
-                            <td className="p-4 text-sm text-slate-600">
-                                <div className="space-y-1">
-                                    <div>Leads: {user.total_leads_assigned || 0}</div>
-                                    {user.last_login_at && (
-                                        <div className="text-xs text-slate-500">
-                                            Último login: {new Date(user.last_login_at).toLocaleDateString('pt-BR')}
-                                        </div>
-                                    )}
-                                </div>
-                            </td>
                             <td className="p-4 text-right space-x-2">
-                                {user.role === 'SELLER' && (
-                                    <>
-                                        <button 
-                                            onClick={() => handleViewPerformance(user)}
-                                            className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                                            title="Ver Performance"
-                                        >
-                                            <TrendingUp className="w-4 h-4" />
-                                        </button>
-                                        <button 
-                                            onClick={() => handleViewActivity(user)}
-                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                            title="Ver Atividades"
-                                        >
-                                            <Activity className="w-4 h-4" />
-                                        </button>
-                                        <button 
-                                            onClick={() => handleReassignItems(user)}
-                                            className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
-                                            title="Reatribuir Leads/Oportunidades"
-                                        >
-                                            <Users className="w-4 h-4" />
-                                        </button>
-                                    </>
-                                )}
                                 <button 
                                     onClick={() => handleEdit(user)}
                                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -717,6 +762,15 @@ export const UserManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      <SystemModal
+        isOpen={modal.isOpen}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        onConfirm={modal.onConfirm}
+        onCancel={() => setModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+      />
     </div>
   );
 };

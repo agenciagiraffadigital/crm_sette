@@ -292,7 +292,7 @@ export const authService = {
     if (currentUser.role !== 'ADMIN') {
       throw new Error('Apenas administradores podem alterar status de distribuição');
     }
-
+    
     const { data, error } = await supabase
       .from('users_profile')
       .update({ active_for_distribution: active })
@@ -300,7 +300,9 @@ export const authService = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return {
       id: data.id,
