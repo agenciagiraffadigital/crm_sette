@@ -1,18 +1,40 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell 
 } from 'recharts';
-import { Lead } from '../types';
+import { Lead, User } from '../types';
 import { Users, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { dashboardService } from '../services/dashboardService';
 
 interface DashboardProps {
   leads: Lead[];
+  currentUser?: User;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ leads, currentUser }) => {
+  
+  // Implement access control - redirect sellers to opportunities page
+  useEffect(() => {
+    if (currentUser && !dashboardService.checkDashboardAccess(currentUser)) {
+      dashboardService.redirectSellersToOpportunities();
+      return;
+    }
+  }, [currentUser]);
+
+  // If user is not admin, show redirect message
+  if (currentUser && !dashboardService.checkDashboardAccess(currentUser)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso Restrito</h2>
+          <p className="text-slate-600">Redirecionando para a página de oportunidades...</p>
+        </div>
+      </div>
+    );
+  }
   
   // Calculate Stats
   const total = leads.length;

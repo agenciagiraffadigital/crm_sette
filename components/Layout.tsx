@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, KanbanSquare, Settings, Menu, X, Activity, LogOut, Users } from 'lucide-react';
+import { LayoutDashboard, KanbanSquare, Settings, Menu, X, Activity, LogOut, Users, Target } from 'lucide-react';
 import { User } from '../types';
 
 interface LayoutProps {
@@ -58,7 +58,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         </div>
 
         <nav className="p-4 space-y-2 mt-4">
-          <NavItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
+          {user.role === 'ADMIN' && (
+            <NavItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
+          )}
+          <NavItem id="opportunities" icon={Target} label="Oportunidades" />
           <NavItem id="kanban" icon={KanbanSquare} label="Propostas" />
           {user.role === 'ADMIN' && (
              <>

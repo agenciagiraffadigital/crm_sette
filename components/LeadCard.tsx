@@ -32,14 +32,14 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick }) => 
   return (
     <div 
       onClick={() => onClick(lead)}
-      className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 group cursor-pointer relative"
+      className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 group cursor-pointer relative transform hover:scale-[1.02]"
     >
       <div className="flex justify-between items-start mb-3">
         <div className={`flex items-center space-x-1 text-xs font-bold px-2 py-1 rounded-full ${typeConfig.color}`}>
           <TypeIcon className="w-3 h-3" />
           <span>{lead.tipo_cliente}</span>
         </div>
-        <span className="text-xs text-slate-400">#{lead.id}</span>
+        <span className="text-xs text-slate-400 font-mono">#{lead.id}</span>
       </div>
       
       <h4 className="font-bold text-slate-800 mb-1 truncate text-sm" title={lead.nome}>{lead.nome}</h4>
@@ -48,7 +48,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick }) => 
       <div className="space-y-1.5 mb-4">
         <div className="flex items-center text-xs text-slate-600">
           <Mail className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-          <span className="truncate">{lead.email}</span>
+          <span className="truncate" title={lead.email}>{lead.email}</span>
         </div>
         <div className="flex items-center text-xs text-slate-600">
           <Phone className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
@@ -64,19 +64,20 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick }) => 
         </div>
       </div>
 
-      <div className="pt-3 border-t border-slate-100 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+      {/* Botões sempre visíveis */}
+      <div className="pt-3 border-t border-slate-100 flex justify-between items-center" onClick={e => e.stopPropagation()}>
          {nextStatus && (
            <button 
              onClick={(e) => { e.stopPropagation(); onMove(lead.id, nextStatus); }}
-             className="text-[10px] font-bold uppercase text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+             className="text-xs font-bold uppercase text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 transition-colors"
            >
-             Mover <ArrowRight className="w-3 h-3 ml-1" />
+             Avançar <ArrowRight className="w-3 h-3 ml-1" />
            </button>
          )}
          {lead.status_kanban !== 'CANCELADA' && (
             <button 
               onClick={(e) => { e.stopPropagation(); onMove(lead.id, 'CANCELADA'); }}
-              className="text-[10px] font-bold uppercase text-red-400 hover:text-red-600 ml-auto hover:bg-red-50 px-2 py-1 rounded transition-colors"
+              className="text-xs font-bold uppercase text-red-400 hover:text-red-600 ml-auto hover:bg-red-50 px-3 py-1.5 rounded transition-colors"
             >
               Cancelar
             </button>

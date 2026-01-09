@@ -1,19 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
+import { EnhancedDashboard } from './components/dashboard/EnhancedDashboard';
+import { OpportunitiesBoard } from './components/OpportunitiesBoard';
 import { KanbanBoard } from './components/KanbanBoard';
 import { SimulationPanel } from './components/SimulationPanel';
-import { LeadForm } from './components/LeadForm';
+import { ModernLeadForm } from './components/ModernLeadForm';
 import { UserManagement } from './components/UserManagement';
 import { Auth } from './components/Auth';
 import { leadService } from './services/leadService';
+import { opportunityService } from './services/opportunityService';
 import { authService } from './services/authService';
-import { Lead, KanbanStatus, User } from './types';
+import { Lead, Opportunity, OpportunityStatus, KanbanStatus, User } from './types';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState('kanban');
+  const [activeTab, setActiveTab] = useState('opportunities'); // Changed default to opportunities
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [opportunityFilters, setOpportunityFilters] = useState({});
   const [loadingData, setLoadingData] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
@@ -50,15 +55,19 @@ function App() {
     };
   }, []);
 
-  // Fetch leads when user changes or is set
+  // Fetch leads and opportunities when user changes or is set
   const loadLeads = useCallback(async () => {
       if (!user) return;
       setLoadingData(true);
       try {
-        const data = await leadService.getLeads(user);
-        setLeads(data);
+        const [leadsData, opportunitiesData] = await Promise.all([
+          leadService.getLeads(user),
+          opportunityService.getOpportunities(user)
+        ]);
+        setLeads(leadsData);
+        setOpportunities(opportunitiesData);
       } catch (error) {
-        console.error("Failed to fetch leads", error);
+        console.error("Failed to fetch data", error);
       } finally {
         setLoadingData(false);
       }
@@ -70,7 +79,7 @@ function App() {
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
-    setActiveTab('kanban');
+    setActiveTab('opportunities'); // Changed default to opportunities
   };
 
   const handleLogout = async () => {
@@ -101,10 +110,33 @@ function App() {
     }
   }, [user, loadLeads]);
 
+  const handleMoveOpportunity = useCallback(async (id: number, newStatus: OpportunityStatus, additionalData?: { quoted_value?: number }) => {
+    if (!user) return;
+    
+    // Optimistic UI Update - update immediately
+    setOpportunities(current => 
+      current.map(o => o.id === id ? { 
+        ...o, 
+        status: newStatus,
+        quoted_value: additionalData?.quoted_value || o.quoted_value
+      } : o)
+    );
+    
+    try {
+      await opportunityService.updateOpportunityStatus(id, newStatus, user, additionalData);
+    } catch (error) {
+      console.error("Failed to update opportunity status", error);
+      // Revert optimistic update on error
+      const updatedOpportunities = await opportunityService.getOpportunities(user);
+      setOpportunities(updatedOpportunities);
+      throw error;
+    }
+  }, [user]);
+
   const handleNewLeadFromSimulation = useCallback((newLead: Lead) => {
     if (user?.role === 'ADMIN' || newLead.vendedor_id === user?.id) {
         setLeads(prev => [newLead, ...prev]);
-        setTimeout(() => setActiveTab('kanban'), 500);
+        setTimeout(() => setActiveTab('opportunities'), 500); // Changed to opportunities
     }
   }, [user]);
 
@@ -112,6 +144,11 @@ function App() {
       setLeads(current => current.map(l => l.id === updatedLead.id ? updatedLead : l));
       setSelectedLeadId(null); // Return to board after save
   }, []);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSelectedLeadId(null); // Clear selected lead when changing tabs
+  };
 
   if (initializing) {
     return (
@@ -127,8 +164,8 @@ function App() {
 
   if (selectedLeadId) {
       return (
-          <Layout activeTab={activeTab} setActiveTab={setActiveTab} user={user} onLogout={handleLogout}>
-              <LeadForm 
+          <Layout activeTab={activeTab} setActiveTab={handleTabChange} user={user} onLogout={handleLogout}>
+              <ModernLeadForm 
                 leadId={selectedLeadId} 
                 currentUser={user} 
                 onBack={() => setSelectedLeadId(null)} 
@@ -139,8 +176,27 @@ function App() {
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab} user={user} onLogout={handleLogout}>
-      {activeTab === 'dashboard' && <Dashboard leads={leads} />}
+    <Layout activeTab={activeTab} setActiveTab={handleTabChange} user={user} onLogout={handleLogout}>
+      {activeTab === 'dashboard' && (
+        user.role === 'ADMIN' ? (
+          <EnhancedDashboard currentUser={user} />
+        ) : (
+          <Dashboard leads={leads} currentUser={user} />
+        )
+      )}
+      
+      {activeTab === 'opportunities' && (
+        <OpportunitiesBoard
+          opportunities={opportunities}
+          onMoveOpportunity={handleMoveOpportunity}
+          onOpenOpportunity={(opportunity) => {
+            setSelectedLeadId(opportunity.id);
+          }}
+          filters={opportunityFilters}
+          onFiltersChange={setOpportunityFilters}
+          currentUser={user}
+        />
+      )}
       
       {activeTab === 'kanban' && (
         <KanbanBoard 

@@ -49,12 +49,14 @@ async function initDatabase() {
         continue;
       }
 
-      // Inserir na tabela users
+      // Inserir na tabela users_profile
       const { error: insertError } = await supabase.from('users_profile').insert({
         auth_id: authData.user.id,
         name: user.name,
         email: user.email,
         role: user.role,
+        active_for_distribution: user.role === 'SELLER',
+        total_leads_assigned: 0,
       });
       
       if (insertError) {
