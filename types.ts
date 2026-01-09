@@ -149,6 +149,8 @@ export interface Opportunity {
   first_contact_date?: string;
   quoted_value?: number;
   quoted_at?: string;
+  contact_date?: string;
+  next_followup?: string;
   
   // Assignment
   vendedor: string;
@@ -158,6 +160,9 @@ export interface Opportunity {
   // Source and Raw Data
   origem: string;
   raw_json?: any;
+  
+  // Notes
+  notes?: string;
   
   // Loss Tracking
   lost_at?: string;

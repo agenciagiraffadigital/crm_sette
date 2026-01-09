@@ -5,7 +5,7 @@ import { EnhancedDashboard } from './components/dashboard/EnhancedDashboard';
 import { OpportunitiesBoard } from './components/OpportunitiesBoard';
 import { KanbanBoard } from './components/KanbanBoard';
 import { SimulationPanel } from './components/SimulationPanel';
-import { LeadForm } from './components/LeadForm';
+import { ModernLeadForm } from './components/ModernLeadForm';
 import { UserManagement } from './components/UserManagement';
 import { Auth } from './components/Auth';
 import { leadService } from './services/leadService';
@@ -111,18 +111,25 @@ function App() {
   }, [user, loadLeads]);
 
   const handleMoveOpportunity = useCallback(async (id: number, newStatus: OpportunityStatus, additionalData?: { quoted_value?: number }) => {
-    console.log('handleMoveOpportunity called with', id, newStatus, additionalData);
     if (!user) return;
+    
+    // Optimistic UI Update - update immediately
+    setOpportunities(current => 
+      current.map(o => o.id === id ? { 
+        ...o, 
+        status: newStatus,
+        quoted_value: additionalData?.quoted_value || o.quoted_value
+      } : o)
+    );
     
     try {
       await opportunityService.updateOpportunityStatus(id, newStatus, user, additionalData);
-      // Reload opportunities to get updated data
-      const updatedOpportunities = await opportunityService.getOpportunities(user);
-      setOpportunities(updatedOpportunities);
-      console.log('Opportunity status updated successfully');
     } catch (error) {
       console.error("Failed to update opportunity status", error);
-      throw error; // Re-throw to let the component handle the error
+      // Revert optimistic update on error
+      const updatedOpportunities = await opportunityService.getOpportunities(user);
+      setOpportunities(updatedOpportunities);
+      throw error;
     }
   }, [user]);
 
@@ -138,6 +145,11 @@ function App() {
       setSelectedLeadId(null); // Return to board after save
   }, []);
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSelectedLeadId(null); // Clear selected lead when changing tabs
+  };
+
   if (initializing) {
     return (
       <div className="h-screen w-full bg-slate-100 flex items-center justify-center">
@@ -152,8 +164,8 @@ function App() {
 
   if (selectedLeadId) {
       return (
-          <Layout activeTab={activeTab} setActiveTab={setActiveTab} user={user} onLogout={handleLogout}>
-              <LeadForm 
+          <Layout activeTab={activeTab} setActiveTab={handleTabChange} user={user} onLogout={handleLogout}>
+              <ModernLeadForm 
                 leadId={selectedLeadId} 
                 currentUser={user} 
                 onBack={() => setSelectedLeadId(null)} 
@@ -164,7 +176,7 @@ function App() {
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab} user={user} onLogout={handleLogout}>
+    <Layout activeTab={activeTab} setActiveTab={handleTabChange} user={user} onLogout={handleLogout}>
       {activeTab === 'dashboard' && (
         user.role === 'ADMIN' ? (
           <EnhancedDashboard currentUser={user} />
@@ -178,8 +190,7 @@ function App() {
           opportunities={opportunities}
           onMoveOpportunity={handleMoveOpportunity}
           onOpenOpportunity={(opportunity) => {
-            console.log('Opening opportunity:', opportunity);
-            // For now, just log. Later we can implement opportunity detail view
+            setSelectedLeadId(opportunity.id);
           }}
           filters={opportunityFilters}
           onFiltersChange={setOpportunityFilters}

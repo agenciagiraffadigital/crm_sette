@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Lead, KanbanStatus, User, Beneficiary, LeadMessage, ClientType } from '../types';
-import { KANBAN_COLUMNS, PRODUCTS_LIST } from '../constants';
+import { KANBAN_COLUMNS, OPPORTUNITY_COLUMNS, PRODUCTS_LIST } from '../constants';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { Save, ArrowLeft, Plus, Trash2, Paperclip, Search, FileText, ChevronDown, Download, CheckCircle, AlertCircle, Upload, Edit3 } from 'lucide-react';
@@ -369,11 +369,9 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
     loading: false
   });
   
-  // Available products based on selected Operator
-  const availableProducts = useMemo(() => 
-    PRODUCTS_LIST.find(p => p.operadora === formData?.operadora)?.produtos || [], 
-    [formData?.operadora]
-  );
+  // Determine which columns to use based on lead status
+  const isOpportunity = formData && ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'].includes(formData.status_kanban);
+  const statusColumns = isOpportunity ? OPPORTUNITY_COLUMNS : KANBAN_COLUMNS;
 
   // Calculate completion status for progress indicator
   const sectionCompletion = useMemo(() => {
@@ -699,7 +697,7 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                 'border-blue-500 text-blue-700'
               }`}
             >
-              {KANBAN_COLUMNS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              {statusColumns.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
           

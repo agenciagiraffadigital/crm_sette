@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Opportunity, OpportunityStatus, User, LossReason } from '../types';
 import { OpportunityCard } from './OpportunityCard';
+import { OpportunityForm } from './OpportunityForm';
 import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
 import { OPPORTUNITY_COLUMNS } from '../constants';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { Select } from '../src/components/ui/Select';
 import { Card } from '../src/components/ui/Card';
-import { useToast } from '../src/hooks/useToast';
 import { opportunityService } from '../services/opportunityService';
 
 interface OpportunityFilters {
@@ -62,13 +62,13 @@ const ValueInputModal: React.FC<ValueInputModalProps> = ({ isOpen, onClose, onSu
       <Card variant="elevated" padding="lg" className="w-full max-w-md">
         <form onSubmit={handleSubmit}>
           <h3 className="text-lg font-semibold mb-4">
-            Valor Cotado - {opportunityName}
+            Valor do Produto - {opportunityName}
           </h3>
           <p className="text-sm text-gray-600 mb-4">
-            Para avançar para NEGOCIAÇÃO, é necessário informar o valor cotado para o cliente.
+            Para avançar para NEGOCIAÇÃO, é necessário informar o valor do produto para o cliente.
           </p>
           <Input
-            label="Valor Cotado (R$)"
+            label="Valor do Produto (R$)"
             type="number"
             step="0.01"
             min="0.01"
@@ -165,7 +165,6 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   onFiltersChange,
   currentUser
 }) => {
-  const { showToast } = useToast();
   const [searchFilters, setSearchFilters] = useState<FilterState>({
     searchTerm: '',
     sellers: [],
@@ -262,7 +261,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     const groups: Record<OpportunityStatus, Opportunity[]> = {
       'OPORTUNIDADES': [],
       'EM_CONTATO': [],
-      'NEGOCIAÇÃO': []
+      'NEGOCIACAO': []
     };
 
     filteredOpportunities.forEach(opportunity => {
@@ -298,8 +297,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     const opportunity = opportunities.find(o => o.id === opportunityId);
     if (!opportunity) return;
 
-    // Validation: require quoted value when moving to NEGOCIAÇÃO
-    if (targetStatus === 'NEGOCIAÇÃO' && !opportunity.quoted_value) {
+    // Validation: require quoted value when moving to NEGOCIACAO
+    if (targetStatus === 'NEGOCIACAO' && !opportunity.quoted_value) {
       setValueModalState({
         isOpen: true,
         opportunityId,
@@ -308,38 +307,12 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       return;
     }
 
-    try {
-      onMoveOpportunity(opportunityId, targetStatus);
-      showToast({
-        type: 'success',
-        title: 'Status atualizado',
-        message: `Oportunidade movida para ${targetStatus}`
-      });
-    } catch (error) {
-      showToast({
-        type: 'error',
-        title: 'Erro ao atualizar status',
-        message: error instanceof Error ? error.message : 'Erro desconhecido'
-      });
-    }
+    onMoveOpportunity(opportunityId, targetStatus);
   };
 
   const handleValueSubmit = (value: number) => {
     if (valueModalState.opportunityId) {
-      try {
-        onMoveOpportunity(valueModalState.opportunityId, 'NEGOCIAÇÃO', { quoted_value: value });
-        showToast({
-          type: 'success',
-          title: 'Valor cotado salvo',
-          message: `Oportunidade movida para NEGOCIAÇÃO com valor R$ ${value.toFixed(2)}`
-        });
-      } catch (error) {
-        showToast({
-          type: 'error',
-          title: 'Erro ao salvar valor',
-          message: error instanceof Error ? error.message : 'Erro desconhecido'
-        });
-      }
+      onMoveOpportunity(valueModalState.opportunityId, 'NEGOCIACAO', { quoted_value: value });
     }
   };
 
@@ -362,19 +335,9 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
           lossReason,
           currentUser
         );
-        showToast({
-          type: 'success',
-          title: 'Oportunidade marcada como perdida',
-          message: `Motivo: ${lossReason.category}`
-        });
-        // Trigger a refresh of opportunities
         window.location.reload();
       } catch (error) {
-        showToast({
-          type: 'error',
-          title: 'Erro ao marcar como perdida',
-          message: error instanceof Error ? error.message : 'Erro desconhecido'
-        });
+        alert('Erro ao marcar como perdida: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
     }
   };
@@ -382,19 +345,10 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   const handleConvertToProposal = async (opportunityId: number) => {
     try {
       await opportunityService.convertOpportunityToProposal(opportunityId, currentUser);
-      showToast({
-        type: 'success',
-        title: 'Oportunidade convertida',
-        message: 'Oportunidade convertida para proposta com sucesso'
-      });
-      // Trigger a refresh of opportunities
       window.location.reload();
     } catch (error) {
-      showToast({
-        type: 'error',
-        title: 'Erro na conversão',
-        message: error instanceof Error ? error.message : 'Erro desconhecido'
-      });
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      alert('Erro na conversão: ' + errorMessage);
     }
   };
 
@@ -437,7 +391,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
 
       {/* Board Columns */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="flex h-full gap-4 min-w-[1200px] pb-4">
+        <div className="flex h-full gap-4 min-w-[900px] pb-4">
           {OPPORTUNITY_COLUMNS.map((column) => {
             const columnOpportunities = opportunitiesByStatus[column.id as OpportunityStatus];
             return (
@@ -451,13 +405,13 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                 <div className={`p-3 border-b border-slate-200 rounded-t-xl flex justify-between items-center ${column.color.split(' ')[0]}`}>
                   <h3 className={`font-semibold text-sm ${column.color.split(' ')[1]}`}>{column.label}</h3>
                   <span className={`text-xs font-bold px-2 py-0.5 bg-white bg-opacity-50 rounded-full ${column.color.split(' ')[1]}`}>
-                    {columnOpportunities.length}
+                    {columnOpportunities?.length || 0}
                   </span>
                 </div>
                 
                 {/* Column Body */}
                 <div className="p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar">
-                  {columnOpportunities.map(opportunity => (
+                  {columnOpportunities?.map(opportunity => (
                     <OpportunityCard
                       key={opportunity.id}
                       opportunity={opportunity}
@@ -469,7 +423,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                       data-testid={`opportunity-card-${opportunity.id}`}
                     />
                   ))}
-                  {columnOpportunities.length === 0 && (
+                  {columnOpportunities?.length === 0 && (
                     <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg m-2">
                       <p className="text-xs text-slate-400">Nenhuma oportunidade</p>
                     </div>

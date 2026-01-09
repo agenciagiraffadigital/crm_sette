@@ -2,9 +2,13 @@ import { Opportunity, OpportunityStatus, User, LossReason, ActivityLog, Assignme
 import { supabase } from './supabaseClient';
 
 export const opportunityService = {
-  // Get all opportunities for current user
+  // Get all opportunities (leads in opportunity phase)
   getOpportunities: async (currentUser: User): Promise<Opportunity[]> => {
-    const { data, error } = await supabase.from('opportunities').select('*');
+    const { data, error } = await supabase
+      .from('leads')
+      .select('*')
+      .in('status_kanban', ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO']);
+    
     if (error) throw error;
     
     let opportunities: Opportunity[] = data.map(row => ({
@@ -12,22 +16,17 @@ export const opportunityService = {
       nome: row.nome,
       email: row.email,
       telefone: row.telefone,
-      status: row.status,
+      status: row.status_kanban,
       created_at: row.created_at,
       updated_at: row.updated_at,
       first_contact_date: row.first_contact_date,
-      quoted_value: row.quoted_value,
-      quoted_at: row.quoted_at,
+      quoted_value: row.valor_produto,
       vendedor: row.vendedor,
       vendedor_email: row.vendedor_email,
       vendedor_id: row.vendedor_id,
       origem: row.origem,
       raw_json: row.raw_json,
-      lost_at: row.lost_at,
-      loss_reason: row.loss_reason,
-      loss_description: row.loss_description,
-      converted_to_proposal_at: row.converted_to_proposal_at,
-      proposal_id: row.proposal_id,
+      produto: row.produto,
     }));
 
     if (currentUser.role === 'ADMIN') {
@@ -37,10 +36,10 @@ export const opportunityService = {
     }
   },
 
-  // Get opportunity by ID
+  // Get opportunity by ID (actually a lead)
   getOpportunityById: async (id: number): Promise<Opportunity> => {
     const { data, error } = await supabase
-      .from('opportunities')
+      .from('leads')
       .select('*')
       .eq('id', id)
       .single();
@@ -52,22 +51,17 @@ export const opportunityService = {
       nome: data.nome,
       email: data.email,
       telefone: data.telefone,
-      status: data.status,
+      status: data.status_kanban,
       created_at: data.created_at,
       updated_at: data.updated_at,
       first_contact_date: data.first_contact_date,
-      quoted_value: data.quoted_value,
-      quoted_at: data.quoted_at,
+      quoted_value: data.valor_produto,
       vendedor: data.vendedor,
       vendedor_email: data.vendedor_email,
       vendedor_id: data.vendedor_id,
       origem: data.origem,
       raw_json: data.raw_json,
-      lost_at: data.lost_at,
-      loss_reason: data.loss_reason,
-      loss_description: data.loss_description,
-      converted_to_proposal_at: data.converted_to_proposal_at,
-      proposal_id: data.proposal_id,
+      produto: data.produto,
     };
   },
 
@@ -133,27 +127,26 @@ export const opportunityService = {
     };
   },
 
-  // Update opportunity status
+  // Update opportunity status (actually updates lead status_kanban)
   updateOpportunityStatus: async (id: number, status: OpportunityStatus, currentUser: User, additionalData?: {
     quoted_value?: number;
     first_contact_date?: string;
   }): Promise<Opportunity> => {
     const opportunity = await opportunityService.getOpportunityById(id);
     
-    // Validation: require quoted_value when moving to NEGOCIAÇÃO
-    if (status === 'NEGOCIAÇÃO' && !additionalData?.quoted_value && !opportunity.quoted_value) {
+    // Validation: require quoted_value when moving to NEGOCIACAO
+    if (status === 'NEGOCIACAO' && !additionalData?.quoted_value && !opportunity.quoted_value) {
       throw new Error('Valor cotado é obrigatório para avançar para NEGOCIAÇÃO');
     }
 
     const updateData: any = {
-      status,
+      status_kanban: status,
       updated_at: new Date().toISOString(),
     };
 
     // Add additional data if provided
     if (additionalData?.quoted_value) {
-      updateData.quoted_value = additionalData.quoted_value;
-      updateData.quoted_at = new Date().toISOString();
+      updateData.valor_produto = additionalData.quoted_value;
     }
 
     if (additionalData?.first_contact_date) {
@@ -163,7 +156,7 @@ export const opportunityService = {
     }
 
     const { data, error } = await supabase
-      .from('opportunities')
+      .from('leads')
       .update(updateData)
       .eq('id', id)
       .select()
@@ -171,41 +164,25 @@ export const opportunityService = {
 
     if (error) throw error;
 
-    // Log the status change activity
-    await opportunityService.logActivity({
-      opportunity_id: id,
-      type: 'STATUS_CHANGE',
-      description: `Status alterado de ${opportunity.status} para ${status}`,
-      user_id: currentUser.id,
-      user_name: currentUser.name,
-      metadata: { 
-        previous_status: opportunity.status, 
-        new_status: status,
-        quoted_value: additionalData?.quoted_value
-      }
-    });
-
     return {
       id: data.id,
       nome: data.nome,
       email: data.email,
       telefone: data.telefone,
-      status: data.status,
+      status: data.status_kanban,
       created_at: data.created_at,
       updated_at: data.updated_at,
       first_contact_date: data.first_contact_date,
-      quoted_value: data.quoted_value,
+      quoted_value: data.valor_produto,
       quoted_at: data.quoted_at,
       vendedor: data.vendedor,
       vendedor_email: data.vendedor_email,
       vendedor_id: data.vendedor_id,
       origem: data.origem,
       raw_json: data.raw_json,
-      lost_at: data.lost_at,
-      loss_reason: data.loss_reason,
-      loss_description: data.loss_description,
-      converted_to_proposal_at: data.converted_to_proposal_at,
-      proposal_id: data.proposal_id,
+      notes: data.notes,
+      contact_date: data.contact_date,
+      next_followup: data.next_followup,
     };
   },
 
@@ -259,11 +236,11 @@ export const opportunityService = {
     };
   },
 
-  // Convert opportunity to proposal (lead)
+  // Convert opportunity to proposal (change status to ENVIADA)
   convertOpportunityToProposal: async (opportunityId: number, currentUser: User): Promise<{ opportunity: Opportunity; leadId: number }> => {
     const opportunity = await opportunityService.getOpportunityById(opportunityId);
     
-    if (opportunity.status !== 'NEGOCIAÇÃO') {
+    if (opportunity.status !== 'NEGOCIACAO') {
       throw new Error('Apenas oportunidades em NEGOCIAÇÃO podem ser convertidas para propostas');
     }
 
@@ -271,90 +248,40 @@ export const opportunityService = {
       throw new Error('Valor cotado é obrigatório para conversão');
     }
 
-    // Create the lead from opportunity data
-    const leadData = {
-      nome: opportunity.nome,
-      email: opportunity.email,
-      telefone: opportunity.telefone,
-      tipo_cliente: null, // Will be filled later
-      cpf_cnpj: '',
-      operadora: '',
-      produto: '',
-      valor_produto: opportunity.quoted_value,
-      vendedor: opportunity.vendedor,
-      vendedor_email: opportunity.vendedor_email,
-      vendedor_id: opportunity.vendedor_id,
-      status_kanban: 'ENVIADA' as const,
-      origem: opportunity.origem,
-      raw_json: opportunity.raw_json,
-      endereco: { cep: '', logradouro: '', numero: '', bairro: '', cidade: '', uf: '' },
-      beneficiarios: [],
-      mensagens: [],
-      documentos: [],
-      converted_from_opportunity_id: opportunityId,
-      conversion_date: new Date().toISOString(),
-      last_activity_at: new Date().toISOString(),
-    };
-
-    const { data: insertedLead, error: leadError } = await supabase
+    // Update the lead status to ENVIADA (proposal phase)
+    const { data, error } = await supabase
       .from('leads')
-      .insert(leadData)
-      .select()
-      .single();
-
-    if (leadError) throw leadError;
-
-    // Update opportunity with conversion info
-    const { data: updatedOpportunity, error: opportunityError } = await supabase
-      .from('opportunities')
       .update({
+        status_kanban: 'ENVIADA',
         converted_to_proposal_at: new Date().toISOString(),
-        proposal_id: insertedLead.id,
         updated_at: new Date().toISOString(),
       })
       .eq('id', opportunityId)
       .select()
       .single();
 
-    if (opportunityError) throw opportunityError;
-
-    // Log the conversion activity
-    await opportunityService.logActivity({
-      opportunity_id: opportunityId,
-      type: 'CONVERSION',
-      description: `Oportunidade convertida para proposta #${insertedLead.id}`,
-      user_id: currentUser.id,
-      user_name: currentUser.name,
-      metadata: { 
-        proposal_id: insertedLead.id,
-        quoted_value: opportunity.quoted_value
-      }
-    });
+    if (error) throw error;
 
     return {
       opportunity: {
-        id: updatedOpportunity.id,
-        nome: updatedOpportunity.nome,
-        email: updatedOpportunity.email,
-        telefone: updatedOpportunity.telefone,
-        status: updatedOpportunity.status,
-        created_at: updatedOpportunity.created_at,
-        updated_at: updatedOpportunity.updated_at,
-        first_contact_date: updatedOpportunity.first_contact_date,
-        quoted_value: updatedOpportunity.quoted_value,
-        quoted_at: updatedOpportunity.quoted_at,
-        vendedor: updatedOpportunity.vendedor,
-        vendedor_email: updatedOpportunity.vendedor_email,
-        vendedor_id: updatedOpportunity.vendedor_id,
-        origem: updatedOpportunity.origem,
-        raw_json: updatedOpportunity.raw_json,
-        lost_at: updatedOpportunity.lost_at,
-        loss_reason: updatedOpportunity.loss_reason,
-        loss_description: updatedOpportunity.loss_description,
-        converted_to_proposal_at: updatedOpportunity.converted_to_proposal_at,
-        proposal_id: updatedOpportunity.proposal_id,
+        id: data.id,
+        nome: data.nome,
+        email: data.email,
+        telefone: data.telefone,
+        status: data.status_kanban,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        first_contact_date: data.first_contact_date,
+        quoted_value: data.valor_produto,
+        quoted_at: data.quoted_at,
+        vendedor: data.vendedor,
+        vendedor_email: data.vendedor_email,
+        vendedor_id: data.vendedor_id,
+        origem: data.origem,
+        raw_json: data.raw_json,
+        converted_to_proposal_at: data.converted_to_proposal_at,
       },
-      leadId: insertedLead.id
+      leadId: data.id
     };
   },
 

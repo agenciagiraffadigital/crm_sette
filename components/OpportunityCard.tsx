@@ -65,7 +65,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   const statusConfig = {
     'OPORTUNIDADES': { color: 'bg-blue-100 text-blue-700', icon: Target },
     'EM_CONTATO': { color: 'bg-amber-100 text-amber-700', icon: Clock },
-    'NEGOCIAÇÃO': { color: 'bg-green-100 text-green-700', icon: DollarSign }
+    'NEGOCIACAO': { color: 'bg-green-100 text-green-700', icon: DollarSign }
   }[opportunity.status] || { color: 'bg-gray-100 text-gray-700', icon: Target };
 
   const StatusIcon = statusConfig.icon;
@@ -79,11 +79,8 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   };
 
   return (
-    <Card 
-      variant="default"
-      padding="md"
-      hover={true}
-      className="group cursor-pointer relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+    <div 
+      className="group cursor-pointer relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg bg-white p-4 rounded-lg border border-slate-200"
       onClick={() => onClick(opportunity)}
       draggable={true}
       onDragStart={handleDragStart}
@@ -120,6 +117,12 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
           <User className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
           <span className="truncate">Vend: {opportunity.vendedor}</span>
         </div>
+        {opportunity.produto && (
+          <div className="flex items-center text-xs text-slate-600">
+            <Target className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
+            <span className="truncate">{opportunity.produto}</span>
+          </div>
+        )}
         <div className="flex items-center text-xs text-slate-600">
           <Calendar className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
           <span>{getTimeAgo(opportunity.created_at)}</span>
@@ -141,9 +144,9 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         )}
       </div>
 
-      {/* Action Buttons - Enhanced with smooth animations */}
+      {/* Action Buttons */}
       <div 
-        className="pt-3 border-t border-slate-100 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0" 
+        className="pt-3 border-t border-slate-100 flex justify-between items-center" 
         onClick={e => e.stopPropagation()}
       >
         {/* Status-specific action buttons */}
@@ -168,7 +171,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
             size="sm"
             onClick={(e) => { 
               e.stopPropagation(); 
-              onMove(opportunity.id, 'NEGOCIAÇÃO'); 
+              onMove(opportunity.id, 'NEGOCIACAO'); 
             }}
             className="text-xs font-bold uppercase text-amber-600 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-200 hover:border-amber-300 transition-all duration-200"
             icon={<DollarSign className="w-3 h-3" />}
@@ -177,7 +180,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
           </Button>
         )}
         
-        {opportunity.status === 'NEGOCIAÇÃO' && (
+        {opportunity.status === 'NEGOCIACAO' && (
           <Button
             variant="outline"
             size="sm"
@@ -209,6 +212,6 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
 
       {/* Status Indicator */}
       <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-    </Card>
+    </div>
   );
 };
