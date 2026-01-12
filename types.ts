@@ -106,6 +106,7 @@ export interface Lead {
   
   // Legacy/Internal
   origem: string;
+  canal_venda?: string; // Canal específico de venda
   raw_json?: any;
   
   // New fields for tracking

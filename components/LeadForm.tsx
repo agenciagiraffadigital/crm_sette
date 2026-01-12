@@ -904,15 +904,21 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                           onChange={(v: string) => handleAddressChange('cidade', v)} 
                         />
                         <ValidatedInput 
-                          label="UF" 
+                          label="Estado (UF)" 
                           value={formData.endereco.uf} 
                           onChange={(v: string) => handleAddressChange('uf', v)} 
+                        />
+                        <ValidatedInput 
+                          label="Complemento" 
+                          value={formData.endereco.complemento} 
+                          onChange={(v: string) => handleAddressChange('complemento', v)} 
+                          className="md:col-span-3" 
                         />
                     </div>
 
                     {/* Product Info */}
                     <SectionTitle completed={!!(formData.operadora && formData.produto)}>
-                      Dados do Produto
+                      Dados do Produto e Origem
                     </SectionTitle>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <Select 
@@ -934,6 +940,19 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                             type="number" 
                             value={formData.valor_produto} 
                             onChange={(v: string) => handleChange('valor_produto', v)} 
+                        />
+                        
+                        <ValidatedInput
+                            label="Origem do Lead"
+                            value={formData.origem}
+                            onChange={(v: string) => handleChange('origem', v)}
+                            placeholder="Ex: SITE, WHATSAPP, TELEFONE"
+                        />
+                        <ValidatedInput
+                            label="Canal de Venda"
+                            value={formData.canal_venda}
+                            onChange={(v: string) => handleChange('canal_venda', v)}
+                            placeholder="Ex: GOOGLE ADS, FACEBOOK, INDICAÇÃO"
                         />
                         
                         <Select 
