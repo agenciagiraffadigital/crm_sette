@@ -36,7 +36,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   const nextStatus = getNextStatus(opportunity.status);
 
   const formatCurrency = (value?: number) => {
-    if (!value) return 'N/A';
+    if (!value || value === 0) return 'N/A';
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
@@ -117,7 +117,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
           <User className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
           <span className="truncate">Vend: {opportunity.vendedor}</span>
         </div>
-        {opportunity.produto && (
+        {opportunity.produto && opportunity.produto !== '0' && (
           <div className="flex items-center text-xs text-slate-600">
             <Target className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
             <span className="truncate">{opportunity.produto}</span>
@@ -128,7 +128,6 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
           <span>{getTimeAgo(opportunity.created_at)}</span>
         </div>
 
-        {/* Status-specific Information */}
         {opportunity.first_contact_date && (
           <div className="flex items-center text-xs text-slate-600">
             <Clock className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
@@ -136,7 +135,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
           </div>
         )}
 
-        {opportunity.quoted_value && (
+        {opportunity.quoted_value && opportunity.quoted_value > 0 && (
           <div className="flex items-center text-xs text-slate-600">
             <DollarSign className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
             <span className="font-semibold text-green-600">{formatCurrency(opportunity.quoted_value)}</span>

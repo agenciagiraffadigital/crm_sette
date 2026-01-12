@@ -71,7 +71,7 @@ CREATE TABLE leads (
   vendedor_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
   
   -- Status & Timestamps
-  status_kanban TEXT DEFAULT 'ENVIADA' CHECK (status_kanban IN ('ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA')),
+  status_kanban TEXT DEFAULT 'ENVIADA' CHECK (status_kanban IN ('ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA', 'OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO')),
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

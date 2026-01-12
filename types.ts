@@ -2,7 +2,7 @@ export type ClientType = 'PF' | 'PJ' | 'ADESAO';
 
 export type KanbanStatus = 'ENVIADA' | 'ANÁLISE' | 'IMPLANTADA' | 'CANCELADA';
 
-export type OpportunityStatus = 'OPORTUNIDADES' | 'EM_CONTATO' | 'NEGOCIAÇÃO';
+export type OpportunityStatus = 'OPORTUNIDADES' | 'EM_CONTATO' | 'NEGOCIACAO';
 
 export type Role = 'ADMIN' | 'SELLER';
 

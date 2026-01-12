@@ -138,7 +138,16 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     if (!formData) return;
     setFormData({
       ...formData,
-      endereco: { ...formData.endereco, [field]: value }
+      endereco: { 
+        cep: '',
+        logradouro: '',
+        numero: '',
+        bairro: '',
+        cidade: '',
+        uf: '',
+        ...formData.endereco, 
+        [field]: value 
+      }
     });
   };
 
@@ -356,33 +365,33 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Input
               label="CEP"
-              value={formData.endereco.cep}
+              value={formData.endereco?.cep || ''}
               onChange={(value) => handleAddressChange('cep', value)}
             />
             <Input
               label="Logradouro"
-              value={formData.endereco.logradouro}
+              value={formData.endereco?.logradouro || ''}
               onChange={(value) => handleAddressChange('logradouro', value)}
               className="lg:col-span-2"
             />
             <Input
               label="Número"
-              value={formData.endereco.numero}
+              value={formData.endereco?.numero || ''}
               onChange={(value) => handleAddressChange('numero', value)}
             />
             <Input
               label="Bairro"
-              value={formData.endereco.bairro}
+              value={formData.endereco?.bairro || ''}
               onChange={(value) => handleAddressChange('bairro', value)}
             />
             <Input
               label="Cidade"
-              value={formData.endereco.cidade}
+              value={formData.endereco?.cidade || ''}
               onChange={(value) => handleAddressChange('cidade', value)}
             />
             <Input
               label="UF"
-              value={formData.endereco.uf}
+              value={formData.endereco?.uf || ''}
               onChange={(value) => handleAddressChange('uf', value)}
             />
           </div>
