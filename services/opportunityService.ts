@@ -7,7 +7,7 @@ export const opportunityService = {
     const { data, error } = await supabase
       .from('leads')
       .select('*')
-      .in('status_kanban', ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO']);
+      .in('status_kanban', ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIAÇÃO']);
     
     if (error) throw error;
     
@@ -134,8 +134,8 @@ export const opportunityService = {
   }): Promise<Opportunity> => {
     const opportunity = await opportunityService.getOpportunityById(id);
     
-    // Validation: require quoted_value when moving to NEGOCIACAO
-    if (status === 'NEGOCIACAO' && !additionalData?.quoted_value && !opportunity.quoted_value) {
+    // Validation: require quoted_value when moving to NEGOCIAÇÃO
+    if (status === 'NEGOCIAÇÃO' && !additionalData?.quoted_value && !opportunity.quoted_value) {
       throw new Error('Valor cotado é obrigatório para avançar para NEGOCIAÇÃO');
     }
 
@@ -240,7 +240,7 @@ export const opportunityService = {
   convertOpportunityToProposal: async (opportunityId: number, currentUser: User): Promise<{ opportunity: Opportunity; leadId: number }> => {
     const opportunity = await opportunityService.getOpportunityById(opportunityId);
     
-    if (opportunity.status !== 'NEGOCIACAO') {
+    if (opportunity.status !== 'NEGOCIAÇÃO') {
       throw new Error('Apenas oportunidades em NEGOCIAÇÃO podem ser convertidas para propostas');
     }
 

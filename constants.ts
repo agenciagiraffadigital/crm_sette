@@ -1,7 +1,7 @@
 import { Lead, User } from './types';
 
 export const KANBAN_COLUMNS = [
-  { id: 'ENVIADA', label: 'Oportunidade Recebida', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  { id: 'OPORTUNIDADES', label: 'Oportunidades', color: 'bg-blue-100 text-blue-800 border-blue-200' },
   { id: 'ANÁLISE', label: 'Em Análise (Adm)', color: 'bg-amber-100 text-amber-800 border-amber-200' },
   { id: 'IMPLANTADA', label: 'Implantada', color: 'bg-green-100 text-green-800 border-green-200' },
   { id: 'CANCELADA', label: 'Cancelada', color: 'bg-red-100 text-red-800 border-red-200' },
@@ -10,7 +10,7 @@ export const KANBAN_COLUMNS = [
 export const OPPORTUNITY_COLUMNS = [
   { id: 'OPORTUNIDADES', label: 'Oportunidades', color: 'bg-blue-100 text-blue-800 border-blue-200' },
   { id: 'EM_CONTATO', label: 'Em Contato', color: 'bg-amber-100 text-amber-800 border-amber-200' },
-  { id: 'NEGOCIACAO', label: 'Negociação', color: 'bg-green-100 text-green-800 border-green-200' },
+  { id: 'NEGOCIAÇÃO', label: 'Negociação', color: 'bg-green-100 text-green-800 border-green-200' },
 ] as const;
 
 export const PRODUCTS_LIST = [

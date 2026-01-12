@@ -261,7 +261,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     const groups: Record<OpportunityStatus, Opportunity[]> = {
       'OPORTUNIDADES': [],
       'EM_CONTATO': [],
-      'NEGOCIACAO': []
+      'NEGOCIAÇÃO': []
     };
 
     filteredOpportunities.forEach(opportunity => {
@@ -297,8 +297,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     const opportunity = opportunities.find(o => o.id === opportunityId);
     if (!opportunity) return;
 
-    // Validation: require quoted value when moving to NEGOCIACAO
-    if (targetStatus === 'NEGOCIACAO' && !opportunity.quoted_value) {
+    // Validation: require quoted value when moving to NEGOCIAÇÃO
+    if (targetStatus === 'NEGOCIAÇÃO' && !opportunity.quoted_value) {
       setValueModalState({
         isOpen: true,
         opportunityId,
@@ -312,7 +312,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
 
   const handleValueSubmit = (value: number) => {
     if (valueModalState.opportunityId) {
-      onMoveOpportunity(valueModalState.opportunityId, 'NEGOCIACAO', { quoted_value: value });
+      onMoveOpportunity(valueModalState.opportunityId, 'NEGOCIAÇÃO', { quoted_value: value });
     }
   };
 
