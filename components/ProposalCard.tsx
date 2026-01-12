@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lead, KanbanStatus } from '../types';
-import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, DollarSign } from 'lucide-react';
+import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, DollarSign, Trash2 } from 'lucide-react';
 import { KANBAN_COLUMNS } from '../constants';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
@@ -9,9 +9,11 @@ interface ProposalCardProps {
   proposal: Lead;
   onMove: (id: number, newStatus: KanbanStatus) => void;
   onClick: (proposal: Lead) => void;
+  onDelete?: (id: number) => void;
+  currentUser?: any;
 }
 
-export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, onClick }) => {
+export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, onClick, onDelete, currentUser }) => {
   
   const getNextStatus = (current: KanbanStatus): KanbanStatus | null => {
     const idx = KANBAN_COLUMNS.findIndex(c => c.id === current);
@@ -113,19 +115,37 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
             Mover
           </Button>
         )}
-        {proposal.status_kanban !== 'CANCELADA' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              onMove(proposal.id, 'CANCELADA'); 
-            }}
-            className="text-xs font-bold uppercase text-red-400 hover:text-red-600 hover:bg-red-50 ml-auto transition-all duration-200"
-          >
-            Cancelar
-          </Button>
-        )}
+        
+        <div className="flex gap-1 ml-auto">
+          {proposal.status_kanban !== 'CANCELADA' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                onMove(proposal.id, 'CANCELADA'); 
+              }}
+              className="text-xs font-bold uppercase text-red-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+          )}
+          
+          {/* Admin only: Delete button */}
+          {currentUser?.role === 'ADMIN' && onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                onDelete(proposal.id); 
+              }}
+              className="text-xs text-red-600 hover:text-red-800 px-2 py-1"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Status Indicator */}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Opportunity, OpportunityStatus } from '../types';
-import { Phone, Mail, User, Calendar, ArrowRight, Target, Clock, DollarSign, CheckCircle, XCircle } from 'lucide-react';
+import { Phone, Mail, User, Calendar, ArrowRight, Target, Clock, DollarSign, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { OPPORTUNITY_COLUMNS } from '../constants';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
@@ -11,6 +11,7 @@ interface OpportunityCardProps {
   onClick: (opportunity: Opportunity) => void;
   onMarkAsLost: (id: number) => void;
   onConvertToProposal: (id: number) => void;
+  onDelete?: (id: number) => void;
   currentUser: any;
   'data-testid'?: string;
 }
@@ -21,6 +22,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   onClick, 
   onMarkAsLost,
   onConvertToProposal,
+  onDelete,
   currentUser,
   'data-testid': testId 
 }) => {
@@ -194,19 +196,36 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
           </Button>
         )}
 
-        {/* Always show Mark as Lost */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            onMarkAsLost(opportunity.id); 
-          }}
-          className="text-xs font-bold uppercase text-red-400 hover:text-red-600 hover:bg-red-50 ml-auto transition-all duration-200"
-          icon={<XCircle className="w-3 h-3" />}
-        >
-          Perdida
-        </Button>
+        <div className="flex gap-1 ml-auto">
+          {/* Always show Mark as Lost */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              onMarkAsLost(opportunity.id); 
+            }}
+            className="text-xs font-bold uppercase text-red-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
+            icon={<XCircle className="w-3 h-3" />}
+          >
+            Perdida
+          </Button>
+
+          {/* Admin only: Delete button */}
+          {currentUser.role === 'ADMIN' && onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                onDelete(opportunity.id); 
+              }}
+              className="text-xs text-red-600 hover:text-red-800 px-2 py-1"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Status Indicator */}

@@ -3,6 +3,7 @@ import { Opportunity, OpportunityStatus, User, LossReason } from '../types';
 import { OpportunityCard } from './OpportunityCard';
 import { OpportunityForm } from './OpportunityForm';
 import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { OPPORTUNITY_COLUMNS } from '../constants';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
@@ -197,6 +198,16 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     opportunityName: ''
   });
 
+  const [deleteModalState, setDeleteModalState] = useState<{
+    isOpen: boolean;
+    opportunityId: number | null;
+    opportunityName: string;
+  }>({
+    isOpen: false,
+    opportunityId: null,
+    opportunityName: ''
+  });
+
   // Extract filter options from opportunities
   const { sellers, sourceOptions, statusOptions } = useMemo(() => {
     const allSellers = new Set<string>();
@@ -349,6 +360,29 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     }
   };
 
+  const handleDeleteOpportunity = (opportunityId: number) => {
+    const opportunity = opportunities.find(o => o.id === opportunityId);
+    if (!opportunity) return;
+
+    setDeleteModalState({
+      isOpen: true,
+      opportunityId,
+      opportunityName: opportunity.nome
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteModalState.opportunityId) {
+      try {
+        await opportunityService.deleteOpportunity(deleteModalState.opportunityId, currentUser);
+        setDeleteModalState({ isOpen: false, opportunityId: null, opportunityName: '' });
+        window.location.reload();
+      } catch (error) {
+        alert('Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      }
+    }
+  };
+
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -416,6 +450,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                       onClick={() => onOpenOpportunity(opportunity)}
                       onMarkAsLost={() => handleMarkAsLost(opportunity.id)}
                       onConvertToProposal={() => handleConvertToProposal(opportunity.id)}
+                      onDelete={currentUser.role === 'ADMIN' ? () => handleDeleteOpportunity(opportunity.id) : undefined}
                       currentUser={currentUser}
                       data-testid={`opportunity-card-${opportunity.id}`}
                     />
@@ -445,6 +480,14 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         onClose={() => setLossModalState({ isOpen: false, opportunityId: null, opportunityName: '' })}
         onSubmit={handleLossSubmit}
         opportunityName={lossModalState.opportunityName}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={deleteModalState.isOpen}
+        onClose={() => setDeleteModalState({ isOpen: false, opportunityId: null, opportunityName: '' })}
+        onConfirm={handleConfirmDelete}
+        itemName={deleteModalState.opportunityName}
+        itemType="oportunidade"
       />
     </div>
   );

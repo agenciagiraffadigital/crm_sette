@@ -2,7 +2,9 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { Lead, KanbanStatus, User } from '../types';
 import { ProposalCard } from './ProposalCard';
 import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { KANBAN_COLUMNS } from '../constants';
+import { leadService } from '../services/leadService';
 
 interface ProposalsBoardProps {
   proposals: Lead[];
@@ -28,6 +30,16 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
   });
 
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+
+  const [deleteModalState, setDeleteModalState] = useState<{
+    isOpen: boolean;
+    proposalId: number | null;
+    proposalName: string;
+  }>({
+    isOpen: false,
+    proposalId: null,
+    proposalName: ''
+  });
 
   const { sellers, operators, statusOptions, sourceOptions } = useMemo(() => {
     const allSellers = new Set<string>();
@@ -122,6 +134,29 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     onMoveProposal(id, newStatus);
   }, [onMoveProposal]);
 
+  const handleDeleteProposal = (proposalId: number) => {
+    const proposal = proposals.find(p => p.id === proposalId);
+    if (!proposal) return;
+
+    setDeleteModalState({
+      isOpen: true,
+      proposalId,
+      proposalName: proposal.nome
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteModalState.proposalId) {
+      try {
+        await leadService.deleteLead(deleteModalState.proposalId, user);
+        setDeleteModalState({ isOpen: false, proposalId: null, proposalName: '' });
+        window.location.reload();
+      } catch (error) {
+        alert('Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      }
+    }
+  };
+
   return (
     <div className="h-full flex flex-col space-y-4">
       {/* Header with Search and Filters */}
@@ -162,7 +197,9 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
                       key={proposal.id} 
                       proposal={proposal} 
                       onMove={handleMoveProposal} 
-                      onClick={onProposalClick} 
+                      onClick={onProposalClick}
+                      onDelete={user.role === 'ADMIN' ? () => handleDeleteProposal(proposal.id) : undefined}
+                      currentUser={user}
                     />
                   ))}
                   {columnProposals.length === 0 && (
@@ -176,6 +213,14 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
           })}
         </div>
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={deleteModalState.isOpen}
+        onClose={() => setDeleteModalState({ isOpen: false, proposalId: null, proposalName: '' })}
+        onConfirm={handleConfirmDelete}
+        itemName={deleteModalState.proposalName}
+        itemType="lead"
+      />
     </div>
   );
 };

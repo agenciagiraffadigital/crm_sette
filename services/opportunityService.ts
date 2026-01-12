@@ -458,4 +458,18 @@ export const opportunityService = {
 
     return data || [];
   },
+
+  // Admin Only: Delete opportunity permanently (actually deletes from leads table)
+  deleteOpportunity: async (opportunityId: number, currentUser: User): Promise<void> => {
+    if (currentUser.role !== 'ADMIN') {
+      throw new Error('Apenas administradores podem excluir oportunidades');
+    }
+
+    const { error } = await supabase
+      .from('leads')
+      .delete()
+      .eq('id', opportunityId);
+
+    if (error) throw error;
+  },
 };

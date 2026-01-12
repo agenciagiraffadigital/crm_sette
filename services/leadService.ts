@@ -408,4 +408,18 @@ export const leadService = {
 
     return data || [];
   },
+
+  // Admin Only: Delete lead permanently
+  deleteLead: async (leadId: number, currentUser: User): Promise<void> => {
+    if (currentUser.role !== 'ADMIN') {
+      throw new Error('Apenas administradores podem excluir leads');
+    }
+
+    const { error } = await supabase
+      .from('leads')
+      .delete()
+      .eq('id', leadId);
+
+    if (error) throw error;
+  },
 };
