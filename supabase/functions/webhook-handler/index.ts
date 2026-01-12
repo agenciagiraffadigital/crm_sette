@@ -6,22 +6,47 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface WebhookPayload {
-  value: Array<{
-    contact: {
-      name: string;
-      email: string;
-      phone: string;
-      document?: string;
-    };
-    custom_fields?: {
-      Operadora?: string;
-    };
-    products?: Array<{
-      name: string;
+interface OportunidadePayload {
+  oportunidades: Array<{
+    titulo?: string;
+    valor?: string;
+    codigo_vendedor?: string;
+    codigo_metodologia?: string;
+    codigo_canal_venda?: string;
+    codigo_etapa?: string;
+    personalizados?: Array<{
+      titulo?: string;
+      valor?: string;
     }>;
-    sales_channel?: {
-      name: string;
+    contato: {
+      nome: string;
+      email: string;
+      telefone1: string;
+      telefone2?: string;
+      cargo?: string;
+      cpf?: string;
+      personalizados?: Array<{
+        titulo?: string;
+        valor?: string;
+      }>;
+    };
+    empresa?: {
+      nome?: string;
+      cnpj?: string;
+      codigo_segmento?: string;
+      endereco_completo?: {
+        logradouro?: string;
+        numero?: string;
+        complemento?: string;
+        bairro?: string;
+        cidade?: string;
+        uf?: string;
+        cep?: string;
+      };
+      personalizados?: Array<{
+        titulo?: string;
+        valor?: string;
+      }>;
     };
   }>;
 }
@@ -37,15 +62,23 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('PROJECT_URL')!
     const supabaseServiceKey = Deno.env.get('SERVICE_ROLE_KEY')!
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    console.log('Supabase URL:', supabaseUrl)
+    console.log('Service key exists:', !!supabaseServiceKey)
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
 
     // Parse webhook payload
-    const payload: WebhookPayload = await req.json()
+    const payload: OportunidadePayload = await req.json()
     console.log('Webhook received:', JSON.stringify(payload, null, 2))
 
-    if (!payload.value || payload.value.length === 0) {
+    if (!payload.oportunidades || payload.oportunidades.length === 0) {
       return new Response(
-        JSON.stringify({ ok: false, error: 'Invalid payload structure' }),
+        JSON.stringify({ ok: false, error: 'Invalid payload structure - expected oportunidades array' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -84,7 +117,7 @@ serve(async (req) => {
 
     // Get last assigned seller for round-robin
     const { data: lastOpportunity } = await supabase
-      .from('opportunities')
+      .from('leads')
       .select('vendedor_id')
       .not('vendedor_id', 'is', null)
       .order('created_at', { ascending: false })
@@ -100,50 +133,92 @@ serve(async (req) => {
     const results = []
 
     // Process each lead in the payload
-    for (let i = 0; i < payload.value.length; i++) {
-      const item = payload.value[i]
-      const contact = item.contact
+    for (let i = 0; i < payload.oportunidades.length; i++) {
+      const oportunidade = payload.oportunidades[i]
+      const contato = oportunidade.contato
 
       // Validate required fields
-      if (!contact.name || !contact.email || !contact.phone) {
+      if (!contato.nome || !contato.email || !contato.telefone1) {
         results.push({
           index: i,
           ok: false,
           error: 'Missing required contact fields',
-          contact: contact.name || 'Unknown'
+          contact: contato.nome || 'Unknown'
         })
         continue
       }
 
-      // Select seller using round-robin
-      const selectedSeller = sellers[currentSellerIndex]
-      currentSellerIndex = (currentSellerIndex + 1) % sellers.length
+      // Check for duplicate email
+      const { data: existingLead } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('email', contato.email)
+        .single()
+
+      if (existingLead) {
+        results.push({
+          index: i,
+          ok: false,
+          error: 'Lead with this email already exists',
+          contact: contato.nome
+        })
+        continue
+      }
+
+      // Select seller - use codigo_vendedor if provided, otherwise round-robin
+      let selectedSeller
+      if (oportunidade.codigo_vendedor) {
+        selectedSeller = sellers.find(s => s.id === oportunidade.codigo_vendedor)
+        if (!selectedSeller) {
+          results.push({
+            index: i,
+            ok: false,
+            error: `Seller with codigo_vendedor ${oportunidade.codigo_vendedor} not found`,
+            contact: contato.nome
+          })
+          continue
+        }
+      } else {
+        selectedSeller = sellers[currentSellerIndex]
+        currentSellerIndex = (currentSellerIndex + 1) % sellers.length
+      }
+
+      // Determine tipo_cliente based on empresa.cnpj
+      const tipoCliente = oportunidade.empresa?.cnpj ? 'PJ' : 'PF'
+      const cpfCnpj = oportunidade.empresa?.cnpj || contato.cpf || ''
 
       try {
         // Create opportunity
         const opportunityData = {
-          nome: contact.name,
-          email: contact.email,
-          telefone: contact.phone,
+          nome: contato.nome,
+          email: contato.email,
+          telefone: contato.telefone1,
           status_kanban: 'OPORTUNIDADES',
           vendedor: selectedSeller.name,
           vendedor_email: selectedSeller.email,
           vendedor_id: selectedSeller.id,
-          origem: item.sales_channel?.name || 'WEBHOOK',
-          raw_json: item,
-          tipo_cliente: 'PF',
-          cpf_cnpj: '',
+          origem: 'WEBHOOK',
+          raw_json: oportunidade,
+          tipo_cliente: tipoCliente,
+          cpf_cnpj: cpfCnpj,
           rg_ie: '',
           data_nascimento_abertura: null,
           dados_responsavel: null,
           havera_remissao: false,
           operadora: '',
           produto: '',
-          valor_produto: null,
+          valor_produto: oportunidade.valor ? parseFloat(oportunidade.valor) : null,
           reducao_carencia: false,
           coparticipacao: 'NÃO',
           vigencia: null,
-          endereco: { cep: '', logradouro: '', numero: '', bairro: '', cidade: '', uf: '' },
+          // Campos separados de endereço
+          cep: oportunidade.empresa?.endereco_completo?.cep || '',
+          logradouro: oportunidade.empresa?.endereco_completo?.logradouro || '',
+          numero: oportunidade.empresa?.endereco_completo?.numero || '',
+          complemento: oportunidade.empresa?.endereco_completo?.complemento || '',
+          bairro: oportunidade.empresa?.endereco_completo?.bairro || '',
+          cidade: oportunidade.empresa?.endereco_completo?.cidade || '',
+          estado: oportunidade.empresa?.endereco_completo?.uf || '',
           beneficiarios: [],
           mensagens: [],
           documentos: []
@@ -163,7 +238,7 @@ serve(async (req) => {
             index: i,
             ok: false,
             error: `Failed to create lead: ${opportunityError.message}`,
-            contact: contact.name,
+            contact: contato.nome,
             details: opportunityError
           })
           continue
@@ -193,7 +268,7 @@ serve(async (req) => {
           user_name: selectedSeller.name,
           metadata: { 
             origem: opportunityData.origem,
-            webhook_payload: item 
+            webhook_payload: oportunidade 
           }
         })
 
@@ -202,7 +277,8 @@ serve(async (req) => {
           ok: true,
           lead_id: opportunity.id,
           assigned_to: selectedSeller.name,
-          contact: contact.name
+          contact: contato.nome,
+          tipo_cliente: tipoCliente
         })
 
         console.log(`Lead ${i+1} created: ID ${opportunity.id}, assigned to ${selectedSeller.name}`)
@@ -213,7 +289,7 @@ serve(async (req) => {
           index: i,
           ok: false,
           error: error instanceof Error ? error.message : 'Unknown error',
-          contact: contact.name
+          contact: contato.nome
         })
       }
     }

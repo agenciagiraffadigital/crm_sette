@@ -3,7 +3,7 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { EnhancedDashboard } from './components/dashboard/EnhancedDashboard';
 import { OpportunitiesBoard } from './components/OpportunitiesBoard';
-import { KanbanBoard } from './components/KanbanBoard';
+import { ProposalsBoard } from './components/ProposalsBoard';
 import { SimulationPanel } from './components/SimulationPanel';
 import { ModernLeadForm } from './components/ModernLeadForm';
 import { UserManagement } from './components/UserManagement';
@@ -199,11 +199,11 @@ function App() {
       )}
       
       {activeTab === 'kanban' && (
-        <KanbanBoard 
-            leads={leads} 
-            onMoveLead={handleMoveLead} 
+        <ProposalsBoard 
+            proposals={leads} 
+            onMoveProposal={handleMoveLead} 
             user={user} 
-            onLeadClick={(l) => setSelectedLeadId(l.id)} 
+            onProposalClick={(l) => setSelectedLeadId(l.id)} 
         />
       )}
       

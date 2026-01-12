@@ -4,8 +4,13 @@ import { authService } from './authService';
 
 export const leadService = {
   getLeads: async (currentUser: User): Promise<Lead[]> => {
-    const { data, error } = await supabase.from('leads').select('*');
+    const { data, error } = await supabase
+      .from('leads')
+      .select('*')
+      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA']); // Only proposal statuses
+    
     if (error) throw error;
+    
     let leads: Lead[] = data.map(row => ({
       id: row.id,
       nome: row.nome,
@@ -45,6 +50,7 @@ export const leadService = {
       created_at: row.created_at,
       updated_at: row.updated_at,
     }));
+    
     if (currentUser.role === 'ADMIN') {
       return leads;
     } else {
