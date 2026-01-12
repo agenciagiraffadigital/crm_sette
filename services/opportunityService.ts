@@ -253,7 +253,6 @@ export const opportunityService = {
       .from('leads')
       .update({
         status_kanban: 'ENVIADA',
-        converted_to_proposal_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', opportunityId)
@@ -279,7 +278,6 @@ export const opportunityService = {
         vendedor_id: data.vendedor_id,
         origem: data.origem,
         raw_json: data.raw_json,
-        converted_to_proposal_at: data.converted_to_proposal_at,
       },
       leadId: data.id
     };

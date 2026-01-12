@@ -235,7 +235,7 @@ export const leadService = {
       vendedor: nextSeller.name,
       vendedor_email: nextSeller.email,
       vendedor_id: nextSeller.id,
-      status_kanban: 'ENVIADA' as const,
+      status_kanban: 'OPORTUNIDADES' as const,
     };
 
     // 6. Salvar no Supabase

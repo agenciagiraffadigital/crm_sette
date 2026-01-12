@@ -217,11 +217,6 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   // Filter opportunities based on search filters
   const filteredOpportunities = useMemo(() => {
     return opportunities.filter(opportunity => {
-      // Only show active opportunities (not lost or converted)
-      if (opportunity.lost_at || opportunity.converted_to_proposal_at) {
-        return false;
-      }
-
       // Search term filter
       const matchesSearch = !searchFilters.searchTerm || 
         opportunity.nome.toLowerCase().includes(searchFilters.searchTerm.toLowerCase()) || 
@@ -265,7 +260,9 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     };
 
     filteredOpportunities.forEach(opportunity => {
-      groups[opportunity.status].push(opportunity);
+      if (groups[opportunity.status]) {
+        groups[opportunity.status].push(opportunity);
+      }
     });
 
     return groups;

@@ -113,22 +113,13 @@ function App() {
   const handleMoveOpportunity = useCallback(async (id: number, newStatus: OpportunityStatus, additionalData?: { quoted_value?: number }) => {
     if (!user) return;
     
-    // Optimistic UI Update - update immediately
-    setOpportunities(current => 
-      current.map(o => o.id === id ? { 
-        ...o, 
-        status: newStatus,
-        quoted_value: additionalData?.quoted_value || o.quoted_value
-      } : o)
-    );
-    
     try {
       await opportunityService.updateOpportunityStatus(id, newStatus, user, additionalData);
-    } catch (error) {
-      console.error("Failed to update opportunity status", error);
-      // Revert optimistic update on error
+      // Reload opportunities after successful update
       const updatedOpportunities = await opportunityService.getOpportunities(user);
       setOpportunities(updatedOpportunities);
+    } catch (error) {
+      console.error("Failed to update opportunity status", error);
       throw error;
     }
   }, [user]);
