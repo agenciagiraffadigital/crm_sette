@@ -125,17 +125,17 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         )}
         <div className="flex items-center text-xs text-slate-600">
           <Calendar className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-          <span>{getTimeAgo(opportunity.created_at)}</span>
+          <span>{formatDate(opportunity.created_at)}</span>
         </div>
 
-        {opportunity.first_contact_date && (
+        {!!opportunity.first_contact_date && (
           <div className="flex items-center text-xs text-slate-600">
             <Clock className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
             <span>Contato: {getTimeAgo(opportunity.first_contact_date)}</span>
           </div>
         )}
 
-        {opportunity.quoted_value && opportunity.quoted_value > 0 && (
+        {!!opportunity.quoted_value && opportunity.quoted_value > 0 && (
           <div className="flex items-center text-xs text-slate-600">
             <DollarSign className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
             <span className="font-semibold text-green-600">{formatCurrency(opportunity.quoted_value)}</span>
