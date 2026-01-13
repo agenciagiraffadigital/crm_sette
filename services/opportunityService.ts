@@ -4,10 +4,17 @@ import { supabase } from './supabaseClient';
 export const opportunityService = {
   // Get all opportunities (leads in opportunity phase)
   getOpportunities: async (currentUser: User): Promise<Opportunity[]> => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('leads')
-      .select('*')
-      .in('status_kanban', ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO']);
+      .select('id, nome, email, telefone, status_kanban, created_at, valor_produto, vendedor, vendedor_id, origem, produto')
+      .in('status_kanban', ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'])
+      .order('created_at', { ascending: false });
+    
+    if (currentUser.role !== 'ADMIN') {
+      query = query.eq('vendedor_id', currentUser.id);
+    }
+    
+    const { data, error } = await query;
     
     if (error) throw error;
     
@@ -18,22 +25,22 @@ export const opportunityService = {
       telefone: row.telefone,
       status: row.status_kanban,
       created_at: row.created_at,
-      updated_at: row.updated_at,
-      first_contact_date: row.first_contact_date,
+      updated_at: row.created_at,
+      first_contact_date: undefined,
       quoted_value: row.valor_produto,
       vendedor: row.vendedor,
-      vendedor_email: row.vendedor_email,
+      vendedor_email: '',
       vendedor_id: row.vendedor_id,
       origem: row.origem,
-      raw_json: row.raw_json,
+      raw_json: null,
       produto: row.produto,
     }));
 
-    if (currentUser.role === 'ADMIN') {
-      return opportunities;
-    } else {
-      return opportunities.filter(o => o.vendedor_id === currentUser.id);
+    if (currentUser.role !== 'ADMIN') {
+      opportunities = opportunities.filter(o => o.vendedor_id === currentUser.id);
     }
+    
+    return opportunities;
   },
 
   // Get opportunity by ID (actually a lead)

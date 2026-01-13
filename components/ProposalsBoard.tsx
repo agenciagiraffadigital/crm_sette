@@ -31,6 +31,13 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
 
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
 
+  const [limits, setLimits] = useState<Record<string, number>>({
+    'ENVIADA': 30,
+    'ANÁLISE': 30,
+    'IMPLANTADA': 30,
+    'CANCELADA': 30
+  });
+
   const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean;
     proposalId: number | null;
@@ -106,7 +113,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
       return matchesSearch && matchesSeller && matchesOperator && matchesStatus && 
              matchesSource && matchesDateRange && matchesValueRange;
     });
-  }, [proposals, filters, user.role]);
+  }, [proposals, filters, user.role, limits]);
 
   const handleFiltersChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
@@ -179,7 +186,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="flex h-full gap-4 min-w-[1200px] pb-4">
           {KANBAN_COLUMNS.map((column) => {
-            const columnProposals = filteredProposals.filter(p => p.status_kanban === column.id);
+            const columnProposals = filteredProposals.filter(p => p.status_kanban === column.id).slice(0, limits[column.id]);
             return (
               <div key={column.id} className="flex-1 flex flex-col min-w-[280px] bg-slate-50 rounded-xl border border-slate-200">
                 {/* Column Header */}
@@ -191,7 +198,16 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
                 </div>
                 
                 {/* Column Body with Virtualization for Performance */}
-                <div className="p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                <div 
+                  className="p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar"
+                  onScroll={(e) => {
+                    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+                    if (scrollHeight - scrollTop <= clientHeight + 100) {
+                      // Trigger load more when near bottom
+                      console.log('Load more proposals for column:', column.id);
+                    }
+                  }}
+                >
                   {columnProposals.map(proposal => (
                     <ProposalCard 
                       key={proposal.id} 
@@ -205,6 +221,21 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
                   {columnProposals.length === 0 && (
                     <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg m-2">
                       <p className="text-xs text-slate-400">Nenhuma proposta</p>
+                    </div>
+                  )}
+                  {columnProposals.length >= limits[column.id] && (
+                    <div className="text-center py-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLimits(prev => ({
+                          ...prev,
+                          [column.id]: prev[column.id] + 30
+                        }))}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        Carregar mais +30
+                      </Button>
                     </div>
                   )}
                 </div>

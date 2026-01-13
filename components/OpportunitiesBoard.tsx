@@ -178,6 +178,12 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   
+  const [limits, setLimits] = useState<Record<OpportunityStatus, number>>({
+    'OPORTUNIDADES': 30,
+    'EM_CONTATO': 30,
+    'NEGOCIACAO': 30
+  });
+  
   const [valueModalState, setValueModalState] = useState<{
     isOpen: boolean;
     opportunityId: number | null;
@@ -276,8 +282,13 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       }
     });
 
+    // Limit each status to current limit
+    Object.keys(groups).forEach(status => {
+      groups[status as OpportunityStatus] = groups[status as OpportunityStatus].slice(0, limits[status as OpportunityStatus]);
+    });
+
     return groups;
-  }, [filteredOpportunities]);
+  }, [filteredOpportunities, limits]);
 
   const handleFiltersChange = useCallback((newFilters: FilterState) => {
     setSearchFilters(newFilters);
@@ -441,7 +452,16 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                 </div>
                 
                 {/* Column Body */}
-                <div className="p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                <div 
+                  className="p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar"
+                  onScroll={(e) => {
+                    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+                    if (scrollHeight - scrollTop <= clientHeight + 100) {
+                      // Trigger load more when near bottom
+                      console.log('Load more opportunities for column:', column.id);
+                    }
+                  }}
+                >
                   {columnOpportunities?.map(opportunity => (
                     <OpportunityCard
                       key={opportunity.id}
@@ -458,6 +478,21 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                   {columnOpportunities?.length === 0 && (
                     <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg m-2">
                       <p className="text-xs text-slate-400">Nenhuma oportunidade</p>
+                    </div>
+                  )}
+                  {columnOpportunities && columnOpportunities.length >= limits[column.id as OpportunityStatus] && (
+                    <div className="text-center py-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLimits(prev => ({
+                          ...prev,
+                          [column.id]: prev[column.id as OpportunityStatus] + 30
+                        }))}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        Carregar mais +30
+                      </Button>
                     </div>
                   )}
                 </div>

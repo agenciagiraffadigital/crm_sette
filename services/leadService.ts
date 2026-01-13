@@ -4,10 +4,17 @@ import { authService } from './authService';
 
 export const leadService = {
   getLeads: async (currentUser: User): Promise<Lead[]> => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('leads')
-      .select('*')
-      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA']); // Only proposal statuses
+      .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at')
+      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA'])
+      .order('created_at', { ascending: false });
+    
+    if (currentUser.role !== 'ADMIN') {
+      query = query.eq('vendedor_id', currentUser.id);
+    }
+    
+    const { data, error } = await query;
     
     if (error) throw error;
     
@@ -17,45 +24,45 @@ export const leadService = {
       email: row.email,
       telefone: row.telefone,
       tipo_cliente: row.tipo_cliente,
-      cpf_cnpj: row.cpf_cnpj,
-      rg_ie: row.rg_ie,
-      data_nascimento_abertura: row.data_nascimento_abertura,
-      dados_responsavel: row.dados_responsavel,
-      havera_remissao: row.havera_remissao,
+      cpf_cnpj: '',
+      rg_ie: '',
+      data_nascimento_abertura: '',
+      dados_responsavel: null,
+      havera_remissao: false,
       operadora: row.operadora,
       produto: row.produto,
       valor_produto: row.valor_produto,
-      reducao_carencia: row.reducao_carencia,
-      coparticipacao: row.coparticipacao,
-      vigencia: row.vigencia,
+      reducao_carencia: false,
+      coparticipacao: 'NÃO' as const,
+      vigencia: '',
       endereco: {
-        cep: row.cep || '',
-        logradouro: row.logradouro || '',
-        numero: row.numero || '',
-        complemento: row.complemento || '',
-        bairro: row.bairro || '',
-        cidade: row.cidade || '',
-        uf: row.estado || ''
+        cep: '',
+        logradouro: '',
+        numero: '',
+        complemento: '',
+        bairro: '',
+        cidade: '',
+        uf: ''
       },
-      beneficiarios: row.beneficiarios,
-      mensagens: row.mensagens,
-      documentos: row.documentos,
-      origem: row.origem,
-      canal_venda: row.canal_venda,
-      raw_json: row.raw_json,
+      beneficiarios: [],
+      mensagens: [],
+      documentos: [],
+      origem: '',
+      canal_venda: '',
+      raw_json: null,
       vendedor: row.vendedor,
-      vendedor_email: row.vendedor_email,
+      vendedor_email: '',
       vendedor_id: row.vendedor_id,
       status_kanban: row.status_kanban,
       created_at: row.created_at,
-      updated_at: row.updated_at,
+      updated_at: row.created_at,
     }));
     
-    if (currentUser.role === 'ADMIN') {
-      return leads;
-    } else {
-      return leads.filter(l => l.vendedor_id === currentUser.id);
+    if (currentUser.role !== 'ADMIN') {
+      leads = leads.filter(l => l.vendedor_id === currentUser.id);
     }
+    
+    return leads;
   },
 
   getLeadById: async (id: number): Promise<Lead> => {
