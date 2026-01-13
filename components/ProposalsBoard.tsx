@@ -38,6 +38,8 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     'CANCELADA': 30
   });
 
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+
   const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean;
     proposalId: number | null;
@@ -68,7 +70,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
   }, [proposals]);
 
   const filteredProposals = useMemo(() => {
-    return proposals.filter(proposal => {
+    const filtered = proposals.filter(proposal => {
       // Search term filter
       const matchesSearch = !filters.searchTerm || 
         proposal.nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) || 
@@ -113,7 +115,16 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
       return matchesSearch && matchesSeller && matchesOperator && matchesStatus && 
              matchesSource && matchesDateRange && matchesValueRange;
     });
-  }, [proposals, filters, user.role, limits]);
+
+    // Calculate status counts
+    const counts: Record<string, number> = {};
+    KANBAN_COLUMNS.forEach(column => {
+      counts[column.id] = filtered.filter(p => p.status_kanban === column.id).length;
+    });
+    setStatusCounts(counts);
+
+    return filtered;
+  }, [proposals, filters, user.role]);
 
   const handleFiltersChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
@@ -224,7 +235,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
                 <div className={`p-3 border-b border-slate-200 rounded-t-xl flex justify-between items-center ${column.color.split(' ')[0]}`}>
                   <h3 className={`font-semibold text-sm ${column.color.split(' ')[1]}`}>{column.label}</h3>
                   <span className={`text-xs font-bold px-2 py-0.5 bg-white bg-opacity-50 rounded-full ${column.color.split(' ')[1]}`}>
-                    {columnProposals.length}
+                    {statusCounts[column.id] || 0}
                   </span>
                 </div>
                 

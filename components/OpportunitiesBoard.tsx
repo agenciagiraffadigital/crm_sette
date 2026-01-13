@@ -184,6 +184,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     'NEGOCIACAO': 30
   });
   
+  const [statusCounts, setStatusCounts] = useState<Record<OpportunityStatus, number>>({} as Record<OpportunityStatus, number>);
+  
   const [valueModalState, setValueModalState] = useState<{
     isOpen: boolean;
     opportunityId: number | null;
@@ -233,7 +235,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
 
   // Filter opportunities based on search filters
   const filteredOpportunities = useMemo(() => {
-    return opportunities.filter(opportunity => {
+    const filtered = opportunities.filter(opportunity => {
       // Search term filter
       const matchesSearch = !searchFilters.searchTerm || 
         opportunity.nome.toLowerCase().includes(searchFilters.searchTerm.toLowerCase()) || 
@@ -266,6 +268,15 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         
       return matchesSearch && matchesSeller && matchesStatus && matchesSource && matchesDateRange;
     });
+
+    // Calculate status counts
+    const counts: Record<OpportunityStatus, number> = {} as Record<OpportunityStatus, number>;
+    OPPORTUNITY_COLUMNS.forEach(column => {
+      counts[column.id as OpportunityStatus] = filtered.filter(o => o.status === column.id).length;
+    });
+    setStatusCounts(counts);
+
+    return filtered;
   }, [opportunities, searchFilters, currentUser.role]);
 
   // Group opportunities by status
@@ -464,7 +475,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                 <div className={`p-3 border-b border-slate-200 rounded-t-xl flex justify-between items-center ${column.color.split(' ')[0]}`}>
                   <h3 className={`font-semibold text-sm ${column.color.split(' ')[1]}`}>{column.label}</h3>
                   <span className={`text-xs font-bold px-2 py-0.5 bg-white bg-opacity-50 rounded-full ${column.color.split(' ')[1]}`}>
-                    {columnOpportunities?.length || 0}
+                    {statusCounts[column.id as OpportunityStatus] || 0}
                   </span>
                 </div>
                 
