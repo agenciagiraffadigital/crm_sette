@@ -74,19 +74,28 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({
+    console.log('Drag started for opportunity:', opportunity.id, opportunity.status);
+    const data = {
       opportunityId: opportunity.id,
       currentStatus: opportunity.status
-    }));
+    };
+    e.dataTransfer.setData('text/plain', JSON.stringify(data));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    // Reset any visual changes
   };
 
   return (
     <div 
-      className="group cursor-pointer relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg bg-white p-4 rounded-lg border border-slate-200"
+      className="group cursor-move relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg bg-white p-4 rounded-lg border border-slate-200 select-none"
       onClick={() => onClick(opportunity)}
       draggable={true}
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       data-testid={testId}
+      title="Clique para editar ou arraste para mover"
     >
       {/* Header with Status and ID */}
       <div className="flex justify-between items-start mb-3">

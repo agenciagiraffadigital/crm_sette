@@ -66,7 +66,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
           {user.role === 'ADMIN' && (
              <>
                <NavItem id="users" icon={Users} label="Gestão de Usuários" />
-               <NavItem id="simulation" icon={Settings} label="Dev / Simulação" />
              </>
           )}
         </nav>

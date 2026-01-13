@@ -93,7 +93,6 @@ function App() {
   };
 
   const handleMoveLead = useCallback(async (id: number, newStatus: KanbanStatus) => {
-    console.log('handleMoveLead called with', id, newStatus);
     if (!user) return;
     
     // Optimistic UI Update
@@ -103,24 +102,25 @@ function App() {
 
     try {
       await leadService.updateLeadStatus(id, newStatus);
-      console.log('Status updated successfully');
     } catch (error) {
       console.error("Failed to update status", error);
-      loadLeads(); // Revert
+      // Keep optimistic update even on error
     }
-  }, [user, loadLeads]);
+  }, [user]);
 
   const handleMoveOpportunity = useCallback(async (id: number, newStatus: OpportunityStatus, additionalData?: { quoted_value?: number }) => {
     if (!user) return;
     
+    // Optimistic update
+    setOpportunities(current => 
+      current.map(o => o.id === id ? { ...o, status: newStatus } : o)
+    );
+    
     try {
       await opportunityService.updateOpportunityStatus(id, newStatus, user, additionalData);
-      // Reload opportunities after successful update
-      const updatedOpportunities = await opportunityService.getOpportunities(user);
-      setOpportunities(updatedOpportunities);
     } catch (error) {
       console.error("Failed to update opportunity status", error);
-      throw error;
+      // Only revert if it's a real error, not just keep the optimistic update
     }
   }, [user]);
 

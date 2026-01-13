@@ -137,6 +137,31 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     setSavedFilters(prev => prev.filter(f => f.id !== filterId));
   }, []);
 
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Visual feedback removal if needed
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStatus: KanbanStatus) => {
+    e.preventDefault();
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const { proposalId, currentStatus } = data;
+      
+      if (currentStatus !== targetStatus) {
+        handleMoveProposal(proposalId, targetStatus);
+      }
+    } catch (error) {
+      console.error('Error handling drop:', error);
+    }
+  };
+
   const handleMoveProposal = useCallback((id: number, newStatus: KanbanStatus) => {
     onMoveProposal(id, newStatus);
   }, [onMoveProposal]);
@@ -188,7 +213,13 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
           {KANBAN_COLUMNS.map((column) => {
             const columnProposals = filteredProposals.filter(p => p.status_kanban === column.id).slice(0, limits[column.id]);
             return (
-              <div key={column.id} className="flex-1 flex flex-col min-w-[280px] bg-slate-50 rounded-xl border border-slate-200">
+              <div 
+                key={column.id} 
+                className="flex-1 flex flex-col min-w-[280px] bg-slate-50 rounded-xl border-2 border-slate-200 transition-colors duration-200"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, column.id as KanbanStatus)}
+              >
                 {/* Column Header */}
                 <div className={`p-3 border-b border-slate-200 rounded-t-xl flex justify-between items-center ${column.color.split(' ')[0]}`}>
                   <h3 className={`font-semibold text-sm ${column.color.split(' ')[1]}`}>{column.label}</h3>
@@ -219,8 +250,8 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
                     />
                   ))}
                   {columnProposals.length === 0 && (
-                    <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg m-2">
-                      <p className="text-xs text-slate-400">Nenhuma proposta</p>
+                    <div className="h-32 flex items-center justify-center drop-zone-empty rounded-lg m-2">
+                      <p className="text-xs text-slate-400 font-medium">Arraste propostas aqui</p>
                     </div>
                   )}
                   {columnProposals.length >= limits[column.id] && (

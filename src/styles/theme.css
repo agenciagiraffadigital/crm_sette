@@ -160,3 +160,48 @@
     max-width: 1536px;
   }
 }
+
+/* Drag and Drop Styles */
+.drag-over {
+  background-color: var(--color-primary-50) !important;
+  border-color: var(--color-primary-300) !important;
+  transform: scale(1.01);
+  transition: all var(--transition-normal);
+}
+
+.dragging {
+  opacity: 0.6;
+  transform: scale(0.98);
+  transition: all var(--transition-fast);
+  cursor: grabbing !important;
+}
+
+.drop-zone-empty {
+  border: 2px dashed var(--color-slate-300);
+  background-color: var(--color-slate-50);
+  transition: all var(--transition-normal);
+}
+
+.drop-zone-empty.drag-over {
+  border-color: var(--color-primary-400) !important;
+  background-color: var(--color-primary-50) !important;
+}
+
+/* Custom scrollbar for kanban columns */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-slate-100);
+  border-radius: var(--radius-lg);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-slate-300);
+  border-radius: var(--radius-lg);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-slate-400);
+}

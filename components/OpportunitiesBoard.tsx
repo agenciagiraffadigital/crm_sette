@@ -326,7 +326,11 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       return;
     }
 
-    onMoveOpportunity(opportunityId, targetStatus);
+    try {
+      await onMoveOpportunity(opportunityId, targetStatus);
+    } catch (error) {
+      console.error('Error moving opportunity:', error);
+    }
   };
 
   const handleValueSubmit = (value: number) => {
@@ -395,18 +399,30 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   };
 
   // Drag and drop handlers
+  // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Visual feedback removal if needed
   };
 
   const handleDrop = (e: React.DragEvent, targetStatus: OpportunityStatus) => {
     e.preventDefault();
+    console.log('Drop event triggered for status:', targetStatus);
+    
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      console.log('Dropped data:', data);
       const { opportunityId, currentStatus } = data;
       
       if (currentStatus !== targetStatus) {
+        console.log('Moving from', currentStatus, 'to', targetStatus);
         handleMoveOpportunity(opportunityId, targetStatus);
+      } else {
+        console.log('Same status, no move needed');
       }
     } catch (error) {
       console.error('Error handling drop:', error);
@@ -439,8 +455,9 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
             return (
               <div 
                 key={column.id} 
-                className="flex-1 flex flex-col min-w-[280px] bg-slate-50 rounded-xl border border-slate-200"
+                className="flex-1 flex flex-col min-w-[280px] bg-slate-50 rounded-xl border-2 border-slate-200 transition-colors duration-200"
                 onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, column.id as OpportunityStatus)}
               >
                 {/* Column Header */}
@@ -476,8 +493,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                     />
                   ))}
                   {columnOpportunities?.length === 0 && (
-                    <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg m-2">
-                      <p className="text-xs text-slate-400">Nenhuma oportunidade</p>
+                    <div className="h-32 flex items-center justify-center drop-zone-empty rounded-lg m-2">
+                      <p className="text-xs text-slate-400 font-medium">Arraste oportunidades aqui</p>
                     </div>
                   )}
                   {columnOpportunities && columnOpportunities.length >= limits[column.id as OpportunityStatus] && (

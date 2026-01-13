@@ -139,13 +139,6 @@ export const opportunityService = {
     quoted_value?: number;
     first_contact_date?: string;
   }): Promise<Opportunity> => {
-    const opportunity = await opportunityService.getOpportunityById(id);
-    
-    // Validation: require quoted_value when moving to NEGOCIACAO
-    if (status === 'NEGOCIACAO' && !additionalData?.quoted_value && !opportunity.quoted_value) {
-      throw new Error('Valor cotado é obrigatório para avançar para NEGOCIAÇÃO');
-    }
-
     const updateData: any = {
       status_kanban: status,
       updated_at: new Date().toISOString(),
@@ -158,7 +151,7 @@ export const opportunityService = {
 
     if (additionalData?.first_contact_date) {
       updateData.first_contact_date = additionalData.first_contact_date;
-    } else if (status === 'EM_CONTATO' && !opportunity.first_contact_date) {
+    } else if (status === 'EM_CONTATO') {
       updateData.first_contact_date = new Date().toISOString();
     }
 
@@ -181,15 +174,12 @@ export const opportunityService = {
       updated_at: data.updated_at,
       first_contact_date: data.first_contact_date,
       quoted_value: data.valor_produto,
-      quoted_at: data.quoted_at,
       vendedor: data.vendedor,
       vendedor_email: data.vendedor_email,
       vendedor_id: data.vendedor_id,
       origem: data.origem,
       raw_json: data.raw_json,
-      notes: data.notes,
-      contact_date: data.contact_date,
-      next_followup: data.next_followup,
+      produto: data.produto,
     };
   },
 

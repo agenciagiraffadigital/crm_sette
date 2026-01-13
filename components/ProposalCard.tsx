@@ -31,7 +31,19 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
     'ADESAO': { color: 'bg-pink-100 text-pink-700', icon: PersonStanding }
   }[proposal.tipo_cliente] || { color: 'bg-gray-100 text-gray-700', icon: User };
 
-  const TypeIcon = typeConfig.icon;
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    const data = {
+      proposalId: proposal.id,
+      currentStatus: proposal.status_kanban
+    };
+    e.dataTransfer.setData('text/plain', JSON.stringify(data));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    // Reset any visual changes
+  };
 
   const formatCurrency = (value?: number) => {
     if (!value) return 'N/A';
@@ -50,8 +62,12 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
       variant="default"
       padding="md"
       hover={true}
-      className="group cursor-pointer relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+      className="group cursor-move relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg select-none"
       onClick={() => onClick(proposal)}
+      draggable={true}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      title="Clique para editar ou arraste para mover"
     >
       {/* Header with Type and ID */}
       <div className="flex justify-between items-start mb-3">
