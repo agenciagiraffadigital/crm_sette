@@ -141,17 +141,13 @@ export const opportunityService = {
   }): Promise<Opportunity> => {
     const updateData: any = {
       status_kanban: status,
-      updated_at: new Date().toISOString(),
     };
 
-    // Add additional data if provided
     if (additionalData?.quoted_value) {
       updateData.valor_produto = additionalData.quoted_value;
     }
 
-    if (additionalData?.first_contact_date) {
-      updateData.first_contact_date = additionalData.first_contact_date;
-    } else if (status === 'EM_CONTATO') {
+    if (status === 'EM_CONTATO' && !additionalData?.first_contact_date) {
       updateData.first_contact_date = new Date().toISOString();
     }
 
@@ -162,7 +158,9 @@ export const opportunityService = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(`Erro ao atualizar: ${error.message}`);
+    }
 
     return {
       id: data.id,

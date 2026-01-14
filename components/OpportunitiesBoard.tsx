@@ -28,6 +28,7 @@ interface OpportunitiesBoardProps {
   filters: OpportunityFilters;
   onFiltersChange: (filters: OpportunityFilters) => void;
   currentUser: User;
+  onDataChange?: () => void; // Add callback for data changes
 }
 
 interface ValueInputModalProps {
@@ -164,7 +165,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   onOpenOpportunity,
   filters,
   onFiltersChange,
-  currentUser
+  currentUser,
+  onDataChange
 }) => {
   const [searchFilters, setSearchFilters] = useState<FilterState>({
     searchTerm: '',
@@ -369,7 +371,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
           lossReason,
           currentUser
         );
-        window.location.reload();
+        onDataChange?.();
       } catch (error) {
         alert('Erro ao marcar como perdida: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
@@ -379,7 +381,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   const handleConvertToProposal = async (opportunityId: number) => {
     try {
       await opportunityService.convertOpportunityToProposal(opportunityId, currentUser);
-      window.location.reload();
+      onDataChange?.();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       alert('Erro na conversão: ' + errorMessage);
@@ -402,7 +404,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       try {
         await opportunityService.deleteOpportunity(deleteModalState.opportunityId, currentUser);
         setDeleteModalState({ isOpen: false, opportunityId: null, opportunityName: '' });
-        window.location.reload();
+        onDataChange?.();
       } catch (error) {
         alert('Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }

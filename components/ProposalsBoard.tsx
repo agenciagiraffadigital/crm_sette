@@ -3,6 +3,7 @@ import { Lead, KanbanStatus, User } from '../types';
 import { ProposalCard } from './ProposalCard';
 import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { Button } from '../src/components/ui/Button';
 import { KANBAN_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
 
@@ -160,13 +161,18 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
 
   const handleDrop = (e: React.DragEvent, targetStatus: KanbanStatus) => {
     e.preventDefault();
+    console.log('Drop event triggered for status:', targetStatus);
     
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      console.log('Dropped data:', data);
       const { proposalId, currentStatus } = data;
       
       if (currentStatus !== targetStatus) {
+        console.log('Moving from', currentStatus, 'to', targetStatus);
         handleMoveProposal(proposalId, targetStatus);
+      } else {
+        console.log('Same status, no move needed');
       }
     } catch (error) {
       console.error('Error handling drop:', error);
@@ -263,21 +269,6 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
                   {columnProposals.length === 0 && (
                     <div className="h-32 flex items-center justify-center drop-zone-empty rounded-lg m-2">
                       <p className="text-xs text-slate-400 font-medium">Arraste propostas aqui</p>
-                    </div>
-                  )}
-                  {columnProposals.length >= limits[column.id] && (
-                    <div className="text-center py-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setLimits(prev => ({
-                          ...prev,
-                          [column.id]: prev[column.id] + 30
-                        }))}
-                        className="text-xs text-blue-600 hover:text-blue-800"
-                      >
-                        Carregar mais +30
-                      </Button>
                     </div>
                   )}
                 </div>

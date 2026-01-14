@@ -37,6 +37,7 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
       proposalId: proposal.id,
       currentStatus: proposal.status_kanban
     };
+    console.log('Drag started for proposal:', proposal.id, proposal.status_kanban);
     e.dataTransfer.setData('text/plain', JSON.stringify(data));
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -58,12 +59,8 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
   };
 
   return (
-    <Card 
-      variant="default"
-      padding="md"
-      hover={true}
-      className="group cursor-move relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg select-none"
-      onClick={() => onClick(proposal)}
+    <div 
+      className="bg-white shadow-sm p-4 rounded-lg transition-shadow duration-200 hover:shadow-md group cursor-move relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg select-none"
       draggable={true}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -72,19 +69,21 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
       {/* Header with Type and ID */}
       <div className="flex justify-between items-start mb-3">
         <div className={`flex items-center space-x-1 text-xs font-bold px-2 py-1 rounded-full ${typeConfig.color}`}>
-          <TypeIcon className="w-3 h-3" />
+          <typeConfig.icon className="w-3 h-3" />
           <span>{proposal.tipo_cliente}</span>
         </div>
         <span className="text-xs text-slate-400 font-mono">#{proposal.id}</span>
       </div>
       
       {/* Main Info */}
-      <h4 className="font-bold text-slate-800 mb-1 truncate text-sm" title={proposal.nome}>
-        {proposal.nome}
-      </h4>
-      <p className="text-xs text-slate-500 mb-3 font-medium">
-        {proposal.produto || 'Produto N/A'} - {proposal.operadora || 'N/A'}
-      </p>
+      <div onClick={() => onClick(proposal)}>
+        <h4 className="font-bold text-slate-800 mb-1 truncate text-sm cursor-pointer" title={proposal.nome}>
+          {proposal.nome}
+        </h4>
+        <p className="text-xs text-slate-500 mb-3 font-medium cursor-pointer">
+          {proposal.produto || 'Produto N/A'} - {proposal.operadora || 'N/A'}
+        </p>
+      </div>
       
       {/* Essential Information */}
       <div className="space-y-1.5 mb-4">
@@ -112,9 +111,9 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
         )}
       </div>
 
-      {/* Action Buttons - Enhanced with smooth animations */}
+      {/* Action Buttons - Always visible */}
       <div 
-        className="pt-3 border-t border-slate-100 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0" 
+        className="pt-3 border-t border-slate-100 flex justify-between items-center" 
         onClick={e => e.stopPropagation()}
       >
         {nextStatus && (
@@ -166,6 +165,6 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
 
       {/* Status Indicator */}
       <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-    </Card>
+    </div>
   );
 };

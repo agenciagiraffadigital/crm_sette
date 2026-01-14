@@ -8,6 +8,7 @@ import { SimulationPanel } from './components/SimulationPanel';
 import { ModernLeadForm } from './components/ModernLeadForm';
 import { UserManagement } from './components/UserManagement';
 import { Auth } from './components/Auth';
+import { ErrorToast } from './components/ErrorToast';
 import { leadService } from './services/leadService';
 import { opportunityService } from './services/opportunityService';
 import { authService } from './services/authService';
@@ -22,6 +23,8 @@ function App() {
   const [loadingData, setLoadingData] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [showError, setShowError] = useState(false);
 
   // Check for existing session and setup auth listener
   useEffect(() => {
@@ -111,18 +114,15 @@ function App() {
   const handleMoveOpportunity = useCallback(async (id: number, newStatus: OpportunityStatus, additionalData?: { quoted_value?: number }) => {
     if (!user) return;
     
-    // Optimistic update
-    setOpportunities(current => 
-      current.map(o => o.id === id ? { ...o, status: newStatus } : o)
-    );
-    
     try {
       await opportunityService.updateOpportunityStatus(id, newStatus, user, additionalData);
+      await loadLeads();
     } catch (error) {
-      console.error("Failed to update opportunity status", error);
-      // Only revert if it's a real error, not just keep the optimistic update
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setErrorMessage('Erro ao atualizar status: ' + errorMessage);
+      setShowError(true);
     }
-  }, [user]);
+  }, [user, loadLeads]);
 
   const handleNewLeadFromSimulation = useCallback((newLead: Lead) => {
     if (user?.role === 'ADMIN' || newLead.vendedor_id === user?.id) {
@@ -186,6 +186,7 @@ function App() {
           filters={opportunityFilters}
           onFiltersChange={setOpportunityFilters}
           currentUser={user}
+          onDataChange={loadLeads}
         />
       )}
       
@@ -205,6 +206,12 @@ function App() {
       {activeTab === 'simulation' && user.role === 'ADMIN' && (
         <SimulationPanel onNewLead={handleNewLeadFromSimulation} />
       )}
+      
+      <ErrorToast 
+        message={errorMessage}
+        isVisible={showError}
+        onClose={() => setShowError(false)}
+      />
     </Layout>
   );
 }
