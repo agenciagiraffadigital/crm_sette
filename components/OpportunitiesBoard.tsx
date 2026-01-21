@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Opportunity, OpportunityStatus, User, LossReason } from '../types';
 import { OpportunityCard } from './OpportunityCard';
 import { OpportunityForm } from './OpportunityForm';
+import { NewOpportunityForm } from './NewOpportunityForm';
 import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { OPPORTUNITY_COLUMNS } from '../constants';
@@ -10,6 +11,7 @@ import { Input } from '../src/components/ui/Input';
 import { Select } from '../src/components/ui/Select';
 import { Card } from '../src/components/ui/Card';
 import { opportunityService } from '../services/opportunityService';
+import { Plus } from 'lucide-react';
 
 interface OpportunityFilters {
   search?: string;
@@ -29,6 +31,8 @@ interface OpportunitiesBoardProps {
   onFiltersChange: (filters: OpportunityFilters) => void;
   currentUser: User;
   onDataChange?: () => void; // Add callback for data changes
+  showNewOpportunityForm?: boolean;
+  onShowNewOpportunityForm?: (show: boolean) => void;
 }
 
 interface ValueInputModalProps {
@@ -166,7 +170,9 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   filters,
   onFiltersChange,
   currentUser,
-  onDataChange
+  onDataChange,
+  showNewOpportunityForm = false,
+  onShowNewOpportunityForm
 }) => {
   const [searchFilters, setSearchFilters] = useState<FilterState>({
     searchTerm: '',
@@ -411,6 +417,38 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     }
   };
 
+  const handleCreateNewOpportunity = async (opportunityData: {
+    nome: string;
+    email: string;
+    telefone: string;
+    origem: string;
+    vendedor_id: number;
+    vendedor: string;
+    vendedor_email: string;
+    status: OpportunityStatus;
+    notes?: string;
+  }) => {
+    try {
+      await opportunityService.createOpportunityManually(opportunityData);
+      onShowNewOpportunityForm?.(false);
+      onDataChange?.();
+      alert('Oportunidade criada com sucesso!');
+    } catch (error) {
+      alert('Erro ao criar oportunidade: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    }
+  };
+
+  // Show new opportunity form if requested
+  if (showNewOpportunityForm) {
+    return (
+      <NewOpportunityForm
+        currentUser={currentUser}
+        onBack={() => onShowNewOpportunityForm?.(false)}
+        onSave={handleCreateNewOpportunity}
+      />
+    );
+  }
+
   // Drag and drop handlers
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
@@ -445,20 +483,32 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   return (
     <div className="h-full flex flex-col space-y-4">
       {/* Header with Search and Filters */}
-      <SearchAndFilters
-        title={currentUser.role === 'ADMIN' ? 'Quadro Geral de Oportunidades' : 'Minhas Oportunidades'}
-        filters={searchFilters}
-        onFiltersChange={handleFiltersChange}
-        sellers={sellers}
-        operators={[]} // Opportunities don't have operators
-        statusOptions={statusOptions}
-        sourceOptions={sourceOptions}
-        showSellerFilter={currentUser.role === 'ADMIN'}
-        savedFilters={savedFilters}
-        onSaveFilter={handleSaveFilter}
-        onLoadFilter={handleLoadFilter}
-        onDeleteFilter={handleDeleteFilter}
-      />
+      <div className="flex items-center justify-between mb-4">
+        <SearchAndFilters
+          title={currentUser.role === 'ADMIN' ? 'Quadro Geral de Oportunidades' : 'Minhas Oportunidades'}
+          filters={searchFilters}
+          onFiltersChange={handleFiltersChange}
+          sellers={sellers}
+          operators={[]} // Opportunities don't have operators
+          statusOptions={statusOptions}
+          sourceOptions={sourceOptions}
+          showSellerFilter={currentUser.role === 'ADMIN'}
+          savedFilters={savedFilters}
+          onSaveFilter={handleSaveFilter}
+          onLoadFilter={handleLoadFilter}
+          onDeleteFilter={handleDeleteFilter}
+        />
+        
+        {currentUser.role === 'ADMIN' && (
+          <Button
+            onClick={() => onShowNewOpportunityForm?.(true)}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ml-4"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Oportunidade
+          </Button>
+        )}
+      </div>
 
       {/* Board Columns */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden">

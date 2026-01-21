@@ -23,6 +23,7 @@ function App() {
   const [loadingData, setLoadingData] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [showNewOpportunityForm, setShowNewOpportunityForm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [showError, setShowError] = useState(false);
 
@@ -139,6 +140,7 @@ function App() {
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     setSelectedLeadId(null); // Clear selected lead when changing tabs
+    setShowNewOpportunityForm(false); // Clear new opportunity form when changing tabs
   };
 
   if (initializing) {
@@ -187,6 +189,8 @@ function App() {
           onFiltersChange={setOpportunityFilters}
           currentUser={user}
           onDataChange={loadLeads}
+          showNewOpportunityForm={showNewOpportunityForm}
+          onShowNewOpportunityForm={setShowNewOpportunityForm}
         />
       )}
       
