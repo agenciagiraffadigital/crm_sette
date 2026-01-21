@@ -2,7 +2,7 @@ name: Deploy to VPS
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, develop ]
   workflow_dispatch:
 
 jobs:
@@ -35,28 +35,29 @@ jobs:
         command_timeout: 600s
         script: |
           set -e
-          cd /var/www/crm_sette
-          echo "=== ANTES DO RESET ==="
-          git log -1 --oneline
           
-          # Clean reset - discard all local changes
-          git reset --hard HEAD
-          git clean -fd
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            echo "=== DEPLOY PRODUÇÃO ==="
+            cd /var/www/crm_sette
+            git reset --hard HEAD
+            git clean -fd
+            git pull origin master
+            rm -rf node_modules package-lock.json
+            npm install
+            npm run build
+            pm2 restart crm-webhook
+            echo "=== PRODUÇÃO DEPLOYED ==="
+          else
+            echo "=== DEPLOY DESENVOLVIMENTO ==="
+            cd /var/www/crm_sette_dev
+            git reset --hard HEAD
+            git clean -fd
+            git pull origin develop
+            rm -rf node_modules package-lock.json
+            npm install
+            npm run build
+            pm2 restart crm-webhook-dev
+            echo "=== DESENVOLVIMENTO DEPLOYED ==="
+          fi
           
-          git pull origin master
-          echo "=== DEPOIS DO PULL ==="
-          git log -1 --oneline
-          
-          # Clean install
-          rm -rf node_modules package-lock.json
-          npm install
-          npm run build
-          
-          echo "=== VERIFICANDO ARQUIVOS ==="
-          ls -la dist/
-          ls -la dist/favicon.png || echo "Favicon não encontrado"
-          
-          pm2 restart crm-webhook
           sudo systemctl reload nginx
-          
-          echo "=== DEPLOY COMPLETED ==="

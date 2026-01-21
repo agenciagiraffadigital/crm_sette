@@ -1,5 +1,25 @@
 # CRM Sette SAS
 
+## Ambientes
+
+### 🚀 Produção
+- **URL:** sistema.settesaude.com.br
+- **Branch:** `master`
+- **Deploy:** Automático via GitHub Actions
+
+### 🔧 Desenvolvimento  
+- **URL:** dev.settesaude.com.br
+- **Branch:** `develop`
+- **Deploy:** Automático via GitHub Actions
+
+## Workflow de Desenvolvimento
+
+1. **Desenvolver na branch `develop`**
+2. **Push para `develop`** → deploy automático para dev.settesaude.com.br
+3. **Testar no ambiente de dev**
+4. **Quando estiver OK:** PR de `develop` para `master`
+5. **Merge do PR** → deploy automático para sistema.settesaude.com.br
+
 ## Setup
 
 1. Instale as dependências: `npm install`
@@ -45,5 +65,28 @@ Para testar webhooks do Make:
 
 ## Deploy
 
-1. Execute `npm run build`
-2. Deploy a pasta `dist` no Vercel ou Netlify.
+### Configuração do Servidor (uma vez só)
+
+1. **Clonar projeto para desenvolvimento:**
+```bash
+cd /var/www
+git clone https://github.com/agenciagiraffadigital/crm_sette.git crm_sette_dev
+cd crm_sette_dev
+git checkout -b develop
+```
+
+2. **Executar script de setup:**
+```bash
+chmod +x setup-dev.sh
+./setup-dev.sh
+```
+
+3. **Configurar Nginx:**
+```bash
+sudo cp nginx-config.txt /etc/nginx/sites-available/crm_sette
+sudo systemctl reload nginx
+```
+
+### Deploy Automático
+- **Push para `develop`** → deploy para dev.settesaude.com.br
+- **Push para `master`** → deploy para sistema.settesaude.com.br
