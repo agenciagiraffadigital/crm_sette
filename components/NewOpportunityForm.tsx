@@ -108,6 +108,7 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
   onBack, 
   onSave 
 }) => {
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<NewOpportunityData>({
     nome: '',
     email: '',
@@ -190,6 +191,15 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (step === 1) {
+      if (!formData.origem) {
+        setErrors({ origem: 'Selecione uma origem' });
+        return;
+      }
+      setStep(2);
+      return;
+    }
+    
     if (!validateForm()) {
       return;
     }
@@ -203,6 +213,20 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
       setLoading(false);
     }
   };
+
+  const origemOptions = [
+    'Tráfego Pago (Ads)',
+    'Tráfego Orgânico',
+    'Landing Pages / Site',
+    'WhatsApp',
+    'Indicação',
+    'Parcerias',
+    'Prospecção Ativa',
+    'Marketplaces / Leads Comprados',
+    'Offline',
+    'Retorno / Base Interna',
+    'Não Identificado'
+  ];
 
   return (
     <div className="bg-white min-h-full flex flex-col">
@@ -220,11 +244,11 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
         
         <Button 
           onClick={handleSubmit} 
-          disabled={loading}
+          disabled={loading || (step === 1 && !formData.origem)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Save className="w-4 h-4 mr-2" />
-          {loading ? 'Salvando...' : 'Criar Oportunidade'}
+          {loading ? 'Salvando...' : step === 1 ? 'Próximo' : 'Criar Oportunidade'}
         </Button>
       </div>
 
@@ -232,87 +256,121 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
       <div className="flex-1 p-8 overflow-y-auto bg-slate-50">
         <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
           <form onSubmit={handleSubmit}>
-            <h3 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-6">
-              Informações da Oportunidade
-            </h3>
+            {step === 1 ? (
+              <>
+                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-6">
+                  Selecione a Origem da Oportunidade
+                </h3>
 
-            <div className="space-y-6">
-              {/* Contact Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ValidatedInput 
-                  label="Nome Completo" 
-                  value={formData.nome} 
-                  onChange={(v) => handleChange('nome', v)}
-                  required
-                  error={errors.nome}
-                />
-                <ValidatedInput 
-                  label="E-mail" 
-                  value={formData.email} 
-                  onChange={(v) => handleChange('email', v)} 
-                  type="email"
-                  required
-                  error={errors.email}
-                />
-                <ValidatedInput 
-                  label="Telefone" 
-                  value={formData.telefone} 
-                  onChange={(v) => handleChange('telefone', v)}
-                  required
-                  error={errors.telefone}
-                />
-                <Select 
-                  label="Origem" 
-                  value={formData.origem} 
-                  options={['SITE', 'FACEBOOK', 'GOOGLE', 'INSTAGRAM', 'WHATSAPP', 'LINKEDIN', 'EMAIL', 'INDICAÇÃO', 'OUTROS']}
-                  onChange={(v) => handleChange('origem', v)} 
-                  required
-                  error={errors.origem}
-                />
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {origemOptions.map((origem) => (
+                    <button
+                      key={origem}
+                      type="button"
+                      onClick={() => {
+                        handleChange('origem', origem);
+                        setErrors({});
+                      }}
+                      className={`p-4 border-2 rounded-lg text-left transition-all hover:border-blue-500 hover:bg-blue-50 ${
+                        formData.origem === origem
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-200'
+                      }`}
+                    >
+                      <span className="font-medium text-slate-700">{origem}</span>
+                    </button>
+                  ))}
+                </div>
+                {errors.origem && <span className="text-sm text-red-500 mt-2 block">{errors.origem}</span>}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    ← Voltar para origem
+                  </button>
+                  <span className="text-sm text-slate-500">| Origem: {formData.origem}</span>
+                </div>
 
-              {/* Assignment and Status */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {currentUser.role === 'ADMIN' && (
-                  <Select 
-                    label="Vendedor Responsável" 
-                    value={formData.vendedor_id.toString()} 
-                    options={sellers.map(seller => ({
-                      value: seller.id.toString(),
-                      label: seller.name
-                    }))}
-                    onChange={handleSellerChange} 
-                    required
-                    error={errors.vendedor_id}
-                  />
-                )}
-                
-                <Select 
-                  label="Status Inicial" 
-                  value={formData.status} 
-                  options={[
-                    { value: 'OPORTUNIDADES', label: 'Oportunidades' },
-                    { value: 'EM_CONTATO', label: 'Em Contato' },
-                    { value: 'NEGOCIACAO', label: 'Negociação' }
-                  ]}
-                  onChange={(v) => handleChange('status', v as OpportunityStatus)} 
-                />
-              </div>
+                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-6">
+                  Informações da Oportunidade
+                </h3>
 
-              {/* Notes */}
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">
-                  Observações Iniciais
-                </label>
-                <textarea 
-                  value={formData.notes || ''} 
-                  onChange={(e) => handleChange('notes', e.target.value)}
-                  placeholder="Adicione observações sobre esta oportunidade..."
-                  rows={4}
-                  className="w-full bg-white border border-slate-400 rounded p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-200 transition-all resize-vertical"
-                />
-              </div>
-            </div>
+                <div className="space-y-6">
+                  {/* Contact Information */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <ValidatedInput 
+                      label="Nome Completo" 
+                      value={formData.nome} 
+                      onChange={(v) => handleChange('nome', v)}
+                      required
+                      error={errors.nome}
+                    />
+                    <ValidatedInput 
+                      label="E-mail" 
+                      value={formData.email} 
+                      onChange={(v) => handleChange('email', v)} 
+                      type="email"
+                      required
+                      error={errors.email}
+                    />
+                    <ValidatedInput 
+                      label="Telefone" 
+                      value={formData.telefone} 
+                      onChange={(v) => handleChange('telefone', v)}
+                      required
+                      error={errors.telefone}
+                    />
+                  </div>
+
+                  {/* Assignment and Status */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {currentUser.role === 'ADMIN' && (
+                      <Select 
+                        label="Vendedor Responsável" 
+                        value={formData.vendedor_id.toString()} 
+                        options={sellers.map(seller => ({
+                          value: seller.id.toString(),
+                          label: seller.name
+                        }))}
+                        onChange={handleSellerChange} 
+                        required
+                        error={errors.vendedor_id}
+                      />
+                    )}
+                    
+                    <Select 
+                      label="Status Inicial" 
+                      value={formData.status} 
+                      options={[
+                        { value: 'OPORTUNIDADES', label: 'Oportunidades' },
+                        { value: 'EM_CONTATO', label: 'Em Contato' },
+                        { value: 'NEGOCIACAO', label: 'Negociação' }
+                      ]}
+                      onChange={(v) => handleChange('status', v as OpportunityStatus)} 
+                    />
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase block mb-2">
+                      Observações Iniciais
+                    </label>
+                    <textarea 
+                      value={formData.notes || ''} 
+                      onChange={(e) => handleChange('notes', e.target.value)}
+                      placeholder="Adicione observações sobre esta oportunidade..."
+                      rows={4}
+                      className="w-full bg-white border border-slate-400 rounded p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-200 transition-all resize-vertical"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </form>
         </div>
       </div>

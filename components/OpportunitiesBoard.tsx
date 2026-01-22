@@ -13,6 +13,22 @@ import { Card } from '../src/components/ui/Card';
 import { opportunityService } from '../services/opportunityService';
 import { Plus } from 'lucide-react';
 
+interface FilterState {
+  searchTerm: string;
+  sellers: string[];
+  operators: string[];
+  dateRange: {
+    start?: string;
+    end?: string;
+  };
+  status: string[];
+  source: string[];
+  valueRange: {
+    min?: number;
+    max?: number;
+  };
+}
+
 interface OpportunityFilters {
   search?: string;
   seller?: string;
@@ -224,6 +240,9 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     opportunityName: ''
   });
 
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
   // Extract filter options from opportunities
   const { sellers, sourceOptions, statusOptions } = useMemo(() => {
     const allSellers = new Set<string>();
@@ -430,11 +449,17 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   }) => {
     try {
       await opportunityService.createOpportunityManually(opportunityData);
-      onShowNewOpportunityForm?.(false);
-      onDataChange?.();
-      alert('Oportunidade criada com sucesso!');
+      setSuccessMessage('Oportunidade criada com sucesso!');
+      setShowSuccess(true);
+      setTimeout(() => {
+        onShowNewOpportunityForm?.(false);
+        onDataChange?.();
+      }, 2000);
     } catch (error) {
-      alert('Erro ao criar oportunidade: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      console.error('Erro completo:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setErrorMessage('Erro ao criar oportunidade: ' + errorMessage);
+      setShowError(true);
     }
   };
 
@@ -482,33 +507,40 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
 
   return (
     <div className="h-full flex flex-col space-y-4">
-      {/* Header with Search and Filters */}
-      <div className="flex items-center justify-between mb-4">
-        <SearchAndFilters
-          title={currentUser.role === 'ADMIN' ? 'Quadro Geral de Oportunidades' : 'Minhas Oportunidades'}
-          filters={searchFilters}
-          onFiltersChange={handleFiltersChange}
-          sellers={sellers}
-          operators={[]} // Opportunities don't have operators
-          statusOptions={statusOptions}
-          sourceOptions={sourceOptions}
-          showSellerFilter={currentUser.role === 'ADMIN'}
-          savedFilters={savedFilters}
-          onSaveFilter={handleSaveFilter}
-          onLoadFilter={handleLoadFilter}
-          onDeleteFilter={handleDeleteFilter}
-        />
-        
-        {currentUser.role === 'ADMIN' && (
-          <Button
-            onClick={() => onShowNewOpportunityForm?.(true)}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ml-4"
-          >
-            <Plus className="w-4 h-4" />
-            Nova Oportunidade
-          </Button>
-        )}
+      {/* Header with New Opportunity Button */}
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-800">
+            {currentUser.role === 'ADMIN' ? 'Quadro Geral de Oportunidades' : 'Minhas Oportunidades'}
+          </h2>
+          
+          {currentUser.role === 'ADMIN' && (
+            <Button
+              onClick={() => onShowNewOpportunityForm?.(true)}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Nova Oportunidade
+            </Button>
+          )}
+        </div>
       </div>
+      
+      {/* Filters Section */}
+      <SearchAndFilters
+        title=""
+        filters={searchFilters}
+        onFiltersChange={handleFiltersChange}
+        sellers={sellers}
+        operators={[]} // Opportunities don't have operators
+        statusOptions={statusOptions}
+        sourceOptions={sourceOptions}
+        showSellerFilter={currentUser.role === 'ADMIN'}
+        savedFilters={savedFilters}
+        onSaveFilter={handleSaveFilter}
+        onLoadFilter={handleLoadFilter}
+        onDeleteFilter={handleDeleteFilter}
+      />
 
       {/* Board Columns */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
@@ -604,6 +636,21 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         itemName={deleteModalState.opportunityName}
         itemType="oportunidade"
       />
+      
+      {/* Success Toast */}
+      {showSuccess && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md">
+          <div className="flex justify-between items-center">
+            <span>{successMessage}</span>
+            <button 
+              onClick={() => setShowSuccess(false)}
+              className="ml-4 text-white hover:text-gray-200"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

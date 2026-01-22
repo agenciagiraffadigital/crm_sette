@@ -98,15 +98,10 @@ export const opportunityService = {
         vendedor_email: opportunityData.vendedor_email,
         vendedor_id: opportunityData.vendedor_id,
         origem: opportunityData.origem,
-        tipo_cliente: 'PF', // Default
-        cpf_cnpj: '', // Will be filled later
-        operadora: '', // Will be filled later
-        produto: '', // Will be filled later
-        endereco: {},
-        beneficiarios: [],
-        mensagens: [],
-        documentos: [],
-        raw_json: { created_manually: true, notes: opportunityData.notes }
+        tipo_cliente: 'PF',
+        cpf_cnpj: '',
+        operadora: '',
+        produto: ''
       })
       .select()
       .single();
@@ -125,7 +120,6 @@ export const opportunityService = {
       vendedor_email: data.vendedor_email,
       vendedor_id: data.vendedor_id,
       origem: data.origem,
-      raw_json: data.raw_json,
       notes: opportunityData.notes
     };
   },

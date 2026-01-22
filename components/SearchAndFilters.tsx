@@ -140,73 +140,68 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
 
   return (
     <div className="space-y-4">
-      <Card variant="outlined" padding="md">
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-800">
-            {title}
-          </h2>
-          
-          <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
-            {/* Search Input with Debounce */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
-              <Input
-                type="text"
-                placeholder="Buscar por nome, email ou ID..."
-                className="pl-9 w-full md:w-64"
-                defaultValue={filters.searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
+      <div className="relative border border-slate-200 rounded-lg p-4">
+        <span className="absolute -top-[0.625rem] left-3 bg-transparent px-2 text-sm font-medium text-slate-600">Filtros</span>
+        <div className="flex gap-3">
+          {/* Search Input with Debounce */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
+            <Input
+              type="text"
+              placeholder="Buscar por nome, email ou ID..."
+              className="pl-9 w-full"
+              defaultValue={filters.searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+            />
+          </div>
+
+          {/* Quick Filters */}
+          <div className="flex gap-2">
+            {/* Operator Filter */}
+            <div className="relative">
+              <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
+              <Select
+                className="pl-9 w-40"
+                value={filters.operators.length === 1 ? filters.operators[0] : 'all'}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  updateFilter('operators', value === 'all' ? [] : [value]);
+                }}
+                options={operatorOptions}
               />
             </div>
-
-            {/* Quick Filters */}
-            <div className="flex gap-2">
-              {/* Operator Filter */}
+            
+            {/* Seller Filter (Admin Only) */}
+            {showSellerFilter && (
               <div className="relative">
-                <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
                 <Select
-                  className="pl-9 w-full md:w-40"
-                  value={filters.operators.length === 1 ? filters.operators[0] : 'all'}
+                  className="pl-9 w-48"
+                  value={filters.sellers.length === 1 ? filters.sellers[0] : 'all'}
                   onChange={(e) => {
                     const value = e.target.value;
-                    updateFilter('operators', value === 'all' ? [] : [value]);
+                    updateFilter('sellers', value === 'all' ? [] : [value]);
                   }}
-                  options={operatorOptions}
+                  options={sellerOptions}
                 />
               </div>
-              
-              {/* Seller Filter (Admin Only) */}
-              {showSellerFilter && (
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
-                  <Select
-                    className="pl-9 w-full md:w-48"
-                    value={filters.sellers.length === 1 ? filters.sellers[0] : 'all'}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      updateFilter('sellers', value === 'all' ? [] : [value]);
-                    }}
-                    options={sellerOptions}
-                  />
-                </div>
-              )}
+            )}
 
-              {/* Advanced Filters Toggle */}
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className={`relative ${activeFiltersCount > 0 ? 'bg-blue-50 border-blue-300' : ''}`}
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                Filtros
-                {activeFiltersCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </Button>
-            </div>
+            {/* Advanced Filters Toggle */}
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`relative ${activeFiltersCount > 0 ? 'bg-blue-50 border-blue-300' : ''}`}
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Filtros
+              {activeFiltersCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </Button>
           </div>
         </div>
 
@@ -327,7 +322,7 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
             </div>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Saved Filters */}
       {savedFilters.length > 0 && (
