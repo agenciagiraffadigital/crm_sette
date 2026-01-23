@@ -7,6 +7,7 @@ import { Save, ArrowLeft, Plus, Trash2, Paperclip, Search, FileText, ChevronDown
 import { Button } from '../src/components/ui/Button';
 import { Card } from '../src/components/ui/Card';
 import { Select as UISelect } from '../src/components/ui/Select';
+import { maskPhone, maskCPFOrCNPJ, maskRG, unmask, validatePhone, validateCPF, validateCNPJ } from '../utils/masks';
 
 interface LeadFormProps {
   leadId: number;
@@ -24,11 +25,14 @@ const validationRules = {
   },
   telefone: (value: string) => {
     if (!value) return true;
-    return value.length >= 10 || 'Telefone deve ter pelo menos 10 dígitos';
+    return validatePhone(value) || 'Telefone inválido (10 ou 11 dígitos)';
   },
   cpf_cnpj: (value: string) => {
     if (!value) return true;
-    return value.length >= 11 || 'CPF/CNPJ deve ter pelo menos 11 dígitos';
+    const cleaned = unmask(value);
+    if (cleaned.length === 11) return validateCPF(value) || 'CPF inválido';
+    if (cleaned.length === 14) return validateCNPJ(value) || 'CNPJ inválido';
+    return 'CPF/CNPJ inválido';
   },
   nome: (value: string) => {
     if (!value) return true;
@@ -46,7 +50,8 @@ const ValidatedInput = ({
   className = "",
   required = false,
   validationRule,
-  onValidation
+  onValidation,
+  mask
 }: {
   label?: string;
   value: string;
@@ -57,6 +62,7 @@ const ValidatedInput = ({
   required?: boolean;
   validationRule?: (value: string) => boolean | string;
   onValidation?: (isValid: boolean) => void;
+  mask?: (value: string) => string;
 }) => {
   const [error, setError] = useState<string>('');
   const [touched, setTouched] = useState(false);
@@ -64,10 +70,11 @@ const ValidatedInput = ({
   const id = label ? `input-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined;
   
   const handleChange = (newValue: string) => {
-    onChange(newValue);
+    const maskedValue = mask ? mask(newValue) : newValue;
+    onChange(maskedValue);
     
     if (touched && validationRule) {
-      const result = validationRule(newValue);
+      const result = validationRule(maskedValue);
       const isValid = result === true;
       setError(isValid ? '' : result);
       onValidation?.(isValid);
@@ -415,7 +422,9 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
 
   const handleChange = useCallback((field: keyof Lead, value: any) => {
     if (!formData) return;
-    setFormData({ ...formData, [field]: value });
+    // Remove mask before saving
+    const cleanValue = (field === 'telefone' || field === 'cpf_cnpj' || field === 'rg_ie') ? unmask(value) : value;
+    setFormData({ ...formData, [field]: cleanValue });
     scheduleAutoSave();
   }, [formData, scheduleAutoSave]);
 
@@ -430,12 +439,13 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
 
   const handleResponsibleChange = useCallback((field: string, value: string) => {
     if (!formData) return;
+    const cleanValue = (field === 'cpf') ? unmask(value) : value;
     setFormData({
       ...formData,
       dados_responsavel: { 
         nome: '', cpf: '', endereco: '', data_nascimento: '',
         ...formData.dados_responsavel, 
-        [field]: value 
+        [field]: cleanValue 
       }
     });
     scheduleAutoSave();
@@ -484,7 +494,8 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
 
   const updateBeneficiary = useCallback((id: string, field: keyof Beneficiary, value: string) => {
     if (!formData) return;
-    const updated = formData.beneficiarios.map(b => b.id === id ? { ...b, [field]: value } : b);
+    const cleanValue = (field === 'cpf' || field === 'telefone') ? unmask(value) : value;
+    const updated = formData.beneficiarios.map(b => b.id === id ? { ...b, [field]: cleanValue } : b);
     setFormData({ ...formData, beneficiarios: updated });
     scheduleAutoSave();
   }, [formData, scheduleAutoSave]);
@@ -761,11 +772,12 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                                 <div className="flex items-end gap-2">
                                     <ValidatedInput 
                                       label="CNPJ" 
-                                      value={formData.cpf_cnpj} 
+                                      value={maskCPFOrCNPJ(formData.cpf_cnpj)} 
                                       onChange={(v: string) => handleChange('cpf_cnpj', v)} 
                                       className="flex-1"
                                       validationRule={validationRules.cpf_cnpj}
                                       onValidation={(isValid: boolean) => handleValidation('cpf_cnpj', isValid)}
+                                      mask={maskCPFOrCNPJ}
                                       required
                                     />
                                     <button 
@@ -801,10 +813,11 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                                 />
                                 <ValidatedInput 
                                   label="CPF" 
-                                  value={formData.dados_responsavel?.cpf} 
+                                  value={maskCPFOrCNPJ(formData.dados_responsavel?.cpf || '')} 
                                   onChange={(v: string) => handleResponsibleChange('cpf', v)}
                                   validationRule={validationRules.cpf_cnpj}
                                   onValidation={(isValid: boolean) => handleValidation('responsavel_cpf', isValid)}
+                                  mask={maskCPFOrCNPJ}
                                   required
                                 />
                                 <ValidatedInput 
@@ -834,10 +847,11 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                                 />
                                 <ValidatedInput 
                                   label="CPF" 
-                                  value={formData.cpf_cnpj} 
+                                  value={maskCPFOrCNPJ(formData.cpf_cnpj)} 
                                   onChange={(v: string) => handleChange('cpf_cnpj', v)}
                                   validationRule={validationRules.cpf_cnpj}
                                   onValidation={(isValid: boolean) => handleValidation('cpf_cnpj', isValid)}
+                                  mask={maskCPFOrCNPJ}
                                   required
                                 />
                                 <ValidatedInput 
@@ -848,8 +862,9 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                                 />
                                 <ValidatedInput 
                                   label="RG / Org. Emissor" 
-                                  value={formData.rg_ie} 
+                                  value={maskRG(formData.rg_ie || '')} 
                                   onChange={(v: string) => handleChange('rg_ie', v)} 
+                                  mask={maskRG}
                                 />
                             </div>
                         </>
@@ -871,10 +886,11 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                         />
                         <ValidatedInput 
                           label="Telefone / WhatsApp" 
-                          value={formData.telefone} 
+                          value={maskPhone(formData.telefone)} 
                           onChange={(v: string) => handleChange('telefone', v)}
                           validationRule={validationRules.telefone}
                           onValidation={(isValid: boolean) => handleValidation('telefone', isValid)}
+                          mask={maskPhone}
                           required
                         />
                         <ValidatedInput 
@@ -1048,9 +1064,10 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                                     
                                     <ValidatedInput 
                                       label="CPF" 
-                                      value={ben.cpf} 
+                                      value={maskCPFOrCNPJ(ben.cpf || '')} 
                                       onChange={(v: string) => updateBeneficiary(ben.id, 'cpf', v)}
                                       validationRule={validationRules.cpf_cnpj}
+                                      mask={maskCPFOrCNPJ}
                                     />
                                     <ValidatedInput 
                                       label="Parentesco" 
@@ -1065,9 +1082,10 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                                     />
                                     <ValidatedInput 
                                       label="Telefone" 
-                                      value={ben.telefone} 
+                                      value={maskPhone(ben.telefone || '')} 
                                       onChange={(v: string) => updateBeneficiary(ben.id, 'telefone', v)}
                                       validationRule={validationRules.telefone}
+                                      mask={maskPhone}
                                     />
                                 </div>
                             </div>

@@ -4,6 +4,7 @@ import { KANBAN_COLUMNS, OPPORTUNITY_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip } from 'lucide-react';
+import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
 
 interface ModernLeadFormProps {
   leadId: number;
@@ -19,7 +20,8 @@ const Input = ({
   type = "text", 
   placeholder,
   icon: Icon,
-  required = false 
+  required = false,
+  mask
 }: {
   label: string;
   value: string;
@@ -28,6 +30,7 @@ const Input = ({
   placeholder?: string;
   icon?: React.ComponentType<any>;
   required?: boolean;
+  mask?: (value: string) => string;
 }) => (
   <div className="space-y-2">
     <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -38,7 +41,10 @@ const Input = ({
     <input
       type={type}
       value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        const newValue = mask ? mask(e.target.value) : e.target.value;
+        onChange(newValue);
+      }}
       placeholder={placeholder}
       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
     />
@@ -131,7 +137,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
 
   const handleChange = (field: keyof Lead, value: any) => {
     if (!formData) return;
-    setFormData({ ...formData, [field]: value });
+    const cleanValue = (field === 'telefone' || field === 'cpf_cnpj') ? unmask(value) : value;
+    setFormData({ ...formData, [field]: cleanValue });
   };
 
   const handleAddressChange = (field: string, value: string) => {
@@ -341,15 +348,17 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             />
             <Input
               label="Telefone"
-              value={formData.telefone}
+              value={maskPhone(formData.telefone)}
               onChange={(value) => handleChange('telefone', value)}
               icon={Phone}
+              mask={maskPhone}
               required
             />
             <Input
               label="CPF/CNPJ"
-              value={formData.cpf_cnpj}
+              value={maskCPFOrCNPJ(formData.cpf_cnpj)}
               onChange={(value) => handleChange('cpf_cnpj', value)}
+              mask={maskCPFOrCNPJ}
             />
             <Select
               label="Tipo de Cliente"

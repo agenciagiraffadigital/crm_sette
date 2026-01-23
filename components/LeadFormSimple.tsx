@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Lead, User } from '../types';
 import { leadService } from '../services/leadService';
 import { Save, ArrowLeft } from 'lucide-react';
+import { maskPhone } from '../utils/masks';
 
 interface LeadFormProps {
   leadId: number;
@@ -118,7 +119,7 @@ export const LeadFormSimple: React.FC<LeadFormProps> = ({ leadId, currentUser, o
               <input
                 type="text"
                 value={formData.telefone}
-                onChange={(e) => setFormData({...formData, telefone: e.target.value})}
+                onChange={(e) => setFormData({...formData, telefone: maskPhone(e.target.value)})}
                 className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>

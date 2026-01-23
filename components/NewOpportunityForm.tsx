@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Button } from '../src/components/ui/Button';
 import { Card } from '../src/components/ui/Card';
+import { maskPhone, validatePhone, unmask } from '../utils/masks';
 
 interface NewOpportunityFormProps {
   currentUser: User;
@@ -30,7 +31,8 @@ const ValidatedInput = ({
   placeholder = "", 
   type = "text", 
   required = false,
-  error = ""
+  error = "",
+  mask
 }: {
   label: string;
   value: string;
@@ -39,6 +41,7 @@ const ValidatedInput = ({
   type?: string;
   required?: boolean;
   error?: string;
+  mask?: (value: string) => string;
 }) => {
   const id = `input-${label.replace(/\s+/g, '-').toLowerCase()}`;
   
@@ -52,7 +55,10 @@ const ValidatedInput = ({
         id={id}
         type={type} 
         value={value || ''} 
-        onChange={e => onChange(e.target.value)}
+        onChange={e => {
+          const newValue = mask ? mask(e.target.value) : e.target.value;
+          onChange(newValue);
+        }}
         placeholder={placeholder || `${label}...`}
         className={`bg-white border rounded p-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-200 transition-all w-full ${
           error ? 'border-red-400' : 'border-slate-400'
@@ -140,7 +146,8 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
   }, [currentUser.role]);
 
   const handleChange = (field: keyof NewOpportunityData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const cleanValue = (field === 'telefone') ? unmask(value) : value;
+    setFormData(prev => ({ ...prev, [field]: cleanValue }));
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -174,6 +181,8 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
 
     if (!formData.telefone.trim()) {
       newErrors.telefone = 'Telefone é obrigatório';
+    } else if (!validatePhone(formData.telefone)) {
+      newErrors.telefone = 'Telefone inválido';
     }
 
     if (!formData.origem) {
@@ -323,8 +332,9 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <ValidatedInput 
                       label="Telefone" 
-                      value={formData.telefone} 
+                      value={maskPhone(formData.telefone)} 
                       onChange={(v) => handleChange('telefone', v)}
+                      mask={maskPhone}
                       required
                       error={errors.telefone}
                     />

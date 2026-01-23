@@ -7,6 +7,7 @@ import { Save, ArrowLeft, Edit3 } from 'lucide-react';
 import { Button } from '../src/components/ui/Button';
 import { Card } from '../src/components/ui/Card';
 import { Select as UISelect } from '../src/components/ui/Select';
+import { maskPhone, unmask } from '../utils/masks';
 
 interface OpportunityFormProps {
   opportunityId: number;
@@ -23,7 +24,8 @@ const ValidatedInput = ({
   placeholder = "", 
   type = "text", 
   className = "",
-  required = false
+  required = false,
+  mask
 }: {
   label?: string;
   value: string;
@@ -32,6 +34,7 @@ const ValidatedInput = ({
   type?: string;
   className?: string;
   required?: boolean;
+  mask?: (value: string) => string;
 }) => {
   const id = label ? `input-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined;
   
@@ -47,7 +50,10 @@ const ValidatedInput = ({
         id={id}
         type={type} 
         value={value || ''} 
-        onChange={e => onChange(e.target.value)}
+        onChange={e => {
+          const newValue = mask ? mask(e.target.value) : e.target.value;
+          onChange(newValue);
+        }}
         placeholder={placeholder || (label ? `${label}...` : '')}
         className="bg-white border border-slate-400 rounded p-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-200 transition-all w-full"
       />
@@ -216,7 +222,8 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
 
   const handleChange = useCallback((field: keyof Opportunity, value: any) => {
     if (!formData) return;
-    setFormData({ ...formData, [field]: value });
+    const cleanValue = (field === 'telefone') ? unmask(value) : value;
+    setFormData({ ...formData, [field]: cleanValue });
   }, [formData]);
 
   const handleSubmit = async () => {
@@ -366,8 +373,9 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
               />
               <ValidatedInput 
                 label="Telefone" 
-                value={formData.telefone} 
+                value={maskPhone(formData.telefone)} 
                 onChange={(v: string) => handleChange('telefone', v)}
+                mask={maskPhone}
                 required
               />
               <Select 
