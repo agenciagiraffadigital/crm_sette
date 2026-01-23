@@ -318,6 +318,9 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
                       required
                       error={errors.email}
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <ValidatedInput 
                       label="Telefone" 
                       value={formData.telefone} 
@@ -325,24 +328,6 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
                       required
                       error={errors.telefone}
                     />
-                  </div>
-
-                  {/* Assignment and Status */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {currentUser.role === 'ADMIN' && (
-                      <Select 
-                        label="Vendedor Responsável" 
-                        value={formData.vendedor_id.toString()} 
-                        options={sellers.map(seller => ({
-                          value: seller.id.toString(),
-                          label: seller.name
-                        }))}
-                        onChange={handleSellerChange} 
-                        required
-                        error={errors.vendedor_id}
-                      />
-                    )}
-                    
                     <Select 
                       label="Status Inicial" 
                       value={formData.status} 
@@ -354,6 +339,23 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
                       onChange={(v) => handleChange('status', v as OpportunityStatus)} 
                     />
                   </div>
+
+                  {/* Assignment */}
+                  {currentUser.role === 'ADMIN' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Select 
+                        label="Vendedor Responsável" 
+                        value={formData.vendedor_id.toString()} 
+                        options={sellers.map(seller => ({
+                          value: seller.id.toString(),
+                          label: seller.name
+                        }))}
+                        onChange={handleSellerChange} 
+                        required
+                        error={errors.vendedor_id}
+                      />
+                    </div>
+                  )}
 
                   {/* Notes */}
                   <div>

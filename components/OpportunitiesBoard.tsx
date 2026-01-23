@@ -514,15 +514,13 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
             {currentUser.role === 'ADMIN' ? 'Quadro Geral de Oportunidades' : 'Minhas Oportunidades'}
           </h2>
           
-          {currentUser.role === 'ADMIN' && (
-            <Button
-              onClick={() => onShowNewOpportunityForm?.(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Nova Oportunidade
-            </Button>
-          )}
+          <Button
+            onClick={() => onShowNewOpportunityForm?.(true)}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Oportunidade
+          </Button>
         </div>
       </div>
       
