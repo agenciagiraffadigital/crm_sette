@@ -69,12 +69,28 @@ export const authService = {
   // Listener para mudanças de autenticação
   onAuthStateChange: (callback: (user: User | null) => void) => {
     return supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        // Usar dados do localStorage se disponível (mais rápido)
+      if (session?.user) {
         const stored = localStorage.getItem('crm_user');
         if (stored) {
           callback(JSON.parse(stored));
-          return;
+        } else {
+          // Buscar do banco se não tiver no localStorage
+          const { data: userData } = await supabase
+            .from('users_profile')
+            .select('*')
+            .eq('auth_id', session.user.id)
+            .single();
+          
+          if (userData) {
+            const user = {
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role,
+            };
+            localStorage.setItem('crm_user', JSON.stringify(user));
+            callback(user);
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         localStorage.removeItem('crm_user');

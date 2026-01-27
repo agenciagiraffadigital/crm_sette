@@ -36,8 +36,13 @@ function App() {
 
     const initAuth = async () => {
       try {
-        setInitializing(false);
+        const currentUser = await authService.getCurrentUser();
+        if (mounted && currentUser) {
+          setUser(currentUser);
+        }
       } catch (error) {
+        console.error('Init auth error:', error);
+      } finally {
         if (mounted) {
           setInitializing(false);
         }

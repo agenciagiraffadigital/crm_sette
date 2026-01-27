@@ -9,7 +9,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Cliente normal para usuários
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+    storage: window.localStorage
+  }
+})
 
 // Cliente admin para operações administrativas
 export const supabaseAdmin = supabaseServiceKey 
