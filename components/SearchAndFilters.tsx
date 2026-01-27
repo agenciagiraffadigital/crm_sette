@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { Search, Filter, Stethoscope, Calendar, DollarSign, Star, X, Save } from 'lucide-react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { Search, Filter, Stethoscope, Calendar, DollarSign, Star, X, Save, ArrowUpDown } from 'lucide-react';
 import { Card } from '../src/components/ui/Card';
 import { Input } from '../src/components/ui/Input';
 import { Select } from '../src/components/ui/Select';
 import { Button } from '../src/components/ui/Button';
+import { Menu } from 'primereact/menu';
 
 export interface DateRange {
   start?: string;
@@ -19,11 +20,25 @@ export interface FilterState {
   searchTerm: string;
   sellers: string[];
   operators: string[];
+  products: string[];
   dateRange: DateRange;
   status: string[];
   source: string[];
   valueRange: ValueRange;
+  sortBy?: 'name-asc' | 'name-desc' | 'date-desc' | 'date-asc';
 }
+
+export const defaultFilters: FilterState = {
+  searchTerm: '',
+  sellers: [],
+  operators: [],
+  products: [],
+  dateRange: {},
+  status: [],
+  source: [],
+  valueRange: {},
+  sortBy: 'date-desc'
+};
 
 export interface SavedFilter {
   id: string;
@@ -38,6 +53,7 @@ interface SearchAndFiltersProps {
   onFiltersChange: (filters: FilterState) => void;
   sellers: string[];
   operators: string[];
+  products: string[];
   statusOptions: string[];
   sourceOptions: string[];
   showSellerFilter: boolean;
@@ -53,6 +69,7 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
   onFiltersChange,
   sellers,
   operators,
+  products,
   statusOptions,
   sourceOptions,
   showSellerFilter,
@@ -65,6 +82,30 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
   const [saveFilterName, setSaveFilterName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const sortMenu = useRef<Menu>(null);
+
+  const sortItems = [
+    {
+      label: 'A-Z',
+      icon: filters.sortBy === 'name-asc' ? 'pi pi-check' : 'pi pi-sort-alpha-down',
+      command: () => updateFilter('sortBy', 'name-asc')
+    },
+    {
+      label: 'Z-A',
+      icon: filters.sortBy === 'name-desc' ? 'pi pi-check' : 'pi pi-sort-alpha-up',
+      command: () => updateFilter('sortBy', 'name-desc')
+    },
+    {
+      label: 'Mais recente',
+      icon: filters.sortBy === 'date-desc' ? 'pi pi-check' : 'pi pi-sort-amount-down',
+      command: () => updateFilter('sortBy', 'date-desc')
+    },
+    {
+      label: 'Mais antiga',
+      icon: filters.sortBy === 'date-asc' ? 'pi pi-check' : 'pi pi-sort-amount-up',
+      command: () => updateFilter('sortBy', 'date-asc')
+    }
+  ];
 
   // Debounced search handler
   const handleSearchChange = useCallback((value: string) => {
@@ -98,6 +139,7 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
       searchTerm: '',
       sellers: [],
       operators: [],
+      products: [],
       dateRange: {},
       status: [],
       source: [],
@@ -118,12 +160,13 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (filters.searchTerm) count++;
-    if (filters.sellers.length > 0) count++;
-    if (filters.operators.length > 0) count++;
-    if (filters.status.length > 0) count++;
-    if (filters.source.length > 0) count++;
-    if (filters.dateRange.start || filters.dateRange.end) count++;
-    if (filters.valueRange.min !== undefined || filters.valueRange.max !== undefined) count++;
+    if (filters.sellers?.length > 0) count++;
+    if (filters.operators?.length > 0) count++;
+    if (filters.products?.length > 0) count++;
+    if (filters.status?.length > 0) count++;
+    if (filters.source?.length > 0) count++;
+    if (filters.dateRange?.start || filters.dateRange?.end) count++;
+    if (filters.valueRange?.min !== undefined || filters.valueRange?.max !== undefined) count++;
     return count;
   }, [filters]);
 
@@ -157,6 +200,22 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
 
           {/* Quick Filters */}
           <div className="flex flex-wrap sm:flex-nowrap gap-2">
+            {/* Sort Button */}
+            <div>
+              <Menu model={sortItems} popup ref={sortMenu} />
+              <button
+                onClick={(e) => sortMenu.current?.toggle(e)}
+                className={`h-10 w-10 flex items-center justify-center border rounded-lg transition-colors ${
+                  filters.sortBy 
+                    ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                }`}
+                title="Ordenar"
+              >
+                <ArrowUpDown className="w-4 h-4" />
+              </button>
+            </div>
+
             {/* Seller Filter (Admin Only) */}
             {showSellerFilter && sellers.length > 0 && (
               <div className="relative w-full sm:w-auto">
@@ -200,23 +259,48 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
         {/* Advanced Filters Panel */}
         {showAdvancedFilters && (
           <div className="mt-4 pt-4 border-t border-slate-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Operator Filter */}
-              {operators.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Status */}
+              {statusOptions.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">
-                    <Stethoscope className="w-3 h-3 inline mr-1" />
-                    Operadora
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
                   <select
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-                    value={filters.operators.length === 1 ? filters.operators[0] : 'all'}
+                    value={filters.status.length === 1 ? filters.status[0] : ''}
                     onChange={(e) => {
                       const value = e.target.value;
-                      updateFilter('operators', value === 'all' ? [] : [value]);
+                      updateFilter('status', value ? [value] : []);
                     }}
                   >
-                    <option value="all">Todas</option>
+                    <option value="">Selecione</option>
+                    {statusOptions.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Respostas (desabilitado por hora) */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Respostas</label>
+                <select disabled className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-100 cursor-not-allowed">
+                  <option>Selecione</option>
+                </select>
+              </div>
+
+              {/* Operadora */}
+              {operators.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Operadora</label>
+                  <select
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                    value={filters.operators.length === 1 ? filters.operators[0] : ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      updateFilter('operators', value ? [value] : []);
+                    }}
+                  >
+                    <option value="">Selecione</option>
                     {operators.map(op => (
                       <option key={op} value={op}>{op}</option>
                     ))}
@@ -224,94 +308,62 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
                 </div>
               )}
 
-              {/* Status Filter */}
-              {statusOptions.length > 0 && (
+              {/* Produto */}
+              {products.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">Status</label>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {statusOptions.map(status => (
-                      <label key={status} className="flex items-center cursor-pointer hover:bg-slate-50 p-1 rounded">
-                        <input
-                          type="checkbox"
-                          checked={filters.status.includes(status)}
-                          onChange={(e) => updateArrayFilter('status', status, e.target.checked)}
-                          className="mr-2 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-slate-700">{status}</span>
-                      </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Produto</label>
+                  <select
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                    value={filters.products.length === 1 ? filters.products[0] : ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      updateFilter('products', value ? [value] : []);
+                    }}
+                  >
+                    <option value="">Selecione</option>
+                    {products.map(prod => (
+                      <option key={prod} value={prod}>{prod}</option>
                     ))}
-                  </div>
+                  </select>
                 </div>
               )}
 
-              {/* Source Filter */}
+              {/* Canal de venda (Origem) */}
               {sourceOptions.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">Origem</label>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Canal de venda</label>
+                  <select
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                    value={filters.source.length === 1 ? filters.source[0] : ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      updateFilter('source', value ? [value] : []);
+                    }}
+                  >
+                    <option value="">Selecione</option>
                     {sourceOptions.map(source => (
-                      <label key={source} className="flex items-center cursor-pointer hover:bg-slate-50 p-1 rounded">
-                        <input
-                          type="checkbox"
-                          checked={filters.source.includes(source)}
-                          onChange={(e) => updateArrayFilter('source', source, e.target.checked)}
-                          className="mr-2 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-slate-700">{source}</span>
-                      </label>
+                      <option key={source} value={source}>{source}</option>
                     ))}
-                  </div>
+                  </select>
                 </div>
               )}
 
-              {/* Date Range Filter */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">
-                  <Calendar className="w-3 h-3 inline mr-1" />
-                  Período
-                </label>
-                <div className="space-y-2">
+              {/* Período */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Período</label>
+                <div className="flex gap-3 items-center">
                   <input
                     type="date"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     value={filters.dateRange.start || ''}
                     onChange={(e) => updateFilter('dateRange', { ...filters.dateRange, start: e.target.value })}
                   />
+                  <span className="text-slate-500">até</span>
                   <input
                     type="date"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     value={filters.dateRange.end || ''}
                     onChange={(e) => updateFilter('dateRange', { ...filters.dateRange, end: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {/* Value Range Filter */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">
-                  <DollarSign className="w-3 h-3 inline mr-1" />
-                  Valor
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="number"
-                    placeholder="Mínimo"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    value={filters.valueRange.min || ''}
-                    onChange={(e) => updateFilter('valueRange', { 
-                      ...filters.valueRange, 
-                      min: e.target.value ? parseFloat(e.target.value) : undefined 
-                    })}
-                  />
-                  <input
-                    type="number"
-                    placeholder="Máximo"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    value={filters.valueRange.max || ''}
-                    onChange={(e) => updateFilter('valueRange', { 
-                      ...filters.valueRange, 
-                      max: e.target.value ? parseFloat(e.target.value) : undefined 
-                    })}
                   />
                 </div>
               </div>
@@ -324,8 +376,13 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
                 disabled={activeFiltersCount === 0}
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <X className="w-4 h-4 inline mr-1" />
-                Limpar Filtros
+                Limpar
+              </button>
+              <button
+                onClick={() => setShowAdvancedFilters(false)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Filtrar
               </button>
             </div>
           </div>

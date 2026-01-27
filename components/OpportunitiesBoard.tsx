@@ -3,7 +3,7 @@ import { Opportunity, OpportunityStatus, User, LossReason } from '../types';
 import { OpportunityCard } from './OpportunityCard';
 import { OpportunityForm } from './OpportunityForm';
 import { NewOpportunityForm } from './NewOpportunityForm';
-import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
+import { SearchAndFilters, FilterState, SavedFilter, defaultFilters } from './SearchAndFilters';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { OPPORTUNITY_COLUMNS } from '../constants';
 import { Button } from '../src/components/ui/Button';
@@ -192,15 +192,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   showNewOpportunityForm = false,
   onShowNewOpportunityForm
 }) => {
-  const [searchFilters, setSearchFilters] = useState<FilterState>({
-    searchTerm: '',
-    sellers: [],
-    operators: [],
-    dateRange: {},
-    status: [],
-    source: [],
-    valueRange: {}
-  });
+  const [searchFilters, setSearchFilters] = useState<FilterState>(defaultFilters);
   
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   
@@ -279,19 +271,25 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   ];
 
   // Extract filter options from opportunities
-  const { filterSellers, sourceOptions, statusOptions } = useMemo(() => {
+  const { filterSellers, sourceOptions, statusOptions, operatorOptions, productOptions } = useMemo(() => {
     const allSellers = new Set<string>();
     const allSources = new Set<string>();
+    const allOperators = new Set<string>();
+    const allProducts = new Set<string>();
     
     opportunities.forEach(opportunity => {
       if (opportunity.vendedor) allSellers.add(opportunity.vendedor);
       if (opportunity.origem) allSources.add(opportunity.origem);
+      if (opportunity.operadora) allOperators.add(opportunity.operadora);
+      if (opportunity.produto) allProducts.add(opportunity.produto);
     });
 
     return {
       filterSellers: Array.from(allSellers),
       sourceOptions: Array.from(allSources),
-      statusOptions: OPPORTUNITY_COLUMNS.map(col => col.id)
+      statusOptions: OPPORTUNITY_COLUMNS.map(col => col.id),
+      operatorOptions: Array.from(allOperators),
+      productOptions: Array.from(allProducts)
     };
   }, [opportunities]);
 
@@ -316,6 +314,14 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       // Source filter
       const matchesSource = searchFilters.source.length === 0 || searchFilters.source.includes(opportunity.origem);
       
+      // Operator filter
+      const matchesOperator = searchFilters.operators.length === 0 || 
+        (opportunity.operadora && searchFilters.operators.includes(opportunity.operadora));
+      
+      // Product filter
+      const matchesProduct = searchFilters.products.length === 0 || 
+        (opportunity.produto && searchFilters.products.includes(opportunity.produto));
+      
       // Date range filter
       const matchesDateRange = (() => {
         if (!searchFilters.dateRange.start && !searchFilters.dateRange.end) return true;
@@ -328,17 +334,36 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         return true;
       })();
         
-      return matchesSearch && matchesSeller && matchesStatus && matchesSource && matchesDateRange;
+      return matchesSearch && matchesSeller && matchesStatus && matchesSource && matchesOperator && matchesProduct && matchesDateRange;
     });
+
+    // Apply sorting
+    const sorted = [...filtered];
+    if (searchFilters.sortBy) {
+      sorted.sort((a, b) => {
+        switch (searchFilters.sortBy) {
+          case 'name-asc':
+            return a.nome.localeCompare(b.nome);
+          case 'name-desc':
+            return b.nome.localeCompare(a.nome);
+          case 'date-desc':
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          case 'date-asc':
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          default:
+            return 0;
+        }
+      });
+    }
 
     // Calculate status counts
     const counts: Record<OpportunityStatus, number> = {} as Record<OpportunityStatus, number>;
     OPPORTUNITY_COLUMNS.forEach(column => {
-      counts[column.id as OpportunityStatus] = filtered.filter(o => o.status === column.id).length;
+      counts[column.id as OpportunityStatus] = sorted.filter(o => o.status === column.id).length;
     });
     setStatusCounts(counts);
 
-    return filtered;
+    return sorted;
   }, [opportunities, searchFilters, currentUser.role]);
 
   // Group opportunities by status
@@ -635,7 +660,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         filters={searchFilters}
         onFiltersChange={handleFiltersChange}
         sellers={filterSellers}
-        operators={[]} // Opportunities don't have operators
+        operators={operatorOptions}
+        products={productOptions}
         statusOptions={statusOptions}
         sourceOptions={sourceOptions}
         showSellerFilter={currentUser.role === 'ADMIN'}

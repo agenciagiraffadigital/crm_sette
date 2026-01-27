@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { XCircle } from 'lucide-react';
 import { User, Lead } from '../types';
 import { leadService } from '../services/leadService';
-import { SearchAndFilters, FilterState } from './SearchAndFilters';
+import { SearchAndFilters, FilterState, defaultFilters } from './SearchAndFilters';
 
 interface LostOpportunitiesProps {
   currentUser: User;
@@ -11,15 +11,7 @@ interface LostOpportunitiesProps {
 export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUser }) => {
   const [lostLeads, setLostLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterState>({
-    searchTerm: '',
-    sellers: [],
-    operators: [],
-    dateRange: {},
-    status: [],
-    source: [],
-    valueRange: {}
-  });
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
 
   useEffect(() => {
     loadLostLeads();
@@ -94,7 +86,7 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <img src="/loading.gif" alt="Carregando..." className="w-16 h-16" />
+        <img src="/loading.gif" alt="Carregando..." className="w-64 h-64" />
       </div>
     );
   }
@@ -116,6 +108,7 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
         onFiltersChange={handleFiltersChange}
         sellers={sellers}
         operators={operators}
+        products={[]}
         statusOptions={[]}
         sourceOptions={sourceOptions}
         showSellerFilter={currentUser.role === 'ADMIN'}

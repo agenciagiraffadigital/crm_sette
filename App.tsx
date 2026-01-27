@@ -155,7 +155,7 @@ function App() {
   if (initializing) {
     return (
       <div className="h-screen w-full bg-slate-100 flex items-center justify-center">
-        <img src="/loading.gif" alt="Carregando..." className="w-16 h-16" />
+        <img src="/loading.gif" alt="Carregando..." className="w-64 h-64" />
       </div>
     );
   }

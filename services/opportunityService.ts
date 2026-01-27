@@ -249,7 +249,6 @@ export const opportunityService = {
   // Update opportunity status (actually updates lead status_kanban)
   updateOpportunityStatus: async (id: number, status: OpportunityStatus, currentUser: User, additionalData?: {
     quoted_value?: number;
-    first_contact_date?: string;
   }): Promise<Opportunity> => {
     const updateData: any = {
       status_kanban: status,
@@ -257,10 +256,6 @@ export const opportunityService = {
 
     if (additionalData?.quoted_value) {
       updateData.valor_produto = additionalData.quoted_value;
-    }
-
-    if (status === 'EM_CONTATO' && !additionalData?.first_contact_date) {
-      updateData.first_contact_date = new Date().toISOString();
     }
 
     const { leadsTable } = getEnvironment();
@@ -283,7 +278,6 @@ export const opportunityService = {
       status: data.status_kanban,
       created_at: data.created_at,
       updated_at: data.updated_at,
-      first_contact_date: data.first_contact_date,
       quoted_value: data.valor_produto,
       vendedor: data.vendedor,
       vendedor_email: data.vendedor_email,
