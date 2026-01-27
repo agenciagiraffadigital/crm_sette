@@ -5,6 +5,7 @@ import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
+import { WhatsAppModal } from './WhatsAppModal';
 
 interface ModernLeadFormProps {
   leadId: number;
@@ -117,6 +118,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -322,7 +324,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                         setShowActionsMenu(false);
                         handleSubmit();
                       }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-green-50 flex items-center gap-3 text-green-700"
+                      className="w-full px-4 py-2 text-sm hover:bg-green-50 flex items-center justify-start gap-3 text-green-700"
                     >
                       <Trophy className="w-4 h-4" />
                       Ganhar
@@ -333,7 +335,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                         setShowActionsMenu(false);
                         handleSubmit();
                       }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 flex items-center gap-3 text-red-700"
+                      className="w-full px-4 py-2 text-sm hover:bg-red-50 flex items-center justify-start gap-3 text-red-700"
                     >
                       <XCircle className="w-4 h-4" />
                       Perder
@@ -341,9 +343,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                     <button
                       onClick={() => {
                         setShowActionsMenu(false);
-                        alert('Funcionalidade em desenvolvimento');
+                        setShowWhatsAppModal(true);
                       }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-3 text-gray-700"
+                      className="w-full px-4 py-2 text-sm hover:bg-green-50 flex items-center justify-start gap-3 text-green-700"
                     >
                       <MessageCircle className="w-4 h-4" />
                       Enviar WhatsApp
@@ -354,7 +356,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                           setShowActionsMenu(false);
                           handleOpenSellerModal();
                         }}
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-3 text-blue-700"
+                        className="w-full px-4 py-2 text-sm hover:bg-blue-50 flex items-center justify-start gap-3 text-blue-700"
                       >
                         <UserPlus className="w-4 h-4" />
                         Transferir
@@ -377,7 +379,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                             }
                           }
                         }}
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 flex items-center gap-3 text-red-700"
+                        className="w-full px-4 py-2 text-sm hover:bg-red-50 flex items-center justify-start gap-3 text-red-700"
                       >
                         <Trash className="w-4 h-4" />
                         Excluir
@@ -709,6 +711,35 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal WhatsApp */}
+      {showWhatsAppModal && formData && (
+        <WhatsAppModal
+          lead={formData}
+          onClose={() => setShowWhatsAppModal(false)}
+          onSend={async (phone, message) => {
+            // Encode message for WhatsApp URL
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+            
+            // Update status to EM_CONTATO if it's OPORTUNIDADES
+            if (formData.status_kanban === 'OPORTUNIDADES') {
+              try {
+                const updatedLead = { ...formData, status_kanban: 'EM_CONTATO' as any };
+                await leadService.saveLead(updatedLead);
+                setFormData(updatedLead);
+                onSave(updatedLead);
+              } catch (error) {
+                console.error('Erro ao atualizar status:', error);
+              }
+            }
+            
+            // Open WhatsApp in new tab
+            window.open(whatsappUrl, '_blank');
+            setShowWhatsAppModal(false);
+          }}
+        />
       )}
 
       {/* Modal de Sucesso */}
