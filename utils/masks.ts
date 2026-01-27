@@ -37,6 +37,7 @@ export const maskCNPJ = (value: string): string => {
 };
 
 export const maskCPFOrCNPJ = (value: string): string => {
+  if (!value) return '';
   const cleaned = value.replace(/\D/g, '');
   
   if (cleaned.length <= 11) {

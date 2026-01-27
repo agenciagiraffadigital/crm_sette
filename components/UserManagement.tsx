@@ -368,8 +368,12 @@ export const UserManagement: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Gestão de Usuários</h2>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">Gestão de Usuários</h1>
+          <p className="text-slate-600 mt-1">Gerencie usuários, permissões e distribuição de leads</p>
+        </div>
         <button 
           onClick={handleCreate}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 text-sm font-semibold transition-colors"

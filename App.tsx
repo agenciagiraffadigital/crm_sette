@@ -7,6 +7,7 @@ import { ProposalsBoard } from './components/ProposalsBoard';
 import { SimulationPanel } from './components/SimulationPanel';
 import { ModernLeadForm } from './components/ModernLeadForm';
 import { UserManagement } from './components/UserManagement';
+import { LostOpportunities } from './components/LostOpportunities';
 import { Auth } from './components/Auth';
 import { ErrorToast } from './components/ErrorToast';
 import { leadService } from './services/leadService';
@@ -159,7 +160,7 @@ function App() {
 
   if (selectedLeadId) {
       return (
-          <Layout activeTab={activeTab} setActiveTab={handleTabChange} user={user} onLogout={handleLogout}>
+          <Layout activeTab={activeTab} setActiveTab={handleTabChange} user={user} onLogout={handleLogout} fullWidth>
               <ModernLeadForm 
                 leadId={selectedLeadId} 
                 currentUser={user} 
@@ -203,6 +204,10 @@ function App() {
             user={user} 
             onProposalClick={(l) => setSelectedLeadId(l.id)} 
         />
+      )}
+      
+      {activeTab === 'lost' && (
+        <LostOpportunities currentUser={user} />
       )}
       
       {activeTab === 'users' && user.role === 'ADMIN' && (

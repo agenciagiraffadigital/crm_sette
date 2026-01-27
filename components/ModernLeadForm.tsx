@@ -251,7 +251,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
 
   if (loading || !formData) {
     return (
-      <div className="bg-gray-50 min-h-[400px] flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando...</p>
@@ -261,57 +261,58 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   }
 
   return (
-    <div className="bg-gray-50 min-h-full">
-      {/* Content */}
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Header do Formulário */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="px-8 py-6">
+          <div className="flex items-start justify-between gap-6">
+            {/* Left */}
+            <div className="flex items-start gap-4">
               <button
                 onClick={onBack}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="mt-1 p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="w-5 h-5 text-slate-600" />
               </button>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">{formData.nome}</h1>
-                <div className="space-y-1">
-                  <p className="text-sm text-gray-500">ID: #{formData.id}</p>
+                <h1 className="text-2xl font-bold text-slate-900 mb-1">{formData.nome}</h1>
+                <div className="flex items-center gap-2 text-sm">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded-md">
-                      Vendedor: {formData.vendedor}
-                    </span>
+                    <UserIcon className="w-4 h-4 text-slate-400" />
+                    <span className="text-slate-600">{formData.vendedor}</span>
                     {currentUser.role === 'ADMIN' && canChangeSeller && (
                       <button
                         onClick={handleOpenSellerModal}
-                        className="p-1.5 hover:bg-blue-50 rounded-md transition-colors border border-gray-200"
+                        className="p-1 hover:bg-blue-50 rounded transition-colors"
                         title="Alterar vendedor"
                       >
-                        <Edit3 className="w-3 h-3 text-gray-500 hover:text-blue-600" />
+                        <Edit3 className="w-3.5 h-3.5 text-slate-400 hover:text-blue-600" />
                       </button>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-            
-            <div className="flex items-end gap-4">
-              <div className="min-w-[200px]">
-                <Select
-                  label="Status"
-                  value={formData.status_kanban}
-                  onChange={(value) => handleChange('status_kanban', value)}
-                  options={statusColumns.map(col => ({ value: col.id, label: col.label }))}
-                />
-              </div>
+
+            {/* Right */}
+            <div className="flex items-center gap-3">
+              <select
+                value={formData.status_kanban}
+                onChange={(e) => handleChange('status_kanban', e.target.value)}
+                className="min-w-[200px] px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-700"
+              >
+                {statusColumns.map(col => (
+                  <option key={col.id} value={col.id}>{col.label}</option>
+                ))}
+              </select>
+
               <div className="relative actions-menu-container">
                 <button
                   onClick={() => setShowActionsMenu(!showActionsMenu)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors h-[42px]"
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
                 >
-                  <MoreVertical className="w-4 h-4" />
                   Ações
+                  <MoreVertical className="w-4 h-4" />
                 </button>
                 {showActionsMenu && (
                   <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
@@ -388,16 +389,21 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               <button
                 onClick={handleSubmit}
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 h-[42px]"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
               >
-                <Save className="w-4 h-4" />
                 {saving ? 'Salvando...' : 'Salvar'}
+                <Save className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Content */}
+      <div className="bg-slate-50 min-h-screen">
+        <div className="px-8 py-6">
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-6">
+        <div className="flex gap-2 mb-6">
           {[
             { id: 'info', label: 'Informações', icon: UserIcon },
             { id: 'beneficiarios', label: `Beneficiários (${formData.beneficiarios.length})`, icon: Users },
@@ -406,10 +412,10 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+              className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
                 activeTab === tab.id 
-                  ? 'border-blue-600 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'bg-white text-blue-600 shadow-sm border border-slate-200' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -537,8 +543,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               onChange={(value) => handleChange('vigencia', value)}
               type="date"
             />
-          </div>
-        </Card>
+            </div>
+          </Card>
           </div>
         )}
 
@@ -653,6 +659,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             </div>
           </div>
         )}
+      </div>
       </div>
 
       {/* Modal de Troca de Vendedor */}
