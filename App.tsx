@@ -17,7 +17,7 @@ import { Lead, Opportunity, OpportunityStatus, KanbanStatus, User } from './type
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState('opportunities'); // Changed default to opportunities
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'opportunities');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [opportunityFilters, setOpportunityFilters] = useState({});
@@ -91,7 +91,6 @@ function App() {
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
-    setActiveTab('opportunities'); // Changed default to opportunities
   };
 
   const handleLogout = async () => {
@@ -147,6 +146,7 @@ function App() {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    localStorage.setItem('activeTab', tab);
     setSelectedLeadId(null); // Clear selected lead when changing tabs
     setShowNewOpportunityForm(false); // Clear new opportunity form when changing tabs
   };

@@ -6,6 +6,7 @@ import { opportunityService } from '../services/opportunityService';
 import { notificationService } from '../services/notificationService';
 import { SystemModal } from './SystemModal';
 import { Plus, Edit, Trash2, Save, X, Key, Shield, ToggleLeft, ToggleRight, Users, Activity, TrendingUp, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { InputSwitch } from 'primereact/inputswitch';
 
 export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -546,19 +547,10 @@ export const UserManagement: React.FC = () => {
                             </td>
                             <td className="p-4">
                                 {user.role === 'SELLER' && (
-                                    <button
-                                        onClick={() => handleToggleDistribution(user.id, user.active_for_distribution || false)}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                                            user.active_for_distribution ? 'bg-green-600' : 'bg-gray-200'
-                                        }`}
-                                        title={user.active_for_distribution ? 'Ativo para distribuição' : 'Inativo para distribuição'}
-                                    >
-                                        <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                                user.active_for_distribution ? 'translate-x-6' : 'translate-x-1'
-                                            }`}
-                                        />
-                                    </button>
+                                    <InputSwitch
+                                        checked={user.active_for_distribution || false}
+                                        onChange={() => handleToggleDistribution(user.id, user.active_for_distribution || false)}
+                                    />
                                 )}
                             </td>
                             <td className="p-4 text-right space-x-2">
@@ -613,18 +605,12 @@ export const UserManagement: React.FC = () => {
               <div className="space-y-2 mb-3">
                 <p className="text-xs text-slate-600 truncate">{user.email}</p>
                 {user.role === 'SELLER' && (
-                  <div className="flex items-center justify-between pr-2">
+                  <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-500">Distribuição</span>
-                    <button
-                      onClick={() => handleToggleDistribution(user.id, user.active_for_distribution || false)}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                        user.active_for_distribution ? 'bg-green-600' : 'bg-gray-200'
-                      }`}
-                    >
-                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                        user.active_for_distribution ? 'translate-x-5' : 'translate-x-1'
-                      }`} />
-                    </button>
+                    <InputSwitch
+                      checked={user.active_for_distribution || false}
+                      onChange={() => handleToggleDistribution(user.id, user.active_for_distribution || false)}
+                    />
                   </div>
                 )}
               </div>
