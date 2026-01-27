@@ -94,7 +94,7 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-slate-600">Carregando...</div>
+        <img src="/loading.gif" alt="Carregando..." className="w-16 h-16" />
       </div>
     );
   }

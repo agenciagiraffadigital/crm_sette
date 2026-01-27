@@ -8,6 +8,7 @@ import { SimulationPanel } from './components/SimulationPanel';
 import { ModernLeadForm } from './components/ModernLeadForm';
 import { UserManagement } from './components/UserManagement';
 import { LostOpportunities } from './components/LostOpportunities';
+import { OperadorasManagement } from './components/OperadorasManagement';
 import { Auth } from './components/Auth';
 import { ErrorToast } from './components/ErrorToast';
 import { leadService } from './services/leadService';
@@ -154,7 +155,7 @@ function App() {
   if (initializing) {
     return (
       <div className="h-screen w-full bg-slate-100 flex items-center justify-center">
-        <div className="text-slate-600">Carregando...</div>
+        <img src="/loading.gif" alt="Carregando..." className="w-16 h-16" />
       </div>
     );
   }
@@ -217,6 +218,10 @@ function App() {
       
       {activeTab === 'users' && user.role === 'ADMIN' && (
          <UserManagement />
+      )}
+
+      {activeTab === 'operadoras' && user.role === 'ADMIN' && (
+        <OperadorasManagement />
       )}
 
       {activeTab === 'simulation' && user.role === 'ADMIN' && (

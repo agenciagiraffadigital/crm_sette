@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, KanbanSquare, Menu, X, Activity, LogOut, Users, Target, ChevronDown, XCircle } from 'lucide-react';
+import { LayoutDashboard, KanbanSquare, Menu, X, Activity, LogOut, Users, Target, ChevronDown, XCircle, Building2 } from 'lucide-react';
 import { User } from '../types';
 
 interface LayoutProps {
@@ -65,9 +65,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
               <NavItem id="opportunities" icon={Target} label="Oportunidades" />
               <NavItem id="kanban" icon={KanbanSquare} label="Propostas" />
               <NavItem id="lost" icon={XCircle} label="Perdidas" />
-              {user.role === 'ADMIN' && (
-                <NavItem id="users" icon={Users} label="Usuários" />
-              )}
             </nav>
 
             {/* User Menu */}
@@ -97,9 +94,34 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                         {user.role === 'ADMIN' ? 'Administrador' : 'Vendedor'}
                       </p>
                     </div>
+                    {user.role === 'ADMIN' && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setActiveTab('users');
+                            setUserMenuOpen(false);
+                          }}
+                          className="w-full flex items-center justify-start space-x-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          <Users className="w-4 h-4" />
+                          <span>Usuários</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveTab('operadoras');
+                            setUserMenuOpen(false);
+                          }}
+                          className="w-full flex items-center justify-start space-x-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          <Building2 className="w-4 h-4" />
+                          <span>Operadoras</span>
+                        </button>
+                        <div className="border-t border-slate-200 my-2"></div>
+                      </>
+                    )}
                     <button
                       onClick={onLogout}
-                      className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      className="w-full flex items-center justify-start space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <LogOut className="w-4 h-4" />
                       <span>Sair do Sistema</span>
@@ -127,9 +149,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
               <NavItem id="opportunities" icon={Target} label="Oportunidades" />
               <NavItem id="kanban" icon={KanbanSquare} label="Propostas" />
               <NavItem id="lost" icon={XCircle} label="Perdidas" />
-              {user.role === 'ADMIN' && (
-                <NavItem id="users" icon={Users} label="Usuários" />
-              )}
             </nav>
           )}
         </div>

@@ -3,6 +3,7 @@ import { Lead, User, Beneficiary } from '../types';
 import { KANBAN_COLUMNS, OPPORTUNITY_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
+import { operadoraService, Operadora, Produto } from '../services/operadoraService';
 import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
 import { WhatsAppModal } from './WhatsAppModal';
@@ -119,6 +120,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [successMessage, setSuccessMessage] = useState('');
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [operadoras, setOperadoras] = useState<Operadora[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -148,7 +151,24 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       setLoading(false);
     };
     loadLead();
+    
+    // Load operadoras
+    operadoraService.getOperadoras().then(setOperadoras).catch(console.error);
   }, [leadId]);
+
+  // Load produtos when operadora changes
+  useEffect(() => {
+    if (formData?.operadora) {
+      const operadora = operadoras.find(op => op.nome === formData.operadora);
+      if (operadora) {
+        operadoraService.getProdutosByOperadora(operadora.id)
+          .then(setProdutos)
+          .catch(console.error);
+      }
+    } else {
+      setProdutos([]);
+    }
+  }, [formData?.operadora, operadoras]);
 
   const handleChange = (field: keyof Lead, value: any) => {
     if (!formData) return;
@@ -254,10 +274,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   if (loading || !formData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando...</p>
-        </div>
+        <img src="/loading.gif" alt="Carregando..." className="w-16 h-16" />
       </div>
     );
   }
@@ -510,15 +527,22 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         {/* Product Info */}
         <Card title="Produto" icon={Package}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Input
+            <Select
               label="Operadora"
               value={formData.operadora}
-              onChange={(value) => handleChange('operadora', value)}
+              onChange={(value) => {
+                handleChange('operadora', value);
+                handleChange('produto', ''); // Reset produto when operadora changes
+              }}
+              options={operadoras.map(op => op.nome)}
+              required
             />
-            <Input
+            <Select
               label="Produto"
               value={formData.produto}
               onChange={(value) => handleChange('produto', value)}
+              options={produtos.map(p => p.nome)}
+              required
             />
             <Input
               label="Valor (R$)"
