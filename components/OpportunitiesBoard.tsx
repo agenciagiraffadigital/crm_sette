@@ -11,6 +11,8 @@ import { Input } from '../src/components/ui/Input';
 import { Select } from '../src/components/ui/Select';
 import { Card } from '../src/components/ui/Card';
 import { opportunityService } from '../services/opportunityService';
+import { authService } from '../services/authService';
+import { Dialog } from 'primereact/dialog';
 import { Plus } from 'lucide-react';
 
 interface FilterState {
@@ -242,9 +244,42 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showNewDialog, setShowNewDialog] = useState(false);
+  const [newOppStep, setNewOppStep] = useState(1);
+  const [newOppData, setNewOppData] = useState({
+    nome: '',
+    email: '',
+    telefone: '',
+    origem: '',
+    vendedor_id: currentUser.id,
+    notes: '',
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    estado: ''
+  });
+  const [sellers, setSellers] = useState<User[]>([]);
+  const [loadingCep, setLoadingCep] = useState(false);
+
+  const origemOptions = [
+    'Tráfego Pago (Ads)',
+    'Tráfego Orgânico',
+    'Landing Pages / Site',
+    'WhatsApp',
+    'Indicação',
+    'Parcerias',
+    'Prospecção Ativa',
+    'Marketplaces / Leads Comprados',
+    'Offline',
+    'Retorno / Base Interna',
+    'Não Identificado'
+  ];
 
   // Extract filter options from opportunities
-  const { sellers, sourceOptions, statusOptions } = useMemo(() => {
+  const { filterSellers, sourceOptions, statusOptions } = useMemo(() => {
     const allSellers = new Set<string>();
     const allSources = new Set<string>();
     
@@ -254,7 +289,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     });
 
     return {
-      sellers: Array.from(allSellers),
+      filterSellers: Array.from(allSellers),
       sourceOptions: Array.from(allSources),
       statusOptions: OPPORTUNITY_COLUMNS.map(col => col.id)
     };
@@ -458,9 +493,71 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     } catch (error) {
       console.error('Erro completo:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      setErrorMessage('Erro ao criar oportunidade: ' + errorMessage);
-      setShowError(true);
+      alert('Erro ao criar oportunidade: ' + errorMessage);
     }
+  };
+
+  const handleCepChange = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, '');
+    setNewOppData({...newOppData, cep: cleanCep});
+    
+    if (cleanCep.length === 8) {
+      setLoadingCep(true);
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await response.json();
+        
+        if (!data.erro) {
+          setNewOppData(prev => ({
+            ...prev,
+            logradouro: data.logradouro || '',
+            bairro: data.bairro || '',
+            cidade: data.localidade || '',
+            estado: data.uf || ''
+          }));
+        }
+      } catch (error) {
+        console.error('Erro ao buscar CEP:', error);
+      } finally {
+        setLoadingCep(false);
+      }
+    }
+  };
+
+  const handleSubmitNewOpp = async () => {
+    if (!newOppData.nome || !newOppData.email || !newOppData.telefone || !newOppData.origem || 
+        !newOppData.cep || !newOppData.logradouro || !newOppData.numero || !newOppData.bairro || 
+        !newOppData.cidade || !newOppData.estado) {
+      alert('Preencha todos os campos obrigatórios');
+      return;
+    }
+    
+    const seller = sellers.find(s => s.id === newOppData.vendedor_id) || currentUser;
+    
+    await handleCreateNewOpportunity({
+      ...newOppData,
+      vendedor: seller.name,
+      vendedor_email: seller.email,
+      status: 'OPORTUNIDADES'
+    });
+    
+    setShowNewDialog(false);
+    setNewOppStep(1);
+    setNewOppData({
+      nome: '',
+      email: '',
+      telefone: '',
+      origem: '',
+      vendedor_id: currentUser.id,
+      notes: '',
+      cep: '',
+      logradouro: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      estado: ''
+    });
   };
 
   // Show new opportunity form if requested
@@ -518,7 +615,13 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         </div>
         
         <Button
-          onClick={() => onShowNewOpportunityForm?.(true)}
+          onClick={async () => {
+            if (currentUser.role === 'ADMIN') {
+              const activeSellers = await authService.getActiveSellers();
+              setSellers(activeSellers);
+            }
+            setShowNewDialog(true);
+          }}
           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -531,7 +634,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         title=""
         filters={searchFilters}
         onFiltersChange={handleFiltersChange}
-        sellers={sellers}
+        sellers={filterSellers}
         operators={[]} // Opportunities don't have operators
         statusOptions={statusOptions}
         sourceOptions={sourceOptions}
@@ -629,7 +732,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     
     {/* Success Toast */}
     {showSuccess && (
-      <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md">
+      <div className="fixed bottom-4 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md">
         <div className="flex justify-between items-center">
           <span>{successMessage}</span>
           <button 
@@ -641,6 +744,227 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         </div>
       </div>
     )}
+
+    <Dialog
+      visible={showNewDialog}
+      onHide={() => {
+        setShowNewDialog(false);
+        setNewOppStep(1);
+        setNewOppData({
+          nome: '',
+          email: '',
+          telefone: '',
+          origem: '',
+          vendedor_id: currentUser.id,
+          notes: '',
+          cep: '',
+          logradouro: '',
+          numero: '',
+          complemento: '',
+          bairro: '',
+          cidade: '',
+          estado: ''
+        });
+      }}
+      header={newOppStep === 1 ? 'Nova Oportunidade - Origem' : 'Nova Oportunidade - Dados'}
+      style={{ width: '600px' }}
+      modal
+    >
+      {newOppStep === 1 ? (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 mb-4">Selecione a origem da oportunidade:</p>
+          <div className="grid grid-cols-2 gap-3">
+            {origemOptions.map((origem) => (
+              <button
+                key={origem}
+                type="button"
+                onClick={() => setNewOppData({...newOppData, origem})}
+                className={`p-3 border-2 rounded-lg text-left text-sm transition-all hover:border-green-500 hover:bg-green-50 ${
+                  newOppData.origem === origem
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-slate-200'
+                }`}
+              >
+                {origem}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <button
+              onClick={() => setShowNewDialog(false)}
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => setNewOppStep(2)}
+              disabled={!newOppData.origem}
+              className="px-4 py-2 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Próximo
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => setNewOppStep(1)}
+              className="text-sm text-green-600 hover:text-green-800"
+            >
+              ← Voltar para origem
+            </button>
+            <span className="text-sm text-slate-500">| Origem: {newOppData.origem}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-2">Nome *</label>
+              <input
+                type="text"
+                value={newOppData.nome}
+                onChange={(e) => setNewOppData({...newOppData, nome: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-2">Email *</label>
+              <input
+                type="email"
+                value={newOppData.email}
+                onChange={(e) => setNewOppData({...newOppData, email: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-2">Telefone *</label>
+              <input
+                type="text"
+                value={newOppData.telefone.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3').replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3')}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setNewOppData({...newOppData, telefone: value});
+                }}
+                placeholder="(00) 00000-0000"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+              />
+            </div>
+            {currentUser.role === 'ADMIN' && (
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-2">Vendedor</label>
+                <select
+                  value={newOppData.vendedor_id}
+                  onChange={(e) => setNewOppData({...newOppData, vendedor_id: parseInt(e.target.value)})}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm bg-white"
+                >
+                  {sellers.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-2">CEP *</label>
+              <input
+                type="text"
+                value={newOppData.cep}
+                onChange={(e) => handleCepChange(e.target.value)}
+                placeholder="00000-000"
+                maxLength={9}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+              />
+              {loadingCep && <span className="text-xs text-slate-500 mt-1">Buscando...</span>}
+            </div>
+            <div className="col-span-2">
+              <label className="text-sm font-medium text-slate-700 block mb-2">Logradouro *</label>
+              <input
+                type="text"
+                value={newOppData.logradouro}
+                onChange={(e) => setNewOppData({...newOppData, logradouro: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-2">Número *</label>
+              <input
+                type="text"
+                value={newOppData.numero}
+                onChange={(e) => setNewOppData({...newOppData, numero: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="text-sm font-medium text-slate-700 block mb-2">Complemento</label>
+              <input
+                type="text"
+                value={newOppData.complemento}
+                onChange={(e) => setNewOppData({...newOppData, complemento: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-2">Bairro *</label>
+              <input
+                type="text"
+                value={newOppData.bairro}
+                onChange={(e) => setNewOppData({...newOppData, bairro: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-2">Cidade *</label>
+              <input
+                type="text"
+                value={newOppData.cidade}
+                onChange={(e) => setNewOppData({...newOppData, cidade: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-2">Estado *</label>
+              <input
+                type="text"
+                value={newOppData.estado}
+                onChange={(e) => setNewOppData({...newOppData, estado: e.target.value.toUpperCase()})}
+                maxLength={2}
+                placeholder="SP"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm uppercase"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700 block mb-2">Observações</label>
+            <textarea
+              value={newOppData.notes}
+              onChange={(e) => setNewOppData({...newOppData, notes: e.target.value})}
+              rows={3}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm resize-none"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <button
+              onClick={() => setShowNewDialog(false)}
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSubmitNewOpp}
+              className="px-4 py-2 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            >
+              Criar Oportunidade
+            </button>
+          </div>
+        </div>
+      )}
+    </Dialog>
     </>
   );
 };
