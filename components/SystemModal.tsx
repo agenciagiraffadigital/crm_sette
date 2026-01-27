@@ -51,8 +51,8 @@ export const SystemModal: React.FC<SystemModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <div className="fixed top-20 left-0 right-0 flex justify-center z-[9999]">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-[90%] border-2 border-slate-300">
         <div className={`p-4 border-b ${getColors()}`}>
           <div className="flex items-center space-x-3">
             {getIcon()}

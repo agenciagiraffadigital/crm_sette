@@ -18,6 +18,8 @@ export const UserManagement: React.FC = () => {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [userPerformance, setUserPerformance] = useState<any>(null);
   const [userActivity, setUserActivity] = useState<ActivityLog[]>([]);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({ userId: 0, newPassword: '' });
   const [modal, setModal] = useState<{
     isOpen: boolean;
     type: 'alert' | 'confirm' | 'success' | 'error';
@@ -116,11 +118,25 @@ export const UserManagement: React.FC = () => {
   };
 
   const handleResetPassword = async (userId: number) => {
-    const newPassword = prompt('Digite a nova senha:');
-    if (!newPassword) return;
+    setPasswordData({ userId, newPassword: '' });
+    setShowPasswordModal(true);
+  };
+
+  const executePasswordReset = async () => {
+    if (!passwordData.newPassword) {
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: 'Digite uma senha'
+      });
+      return;
+    }
     
     try {
-      await authService.resetUserPassword(userId, newPassword);
+      await authService.resetUserPassword(passwordData.userId, passwordData.newPassword);
+      setShowPasswordModal(false);
+      setPasswordData({ userId: 0, newPassword: '' });
       setModal({
         isOpen: true,
         type: 'success',
@@ -138,10 +154,24 @@ export const UserManagement: React.FC = () => {
   };
 
   const handleToggleDistribution = async (userId: number, currentStatus: boolean) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
     try {
       const currentUser = JSON.parse(localStorage.getItem('crm_user') || '{}');
+      
+      if (!currentUser.id || currentUser.role !== 'ADMIN') {
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Erro',
+          message: 'Apenas administradores podem alterar status de distribuição'
+        });
+        return;
+      }
+      
       await authService.toggleUserDistribution(userId, !currentStatus, currentUser);
-      loadUsers(); // Reload to show updated status
+      await loadUsers();
+      
       setModal({
         isOpen: true,
         type: 'success',
@@ -485,7 +515,9 @@ export const UserManagement: React.FC = () => {
           </form>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <>
+        {/* Desktop Table */}
+        <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
                 <thead className="bg-slate-50 border-b border-slate-200">
@@ -558,6 +590,71 @@ export const UserManagement: React.FC = () => {
             </table>
           </div>
         </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden space-y-4">
+          {users.map(user => (
+            <div key={user.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-3">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-10 h-10 flex-shrink-0 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
+                  {user.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-slate-800 text-sm truncate">{user.name}</h3>
+                  <p className="text-xs text-slate-500">#{user.id}</p>
+                </div>
+                <span className={`flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
+                  user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {user.role}
+                </span>
+              </div>
+              
+              <div className="space-y-2 mb-3">
+                <p className="text-xs text-slate-600 truncate">{user.email}</p>
+                {user.role === 'SELLER' && (
+                  <div className="flex items-center justify-between pr-2">
+                    <span className="text-xs text-slate-500">Distribuição</span>
+                    <button
+                      onClick={() => handleToggleDistribution(user.id, user.active_for_distribution || false)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        user.active_for_distribution ? 'bg-green-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                        user.active_for_distribution ? 'translate-x-5' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex gap-2 pt-2 border-t border-slate-200">
+                <button 
+                  onClick={() => handleEdit(user)}
+                  className="flex-1 px-2 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  <span>Editar</span>
+                </button>
+                <button 
+                  onClick={() => handleResetPassword(user.id)}
+                  className="flex-1 px-2 py-1.5 text-xs font-medium text-yellow-600 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors flex items-center justify-center gap-1"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Senha</span>
+                </button>
+                <button 
+                  onClick={() => handleDelete(user.id)}
+                  className="px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       )}
 
       {/* Performance Modal */}
@@ -775,6 +872,50 @@ export const UserManagement: React.FC = () => {
         onConfirm={modal.onConfirm}
         onCancel={() => setModal({ isOpen: false, type: 'alert', title: '', message: '' })}
       />
+
+      {/* Password Reset Modal */}
+      {showPasswordModal && (
+        <div className="fixed top-20 left-0 right-0 flex justify-center z-[9999]">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-[90%] border-2 border-slate-300">
+            <div className="p-4 border-b bg-yellow-50 border-yellow-200">
+              <div className="flex items-center space-x-3">
+                <Key className="w-6 h-6 text-yellow-600" />
+                <h3 className="text-lg font-semibold text-slate-800">Resetar Senha</h3>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <label className="text-sm font-medium text-slate-700 block mb-2">Nova Senha</label>
+              <input
+                type="password"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                placeholder="Digite a nova senha"
+                className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                autoFocus
+              />
+            </div>
+            
+            <div className="p-4 border-t border-slate-200 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setPasswordData({ userId: 0, newPassword: '' });
+                }}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executePasswordReset}
+                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold transition-colors"
+              >
+                Alterar Senha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

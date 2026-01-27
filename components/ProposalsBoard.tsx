@@ -207,6 +207,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
   };
 
   return (
+    <>
     <div className="h-full flex flex-col space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -235,13 +236,13 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
       />
 
       {/* Board Columns */}
-      <div className="flex gap-4 min-w-[1200px] pb-4">
+      <div className="flex flex-col md:flex-row gap-4 pb-4">
         {KANBAN_COLUMNS.map((column) => {
           const columnProposals = filteredProposals.filter(p => p.status_kanban === column.id).slice(0, limits[column.id]);
           return (
             <div 
               key={column.id} 
-              className="flex-1 flex flex-col min-w-[300px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+              className="flex flex-col w-full md:flex-1 md:min-w-[300px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id as KanbanStatus)}
@@ -257,7 +258,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
               </div>
               
               {/* Column Body */}
-              <div className="p-3 space-y-3 bg-slate-50/50">
+              <div className="p-3 space-y-3 bg-slate-50/50 flex-1 max-h-[400px] md:max-h-none overflow-y-auto md:overflow-y-visible">
                 {columnProposals.map(proposal => (
                   <ProposalCard 
                     key={proposal.id} 
@@ -278,14 +279,15 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
           );
         })}
       </div>
-
-      <DeleteConfirmationModal
-        isOpen={deleteModalState.isOpen}
-        onClose={() => setDeleteModalState({ isOpen: false, proposalId: null, proposalName: '' })}
-        onConfirm={handleConfirmDelete}
-        itemName={deleteModalState.proposalName}
-        itemType="lead"
-      />
     </div>
+
+    <DeleteConfirmationModal
+      isOpen={deleteModalState.isOpen}
+      onClose={() => setDeleteModalState({ isOpen: false, proposalId: null, proposalName: '' })}
+      onConfirm={handleConfirmDelete}
+      itemName={deleteModalState.proposalName}
+      itemType="lead"
+    />
+    </>
   );
 };

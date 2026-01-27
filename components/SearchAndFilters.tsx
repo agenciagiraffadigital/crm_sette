@@ -156,33 +156,13 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
           </div>
 
           {/* Quick Filters */}
-          <div className="flex gap-2">
-            {/* Operator Filter */}
-            {operators.length > 0 && (
-              <div className="relative">
-                <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
-                <select
-                  className="pl-9 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none"
-                  value={filters.operators.length === 1 ? filters.operators[0] : 'all'}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    updateFilter('operators', value === 'all' ? [] : [value]);
-                  }}
-                >
-                  <option value="all">Todas Operadoras</option>
-                  {operators.map(op => (
-                    <option key={op} value={op}>{op}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            
+          <div className="flex flex-wrap sm:flex-nowrap gap-2">
             {/* Seller Filter (Admin Only) */}
             {showSellerFilter && sellers.length > 0 && (
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
                 <select
-                  className="pl-9 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none"
+                  className="pl-9 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none w-full sm:w-auto"
                   value={filters.sellers.length === 1 ? filters.sellers[0] : 'all'}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -200,14 +180,14 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
             {/* Advanced Filters Toggle */}
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className={`relative px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+              className={`relative px-4 py-2 border rounded-lg text-sm font-medium transition-colors w-full sm:w-auto ${
                 activeFiltersCount > 0 
                   ? 'bg-blue-50 border-blue-300 text-blue-700' 
                   : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
               }`}
             >
               <Filter className="w-4 h-4 inline mr-2" />
-              Filtros
+              Filtros Avançados
               {activeFiltersCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
                   {activeFiltersCount}
@@ -221,6 +201,29 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
         {showAdvancedFilters && (
           <div className="mt-4 pt-4 border-t border-slate-200">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Operator Filter */}
+              {operators.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase mb-2">
+                    <Stethoscope className="w-3 h-3 inline mr-1" />
+                    Operadora
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                    value={filters.operators.length === 1 ? filters.operators[0] : 'all'}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      updateFilter('operators', value === 'all' ? [] : [value]);
+                    }}
+                  >
+                    <option value="all">Todas</option>
+                    {operators.map(op => (
+                      <option key={op} value={op}>{op}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Status Filter */}
               {statusOptions.length > 0 && (
                 <div>

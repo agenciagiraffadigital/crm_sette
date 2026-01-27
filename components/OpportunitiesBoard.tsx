@@ -506,6 +506,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   };
 
   return (
+    <>
     <div className="h-full flex flex-col space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -542,13 +543,13 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       />
 
       {/* Board Columns */}
-      <div className="flex gap-4 min-w-[900px] pb-4">
+      <div className="flex flex-col md:flex-row gap-4 pb-4">
         {OPPORTUNITY_COLUMNS.map((column) => {
           const columnOpportunities = opportunitiesByStatus[column.id as OpportunityStatus];
           return (
             <div 
               key={column.id} 
-              className="flex-1 flex flex-col min-w-[300px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+              className="flex flex-col w-full md:flex-1 md:min-w-[300px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id as OpportunityStatus)}
@@ -564,7 +565,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
               </div>
               
               {/* Column Body */}
-              <div className="p-3 space-y-3 bg-slate-50/50">
+              <div className="p-3 space-y-3 bg-slate-50/50 flex-1 max-h-[400px] md:max-h-none overflow-y-auto md:overflow-y-visible">
                 {columnOpportunities?.map(opportunity => (
                   <OpportunityCard
                     key={opportunity.id}
@@ -601,44 +602,45 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
           );
         })}
       </div>
-
-      {/* Modals */}
-      <ValueInputModal
-        isOpen={valueModalState.isOpen}
-        onClose={() => setValueModalState({ isOpen: false, opportunityId: null, opportunityName: '' })}
-        onSubmit={handleValueSubmit}
-        opportunityName={valueModalState.opportunityName}
-      />
-
-      <LossModal
-        isOpen={lossModalState.isOpen}
-        onClose={() => setLossModalState({ isOpen: false, opportunityId: null, opportunityName: '' })}
-        onSubmit={handleLossSubmit}
-        opportunityName={lossModalState.opportunityName}
-      />
-
-      <DeleteConfirmationModal
-        isOpen={deleteModalState.isOpen}
-        onClose={() => setDeleteModalState({ isOpen: false, opportunityId: null, opportunityName: '' })}
-        onConfirm={handleConfirmDelete}
-        itemName={deleteModalState.opportunityName}
-        itemType="oportunidade"
-      />
-      
-      {/* Success Toast */}
-      {showSuccess && (
-        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md">
-          <div className="flex justify-between items-center">
-            <span>{successMessage}</span>
-            <button 
-              onClick={() => setShowSuccess(false)}
-              className="ml-4 text-white hover:text-gray-200"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
     </div>
+
+    {/* Modals */}
+    <ValueInputModal
+      isOpen={valueModalState.isOpen}
+      onClose={() => setValueModalState({ isOpen: false, opportunityId: null, opportunityName: '' })}
+      onSubmit={handleValueSubmit}
+      opportunityName={valueModalState.opportunityName}
+    />
+
+    <LossModal
+      isOpen={lossModalState.isOpen}
+      onClose={() => setLossModalState({ isOpen: false, opportunityId: null, opportunityName: '' })}
+      onSubmit={handleLossSubmit}
+      opportunityName={lossModalState.opportunityName}
+    />
+
+    <DeleteConfirmationModal
+      isOpen={deleteModalState.isOpen}
+      onClose={() => setDeleteModalState({ isOpen: false, opportunityId: null, opportunityName: '' })}
+      onConfirm={handleConfirmDelete}
+      itemName={deleteModalState.opportunityName}
+      itemType="oportunidade"
+    />
+    
+    {/* Success Toast */}
+    {showSuccess && (
+      <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md">
+        <div className="flex justify-between items-center">
+          <span>{successMessage}</span>
+          <button 
+            onClick={() => setShowSuccess(false)}
+            className="ml-4 text-white hover:text-gray-200"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 };

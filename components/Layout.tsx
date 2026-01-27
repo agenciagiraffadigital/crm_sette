@@ -44,22 +44,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   );
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden font-sans">
+    <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
       {/* Header */}
-      <header className="bg-slate-900 border-b border-slate-800 shadow-sm z-10">
+      <header className="bg-slate-900 border-b border-slate-800 shadow-sm sticky top-0 z-50">
         <div className="max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-20">
             {/* Logo */}
-            <div className="flex items-center space-x-3 mr-8">
+            <div className="flex items-center space-x-2 sm:space-x-3 mr-4 sm:mr-8">
               <div className="bg-blue-600 p-2 rounded-lg">
-                <Activity className="w-6 h-6 text-white" />
+                <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">Sette CRM</h1>
-                <p className="text-xs text-slate-400 hidden sm:block">
-                  {user.role === 'ADMIN' ? 'Administrador' : 'Vendedor'}
-                </p>
-              </div>
+              <h1 className="text-lg sm:text-[21px] font-bold text-white">Sette CRM</h1>
             </div>
 
             {/* Desktop Navigation */}
@@ -76,20 +71,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
             </nav>
 
             {/* User Menu */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4 ml-auto md:ml-0">
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors"
+                  className="flex items-center space-x-2 sm:space-x-3 px-2 sm:px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors"
                 >
-                  <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-blue-600 flex items-center justify-center text-xs sm:text-sm font-bold text-white">
                     {user.name.substring(0, 2).toUpperCase()}
                   </div>
                   <div className="hidden lg:block text-left">
                     <p className="text-sm font-medium text-white">{user.name}</p>
                     <p className="text-xs text-slate-400">{user.email}</p>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className="hidden sm:block w-4 h-4 text-slate-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}" />
                 </button>
 
                 {/* User Dropdown */}
@@ -141,7 +136,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
       </header>
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-auto ${fullWidth ? '' : 'p-4 md:p-8'}`}>
+      <main className={`flex-1 ${fullWidth ? '' : 'p-4 md:p-8'}`}>
         {fullWidth ? (
           children
         ) : (
