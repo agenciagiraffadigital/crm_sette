@@ -12,7 +12,8 @@
     "deploy": "npm run build && pm2 restart crm-webhook",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:env": "node scripts/test-environment.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",

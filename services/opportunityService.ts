@@ -1,11 +1,13 @@
 import { Opportunity, OpportunityStatus, User, LossReason, ActivityLog, AssignmentHistory } from '../types';
 import { supabase } from './supabaseClient';
+import { getEnvironment } from '../utils/environment';
 
 export const opportunityService = {
   // Get all opportunities (leads in opportunity phase)
   getOpportunities: async (currentUser: User): Promise<Opportunity[]> => {
+    const { leadsTable } = getEnvironment();
     let query = supabase
-      .from('leads')
+      .from(leadsTable)
       .select('id, nome, email, telefone, status_kanban, created_at, valor_produto, vendedor, vendedor_id, origem, produto')
       .in('status_kanban', ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'])
       .order('created_at', { ascending: false });
@@ -45,8 +47,9 @@ export const opportunityService = {
 
   // Get opportunity by ID (actually a lead)
   getOpportunityById: async (id: number): Promise<Opportunity> => {
+    const { leadsTable } = getEnvironment();
     const { data, error } = await supabase
-      .from('leads')
+      .from(leadsTable)
       .select('*')
       .eq('id', id)
       .single();
@@ -87,8 +90,9 @@ export const opportunityService = {
     status: OpportunityStatus;
     notes?: string;
   }): Promise<Opportunity> => {
+    const { leadsTable } = getEnvironment();
     const { data, error } = await supabase
-      .from('leads')
+      .from(leadsTable)
       .insert({
         nome: opportunityData.nome,
         email: opportunityData.email,
@@ -200,8 +204,9 @@ export const opportunityService = {
     if (opportunityData.next_followup !== undefined) updateData.next_followup = opportunityData.next_followup;
     if (opportunityData.notes !== undefined) {
       // Update raw_json to include notes
+      const { leadsTable } = getEnvironment();
       const { data: currentData } = await supabase
-        .from('leads')
+        .from(leadsTable)
         .select('raw_json')
         .eq('id', id)
         .single();
@@ -210,8 +215,9 @@ export const opportunityService = {
       updateData.raw_json = { ...currentRawJson, notes: opportunityData.notes };
     }
 
+    const { leadsTable } = getEnvironment();
     const { data, error } = await supabase
-      .from('leads')
+      .from(leadsTable)
       .update(updateData)
       .eq('id', id)
       .select()
@@ -257,8 +263,9 @@ export const opportunityService = {
       updateData.first_contact_date = new Date().toISOString();
     }
 
+    const { leadsTable } = getEnvironment();
     const { data, error } = await supabase
-      .from('leads')
+      .from(leadsTable)
       .update(updateData)
       .eq('id', id)
       .select()
@@ -350,8 +357,9 @@ export const opportunityService = {
     }
 
     // Update the lead status to ENVIADA (proposal phase)
+    const { leadsTable } = getEnvironment();
     const { data, error } = await supabase
-      .from('leads')
+      .from(leadsTable)
       .update({
         status_kanban: 'ENVIADA',
         updated_at: new Date().toISOString(),
@@ -566,8 +574,9 @@ export const opportunityService = {
       throw new Error('Apenas administradores podem excluir oportunidades');
     }
 
+    const { leadsTable } = getEnvironment();
     const { error } = await supabase
-      .from('leads')
+      .from(leadsTable)
       .delete()
       .eq('id', opportunityId);
 

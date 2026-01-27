@@ -25,7 +25,28 @@
 1. Instale as dependências: `npm install`
 2. Configure o `.env.local` com as chaves do Supabase.
 3. Execute o SQL de migração no painel do Supabase: `migration.sql`
-4. Execute o script de inicialização: `node scripts/init.js`
+4. **NOVO:** Execute a migração para ambiente de desenvolvimento: `migration-leads-dev.sql`
+5. Execute o script de inicialização: `node scripts/init.js`
+
+## Ambientes de Dados
+
+### 🔄 Separação Automática de Tabelas
+O sistema agora detecta automaticamente o ambiente e usa a tabela apropriada:
+
+- **Desenvolvimento/Local:** `leads_dev` (dados de teste)
+- **Produção:** `leads` (dados reais)
+
+### ✅ Detecção Automática
+O ambiente é detectado por:
+- `localhost` ou `127.0.0.1`
+- `dev.settesaude.com.br`
+- `import.meta.env.DEV === true`
+- `import.meta.env.MODE === 'development'`
+
+### 🧪 Testando o Ambiente
+```bash
+node scripts/test-environment.js
+```
 
 ## Migração para Supabase Auth
 

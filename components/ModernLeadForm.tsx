@@ -3,7 +3,7 @@ import { Lead, User, Beneficiary } from '../types';
 import { KANBAN_COLUMNS, OPPORTUNITY_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
-import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip } from 'lucide-react';
+import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
 
 interface ModernLeadFormProps {
@@ -116,6 +116,19 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+
+  // Close actions menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showActionsMenu && !target.closest('.actions-menu-container')) {
+        setShowActionsMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showActionsMenu]);
 
   // Determine which status columns to use
   const isOpportunity = formData && ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'].includes(formData.status_kanban);
@@ -291,6 +304,86 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   onChange={(value) => handleChange('status_kanban', value)}
                   options={statusColumns.map(col => ({ value: col.id, label: col.label }))}
                 />
+              </div>
+              <div className="relative actions-menu-container">
+                <button
+                  onClick={() => setShowActionsMenu(!showActionsMenu)}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors h-[42px]"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                  Ações
+                </button>
+                {showActionsMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <button
+                      onClick={() => {
+                        handleChange('status_kanban', 'IMPLANTADA');
+                        setShowActionsMenu(false);
+                        handleSubmit();
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-green-50 flex items-center gap-3 text-green-700"
+                    >
+                      <Trophy className="w-4 h-4" />
+                      Ganhar
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleChange('status_kanban', 'CANCELADA');
+                        setShowActionsMenu(false);
+                        handleSubmit();
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 flex items-center gap-3 text-red-700"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Perder
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        alert('Funcionalidade em desenvolvimento');
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-3 text-gray-700"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Enviar WhatsApp
+                    </button>
+                    {currentUser.role === 'ADMIN' && (
+                      <button
+                        onClick={() => {
+                          setShowActionsMenu(false);
+                          handleOpenSellerModal();
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-3 text-blue-700"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Transferir
+                      </button>
+                    )}
+                    <div className="border-t border-gray-200 my-2"></div>
+                    {currentUser.role === 'ADMIN' && (
+                      <button
+                        onClick={async () => {
+                          if (confirm('Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita.')) {
+                            setShowActionsMenu(false);
+                            try {
+                              await leadService.deleteLead(formData.id, currentUser);
+                              setSuccessMessage('Lead excluído com sucesso!');
+                              setShowSuccessModal(true);
+                              setTimeout(() => onBack(), 1500);
+                            } catch (error) {
+                              console.error('Erro ao excluir lead:', error);
+                              alert('Erro ao excluir lead');
+                            }
+                          }
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 flex items-center gap-3 text-red-700"
+                      >
+                        <Trash className="w-4 h-4" />
+                        Excluir
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
               <button
                 onClick={handleSubmit}
