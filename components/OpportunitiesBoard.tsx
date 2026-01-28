@@ -698,6 +698,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                     onClick={() => onOpenOpportunity(opportunity)}
                     onMarkAsLost={() => handleMarkAsLost(opportunity.id)}
                     onConvertToProposal={() => handleConvertToProposal(opportunity.id)}
+                    onLost={(opp) => onOpenOpportunity(opp)}
                     onDelete={currentUser.role === 'ADMIN' ? () => handleDeleteOpportunity(opportunity.id) : undefined}
                     currentUser={currentUser}
                     data-testid={`opportunity-card-${opportunity.id}`}

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { XCircle } from 'lucide-react';
 import { User, Lead } from '../types';
 import { leadService } from '../services/leadService';
+import { supabase } from '../services/supabaseClient';
 import { SearchAndFilters, FilterState, defaultFilters } from './SearchAndFilters';
 
 interface LostOpportunitiesProps {
@@ -20,9 +21,23 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
   const loadLostLeads = async () => {
     setLoading(true);
     try {
-      const allLeads = await leadService.getLeads(currentUser);
-      const lost = allLeads.filter(lead => lead.status_kanban === 'CANCELADA');
-      setLostLeads(lost);
+      const isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('dev');
+      const leadsTable = isDev ? 'leads_dev' : 'leads';
+      
+      let query = supabase
+        .from(leadsTable)
+        .select('*')
+        .eq('status_kanban', 'CANCELADA')
+        .order('updated_at', { ascending: false });
+      
+      if (currentUser.role !== 'ADMIN') {
+        query = query.eq('vendedor_id', currentUser.id);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      setLostLeads(data || []);
     } catch (error) {
       console.error('Erro ao carregar leads perdidos:', error);
     } finally {

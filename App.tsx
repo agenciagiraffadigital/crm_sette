@@ -11,6 +11,7 @@ import { LostOpportunities } from './components/LostOpportunities';
 import { OperadorasManagement } from './components/OperadorasManagement';
 import { Auth } from './components/Auth';
 import { ErrorToast } from './components/ErrorToast';
+import { LostDialog } from './components/LostDialog';
 import { leadService } from './services/leadService';
 import { opportunityService } from './services/opportunityService';
 import { authService } from './services/authService';
@@ -30,6 +31,8 @@ function App() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [showError, setShowError] = useState(false);
+  const [lostDialogVisible, setLostDialogVisible] = useState(false);
+  const [selectedLostLead, setSelectedLostLead] = useState<Lead | null>(null);
 
   // Check for existing session and setup auth listener
   useEffect(() => {
@@ -133,6 +136,34 @@ function App() {
     }
   }, [user, loadLeads]);
 
+  const handleLeadLost = useCallback((lead: Lead) => {
+    setSelectedLostLead(lead);
+    setLostDialogVisible(true);
+  }, []);
+
+  const handleConfirmLost = useCallback(async (data: {
+    motivo: string;
+    detalhes?: string;
+    followup: boolean;
+    followupData?: string;
+    followupStatus?: string;
+  }) => {
+    if (!selectedLostLead || !user) return;
+
+    try {
+      await leadService.markAsLost(selectedLostLead.id, data, user);
+      setLostDialogVisible(false);
+      setSelectedLostLead(null);
+      await loadLeads();
+      setSuccessMessage('Lead marcado como perdido com sucesso!');
+      setShowSuccess(true);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setErrorMessage('Erro ao marcar lead como perdido: ' + errorMessage);
+      setShowError(true);
+    }
+  }, [selectedLostLead, user, loadLeads]);
+
   const handleNewLeadFromSimulation = useCallback((newLead: Lead) => {
     if (user?.role === 'ADMIN' || newLead.vendedor_id === user?.id) {
         setLeads(prev => [newLead, ...prev]);
@@ -193,7 +224,9 @@ function App() {
           opportunities={opportunities}
           onMoveOpportunity={handleMoveOpportunity}
           onOpenOpportunity={(opportunity) => {
-            setSelectedLeadId(opportunity.id);
+            if (opportunity.status === 'OPORTUNIDADES' || opportunity.status === 'EM_CONTATO' || opportunity.status === 'NEGOCIACAO') {
+              setSelectedLeadId(opportunity.id);
+            }
           }}
           filters={opportunityFilters}
           onFiltersChange={setOpportunityFilters}
@@ -209,7 +242,8 @@ function App() {
             proposals={leads} 
             onMoveProposal={handleMoveLead} 
             user={user} 
-            onProposalClick={(l) => setSelectedLeadId(l.id)} 
+            onProposalClick={(l) => setSelectedLeadId(l.id)}
+            onProposalLost={handleLeadLost}
         />
       )}
       
@@ -233,6 +267,15 @@ function App() {
         message={errorMessage}
         isVisible={showError}
         onClose={() => setShowError(false)}
+      />
+
+      <LostDialog
+        visible={lostDialogVisible}
+        onHide={() => {
+          setLostDialogVisible(false);
+          setSelectedLostLead(null);
+        }}
+        onConfirm={handleConfirmLost}
       />
     </Layout>
   );

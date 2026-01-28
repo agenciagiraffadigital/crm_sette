@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lead, KanbanStatus } from '../types';
-import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, DollarSign, Trash2 } from 'lucide-react';
+import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, DollarSign, Trash2, XCircle } from 'lucide-react';
 import { KANBAN_COLUMNS } from '../constants';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
@@ -9,11 +9,12 @@ interface ProposalCardProps {
   proposal: Lead;
   onMove: (id: number, newStatus: KanbanStatus) => void;
   onClick: (proposal: Lead) => void;
+  onLost?: (proposal: Lead) => void;
   onDelete?: (id: number) => void;
   currentUser?: any;
 }
 
-export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, onClick, onDelete, currentUser }) => {
+export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, onClick, onLost, onDelete, currentUser }) => {
   
   const getNextStatus = (current: KanbanStatus): KanbanStatus | null => {
     const idx = KANBAN_COLUMNS.findIndex(c => c.id === current);

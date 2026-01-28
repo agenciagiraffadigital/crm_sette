@@ -8,6 +8,7 @@ import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, Dollar
 import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
 import { WhatsAppModal } from './WhatsAppModal';
 import { WinDialog } from './WinDialog';
+import { LostDialog } from './LostDialog';
 
 interface ModernLeadFormProps {
   leadId: number;
@@ -113,7 +114,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [formData, setFormData] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'beneficiarios' | 'docs'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'beneficiarios' | 'docs' | 'historico'>('info');
   const [showSellerModal, setShowSellerModal] = useState(false);
   const [sellers, setSellers] = useState<User[]>([]);
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
@@ -126,6 +127,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [showWinDialog, setShowWinDialog] = useState(false);
   const [showValueDialog, setShowValueDialog] = useState(false);
   const [tempValue, setTempValue] = useState<number | null>(null);
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [showLostDialog, setShowLostDialog] = useState(false);
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -149,6 +152,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       try {
         const data = await leadService.getLeadById(leadId);
         if (data) setFormData(data);
+        
+        const logs = await leadService.getActivityLogs(leadId);
+        setActivityLogs(logs);
       } catch (error) {
         console.error('Erro ao carregar lead:', error);
       }
@@ -376,9 +382,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                     </button>
                     <button
                       onClick={() => {
-                        handleChange('status_kanban', 'CANCELADA');
                         setShowActionsMenu(false);
-                        handleSubmit();
+                        setShowLostDialog(true);
                       }}
                       className="w-full px-4 py-2 text-sm hover:bg-red-50 flex items-center justify-start gap-3 text-red-700"
                     >
@@ -454,7 +459,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
           {[
             { id: 'info', label: 'Informações', icon: UserIcon },
             { id: 'beneficiarios', label: `Beneficiários (${formData.beneficiarios.length})`, icon: Users },
-            { id: 'docs', label: `Documentos (${formData.documentos.length})`, icon: FileText }
+            { id: 'docs', label: `Documentos (${formData.documentos.length})`, icon: FileText },
+            { id: 'historico', label: `Histórico (${activityLogs.length})`, icon: MessageCircle }
           ].map(tab => (
             <button
               key={tab.id}
@@ -713,6 +719,41 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             </div>
           </div>
         )}
+
+        {/* Histórico Tab */}
+        {activeTab === 'historico' && (
+          <div className="space-y-4">
+            <Card title="Histórico de Atividades" icon={MessageCircle}>
+              {activityLogs.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  Nenhuma atividade registrada ainda.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activityLogs.map((log) => (
+                    <div key={log.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <MessageCircle className="w-4 h-4 text-blue-600" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900">{log.descricao}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-500">{log.usuario_nome}</span>
+                          <span className="text-xs text-gray-400">•</span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(log.created_at).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
       </div>
       </div>
 
@@ -901,6 +942,25 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
           </div>
         </div>
       )}
+
+      {/* Lost Dialog */}
+      <LostDialog
+        visible={showLostDialog}
+        onHide={() => setShowLostDialog(false)}
+        onConfirm={async (data) => {
+          if (!formData) return;
+          try {
+            await leadService.markAsLost(formData.id, data, currentUser);
+            setShowLostDialog(false);
+            setSuccessMessage('Lead marcado como perdido!');
+            setShowSuccessModal(true);
+            setTimeout(() => onBack(), 1500);
+          } catch (error) {
+            console.error('Erro ao marcar como perdido:', error);
+            alert('Erro ao marcar lead como perdido');
+          }
+        }}
+      />
     </div>
   );
 };

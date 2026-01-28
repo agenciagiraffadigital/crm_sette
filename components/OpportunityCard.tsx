@@ -11,6 +11,7 @@ interface OpportunityCardProps {
   onClick: (opportunity: Opportunity) => void;
   onMarkAsLost: (id: number) => void;
   onConvertToProposal: (id: number) => void;
+  onLost?: (opportunity: Opportunity) => void;
   onDelete?: (id: number) => void;
   currentUser: any;
   'data-testid'?: string;
@@ -22,6 +23,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   onClick, 
   onMarkAsLost,
   onConvertToProposal,
+  onLost,
   onDelete,
   currentUser,
   'data-testid': testId 

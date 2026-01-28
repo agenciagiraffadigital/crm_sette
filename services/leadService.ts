@@ -438,4 +438,93 @@ export const leadService = {
 
     if (error) throw error;
   },
+
+  // Marcar lead como perdido
+  markAsLost: async (leadId: number, data: {
+    motivo: string;
+    detalhes?: string;
+    followup: boolean;
+    followupData?: string;
+    followupStatus?: string;
+  }, currentUser: User): Promise<void> => {
+    const { leadsTable } = getEnvironment();
+    
+    const { error } = await supabase
+      .from(leadsTable)
+      .update({
+        status_kanban: 'CANCELADA',
+        motivo_perda: data.motivo,
+        motivo_perda_detalhes: data.detalhes || null,
+        data_perda: new Date().toISOString(),
+        followup_ativo: data.followup,
+        followup_data: data.followup ? data.followupData : null,
+        followup_status: data.followup ? data.followupStatus : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', leadId);
+
+    if (error) throw error;
+
+    // Registrar log
+    await leadService.addActivityLog(leadId, {
+      tipo: 'LEAD_PERDIDO',
+      descricao: `Lead marcado como perdido: ${data.motivo}${data.detalhes ? ' - ' + data.detalhes : ''}`,
+      usuario_id: currentUser.id,
+      usuario_nome: currentUser.name
+    });
+
+    if (data.followup) {
+      await leadService.addActivityLog(leadId, {
+        tipo: 'FOLLOWUP_AGENDADO',
+        descricao: `Follow-up agendado para ${new Date(data.followupData!).toLocaleDateString('pt-BR')} - Retornar como ${data.followupStatus}`,
+        usuario_id: currentUser.id,
+        usuario_nome: currentUser.name
+      });
+    }
+  },
+
+  // Adicionar log de atividade
+  addActivityLog: async (leadId: number, data: {
+    tipo: string;
+    descricao: string;
+    usuario_id: number;
+    usuario_nome: string;
+    metadata?: any;
+  }): Promise<void> => {
+    const { isDev } = getEnvironment();
+    const logsTable = isDev ? 'lead_activity_logs_dev' : 'lead_activity_logs';
+
+    const { error } = await supabase
+      .from(logsTable)
+      .insert({
+        lead_id: leadId,
+        tipo_atividade: data.tipo,
+        descricao: data.descricao,
+        usuario_id: data.usuario_id,
+        usuario_nome: data.usuario_nome,
+        metadata: data.metadata || null,
+        created_at: new Date().toISOString()
+      });
+
+    if (error) console.error('Erro ao registrar log:', error);
+  },
+
+  // Buscar logs de atividade
+  getActivityLogs: async (leadId: number): Promise<any[]> => {
+    const { isDev } = getEnvironment();
+    const logsTable = isDev ? 'lead_activity_logs_dev' : 'lead_activity_logs';
+
+    const { data, error } = await supabase
+      .from(logsTable)
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar logs:', error);
+      return [];
+    }
+
+    return data || [];
+  },
 };

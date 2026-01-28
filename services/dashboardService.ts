@@ -57,20 +57,23 @@ export type TimeRange = '7d' | '30d' | '90d' | '1y' | 'custom';
 export const dashboardService = {
   // Get comprehensive dashboard metrics
   getDashboardMetrics: async (currentUser: User, timeRange: TimeRange = '30d'): Promise<DashboardMetrics> => {
-    const [opportunities, leads] = await Promise.all([
+    const [opportunities, leads, canceledLeads] = await Promise.all([
       opportunityService.getOpportunities(currentUser),
       leadService.getLeads(currentUser),
+      dashboardService.getCanceledLeads(currentUser),
     ]);
+
+    const allLeads = [...leads, ...canceledLeads];
 
     // Filter data by time range
     const filteredOpportunities = dashboardService.filterByTimeRange(opportunities, timeRange);
-    const filteredLeads = dashboardService.filterByTimeRange(leads, timeRange);
+    const filteredLeads = dashboardService.filterByTimeRange(allLeads, timeRange);
 
     return {
       opportunities: dashboardService.calculateOpportunityMetrics(filteredOpportunities),
       proposals: dashboardService.calculateProposalMetrics(filteredLeads),
       sellers: dashboardService.calculateSellerMetrics(filteredOpportunities, filteredLeads),
-      trends: dashboardService.calculateTrends(opportunities, leads, timeRange),
+      trends: dashboardService.calculateTrends(opportunities, allLeads, timeRange),
     };
   },
 
@@ -160,6 +163,10 @@ export const dashboardService = {
       'ANÁLISE': byStatus['ANÁLISE'] || 0,
       'IMPLANTADA': byStatus['IMPLANTADA'] || 0,
       'CANCELADA': byStatus['CANCELADA'] || 0,
+      'PROPOSTA': byStatus['PROPOSTA'] || 0,
+      'OPORTUNIDADES': byStatus['OPORTUNIDADES'] || 0,
+      'EM_CONTATO': byStatus['EM_CONTATO'] || 0,
+      'NEGOCIACAO': byStatus['NEGOCIACAO'] || 0,
     };
 
     // Conversion rate based on IMPLANTADA status only
@@ -362,5 +369,27 @@ export const dashboardService = {
     if (typeof window !== 'undefined') {
       window.location.href = '/opportunities';
     }
+  },
+
+  // Get canceled leads
+  getCanceledLeads: async (currentUser: User): Promise<Lead[]> => {
+    const { supabase } = await import('./supabaseClient');
+    const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('dev'));
+    const leadsTable = isDev ? 'leads_dev' : 'leads';
+
+    let query = supabase
+      .from(leadsTable)
+      .select('*')
+      .eq('status_kanban', 'CANCELADA')
+      .order('created_at', { ascending: false });
+    
+    if (currentUser.role !== 'ADMIN') {
+      query = query.eq('vendedor_id', currentUser.id);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    return data || [];
   },
 };

@@ -8,10 +8,11 @@ interface KanbanBoardProps {
   leads: Lead[];
   onMoveLead: (id: number, newStatus: KanbanStatus) => void;
   onLeadClick: (lead: Lead) => void;
+  onLeadLost?: (lead: Lead) => void;
   user: User;
 }
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onLeadClick, user }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onLeadClick, onLeadLost, user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sellerFilter, setSellerFilter] = useState<'all' | string>('all');
   const [operatorFilter, setOperatorFilter] = useState<string>('all');
@@ -117,7 +118,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onL
                 {/* Column Body */}
                 <div className="p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar">
                   {columnLeads.map(lead => (
-                    <LeadCard key={lead.id} lead={lead} onMove={onMoveLead} onClick={onLeadClick} />
+                    <LeadCard key={lead.id} lead={lead} onMove={onMoveLead} onClick={onLeadClick} onLost={onLeadLost} />
                   ))}
                   {columnLeads.length === 0 && (
                     <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg m-2">

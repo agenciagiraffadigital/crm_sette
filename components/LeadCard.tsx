@@ -1,15 +1,16 @@
 import React from 'react';
 import { Lead, KanbanStatus } from '../types';
-import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding } from 'lucide-react';
+import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, XCircle } from 'lucide-react';
 import { KANBAN_COLUMNS } from '../constants';
 
 interface LeadCardProps {
   lead: Lead;
   onMove: (id: number, newStatus: KanbanStatus) => void;
   onClick: (lead: Lead) => void;
+  onLost?: (lead: Lead) => void;
 }
 
-export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick }) => {
+export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick, onLost }) => {
   
   const getNextStatus = (current: KanbanStatus): KanbanStatus | null => {
     const idx = KANBAN_COLUMNS.findIndex(c => c.id === current);
@@ -73,14 +74,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick }) => 
            >
              Avançar <ArrowRight className="w-3 h-3 ml-1" />
            </button>
-         )}
-         {lead.status_kanban !== 'CANCELADA' && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); onMove(lead.id, 'CANCELADA'); }}
-              className="text-xs font-bold uppercase text-red-400 hover:text-red-600 ml-auto hover:bg-red-50 px-3 py-1.5 rounded transition-colors"
-            >
-              Cancelar
-            </button>
          )}
       </div>
     </div>

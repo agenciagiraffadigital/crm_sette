@@ -11,13 +11,15 @@ interface ProposalsBoardProps {
   proposals: Lead[];
   onMoveProposal: (id: number, newStatus: KanbanStatus) => void;
   onProposalClick: (proposal: Lead) => void;
+  onProposalLost?: (proposal: Lead) => void;
   user: User;
 }
 
 export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({ 
   proposals, 
   onMoveProposal, 
-  onProposalClick, 
+  onProposalClick,
+  onProposalLost,
   user 
 }) => {
   const [filters, setFilters] = useState<FilterState>({
@@ -260,6 +262,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
                     proposal={proposal} 
                     onMove={handleMoveProposal} 
                     onClick={onProposalClick}
+                    onLost={onProposalLost}
                     onDelete={user.role === 'ADMIN' ? () => handleDeleteProposal(proposal.id) : undefined}
                     currentUser={user}
                   />
