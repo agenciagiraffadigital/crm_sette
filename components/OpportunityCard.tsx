@@ -74,7 +74,6 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent) => {
-    console.log('Drag started for opportunity:', opportunity.id, opportunity.status);
     const data = {
       opportunityId: opportunity.id,
       currentStatus: opportunity.status

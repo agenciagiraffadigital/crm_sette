@@ -1,6 +1,6 @@
 export type ClientType = 'PF' | 'PJ' | 'ADESAO';
 
-export type KanbanStatus = 'ENVIADA' | 'ANÁLISE' | 'IMPLANTADA' | 'CANCELADA';
+export type KanbanStatus = 'ENVIADA' | 'ANÁLISE' | 'IMPLANTADA' | 'CANCELADA' | 'PROPOSTA';
 
 export type OpportunityStatus = 'OPORTUNIDADES' | 'EM_CONTATO' | 'NEGOCIACAO';
 
@@ -119,6 +119,18 @@ export interface Lead {
   
   // Reassignment tracking
   assignment_history?: AssignmentHistory[];
+  
+  // Win/Loss tracking (JSONB)
+  dados_proposta?: {
+    motivo_ganho?: string;
+    motivo_ganho_outro?: string;
+    data_ganho?: string;
+  };
+  dados_perda?: {
+    motivo?: string;
+    detalhes?: string;
+    data_perda?: string;
+  };
 }
 
 export interface DashboardStats {

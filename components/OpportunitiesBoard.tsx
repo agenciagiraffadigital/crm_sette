@@ -609,18 +609,13 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
 
   const handleDrop = (e: React.DragEvent, targetStatus: OpportunityStatus) => {
     e.preventDefault();
-    console.log('Drop event triggered for status:', targetStatus);
     
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      console.log('Dropped data:', data);
       const { opportunityId, currentStatus } = data;
       
       if (currentStatus !== targetStatus) {
-        console.log('Moving from', currentStatus, 'to', targetStatus);
         handleMoveOpportunity(opportunityId, targetStatus);
-      } else {
-        console.log('Same status, no move needed');
       }
     } catch (error) {
       console.error('Error handling drop:', error);

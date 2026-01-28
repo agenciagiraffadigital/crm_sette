@@ -161,18 +161,13 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
 
   const handleDrop = (e: React.DragEvent, targetStatus: KanbanStatus) => {
     e.preventDefault();
-    console.log('Drop event triggered for status:', targetStatus);
     
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      console.log('Dropped data:', data);
       const { proposalId, currentStatus } = data;
       
       if (currentStatus !== targetStatus) {
-        console.log('Moving from', currentStatus, 'to', targetStatus);
         handleMoveProposal(proposalId, targetStatus);
-      } else {
-        console.log('Same status, no move needed');
       }
     } catch (error) {
       console.error('Error handling drop:', error);

@@ -7,6 +7,7 @@ import { operadoraService, Operadora, Produto } from '../services/operadoraServi
 import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
 import { WhatsAppModal } from './WhatsAppModal';
+import { WinDialog } from './WinDialog';
 
 interface ModernLeadFormProps {
   leadId: number;
@@ -122,6 +123,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [operadoras, setOperadoras] = useState<Operadora[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [showWinDialog, setShowWinDialog] = useState(false);
+  const [showValueDialog, setShowValueDialog] = useState(false);
+  const [tempValue, setTempValue] = useState<number | null>(null);
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -152,7 +156,6 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     };
     loadLead();
     
-    // Load operadoras
     operadoraService.getOperadoras().then(setOperadoras).catch(console.error);
   }, [leadId]);
 
@@ -337,9 +340,13 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                     <button
                       onClick={() => {
-                        handleChange('status_kanban', 'IMPLANTADA');
                         setShowActionsMenu(false);
-                        handleSubmit();
+                        // Se está em OPORTUNIDADES ou EM_CONTATO e não tem valor, pede valor primeiro
+                        if ((formData.status_kanban === 'OPORTUNIDADES' || formData.status_kanban === 'EM_CONTATO') && !formData.valor_produto) {
+                          setShowValueDialog(true);
+                        } else {
+                          setShowWinDialog(true);
+                        }
                       }}
                       className="w-full px-4 py-2 text-sm hover:bg-green-50 flex items-center justify-start gap-3 text-green-700"
                     >
@@ -783,6 +790,93 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             >
               OK
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Win Dialog */}
+      <WinDialog
+        visible={showWinDialog}
+        onHide={() => setShowWinDialog(false)}
+        onConfirm={async (motivo, motivoOutro) => {
+          if (!formData) return;
+          try {
+            const updatedLead = {
+              ...formData,
+              status_kanban: 'ENVIADA' as any,
+              valor_produto: tempValue || formData.valor_produto,
+              dados_proposta: {
+                motivo_ganho: motivo,
+                motivo_ganho_outro: motivoOutro,
+                data_ganho: new Date().toISOString()
+              }
+            };
+            await leadService.saveLead(updatedLead);
+            setFormData(updatedLead);
+            onSave(updatedLead);
+            setShowWinDialog(false);
+            setTempValue(null);
+            setSuccessMessage('Lead movido para Enviada com sucesso!');
+            setShowSuccessModal(true);
+          } catch (error) {
+            console.error('Erro ao salvar:', error);
+            alert('Erro ao salvar lead');
+          }
+        }}
+      />
+
+      {/* Value Dialog */}
+      {showValueDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Trophy className="w-5 h-5 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Valor do Produto</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Valor (R$) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={tempValue || ''}
+                  onChange={(e) => setTempValue(parseFloat(e.target.value))}
+                  placeholder="Digite o valor"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowValueDialog(false);
+                  setTempValue(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (!tempValue || tempValue <= 0) {
+                    alert('Por favor, insira um valor válido');
+                    return;
+                  }
+                  setShowValueDialog(false);
+                  setShowWinDialog(true);
+                }}
+                disabled={!tempValue || tempValue <= 0}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+              >
+                Próximo
+              </button>
+            </div>
           </div>
         </div>
       )}

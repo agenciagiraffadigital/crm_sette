@@ -143,7 +143,8 @@ function App() {
   const handleSaveLead = useCallback((updatedLead: Lead) => {
       setLeads(current => current.map(l => l.id === updatedLead.id ? updatedLead : l));
       setSelectedLeadId(null); // Return to board after save
-  }, []);
+      loadLeads(); // Reload data to ensure sync
+  }, [loadLeads]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);

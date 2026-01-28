@@ -123,11 +123,10 @@ export const leadService = {
         havera_remissao: lead.havera_remissao,
         operadora: lead.operadora,
         produto: lead.produto,
-        valor_produto: lead.valor_produto,
+        valor_produto: lead.valor_produto || null,
         reducao_carencia: lead.reducao_carencia,
         coparticipacao: lead.coparticipacao,
         vigencia: lead.vigencia,
-        // Campos separados de endereço
         cep: lead.endereco?.cep || '',
         logradouro: lead.endereco?.logradouro || '',
         numero: lead.endereco?.numero || '',
@@ -145,6 +144,8 @@ export const leadService = {
         vendedor_email: lead.vendedor_email,
         vendedor_id: lead.vendedor_id,
         status_kanban: lead.status_kanban,
+        dados_proposta: lead.dados_proposta || null,
+        dados_perda: lead.dados_perda || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', lead.id);

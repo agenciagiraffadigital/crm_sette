@@ -37,7 +37,6 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
       proposalId: proposal.id,
       currentStatus: proposal.status_kanban
     };
-    console.log('Drag started for proposal:', proposal.id, proposal.status_kanban);
     e.dataTransfer.setData('text/plain', JSON.stringify(data));
     e.dataTransfer.effectAllowed = 'move';
   };
