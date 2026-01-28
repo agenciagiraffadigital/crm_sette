@@ -59,21 +59,22 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
 
   return (
     <div 
-      className="bg-white shadow-sm p-4 rounded-lg transition-shadow duration-200 hover:shadow-md group cursor-move relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg select-none"
+      className="bg-white shadow-sm p-4 rounded-lg transition-shadow duration-200 hover:shadow-md group cursor-pointer relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg select-none"
       draggable={true}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onClick={() => onClick(proposal)}
       title="Clique para editar ou arraste para mover"
     >
       {/* Main Info */}
-      <div onClick={() => onClick(proposal)}>
+      <div>
         <div className="flex justify-between items-start mb-1">
-          <h4 className="font-bold text-slate-800 truncate text-sm cursor-pointer flex-1" title={proposal.nome}>
+          <h4 className="font-bold text-slate-800 truncate text-sm flex-1" title={proposal.nome}>
             {proposal.nome}
           </h4>
           <span className="text-xs text-slate-400 font-mono ml-2">#{proposal.id}</span>
         </div>
-        <p className="text-xs text-slate-500 mb-3 font-medium cursor-pointer">
+        <p className="text-xs text-slate-500 mb-3 font-medium">
           {proposal.produto || 'Produto N/A'} - {proposal.operadora || 'N/A'}
         </p>
       </div>

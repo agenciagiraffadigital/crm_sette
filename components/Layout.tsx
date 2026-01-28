@@ -50,12 +50,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         <div className="max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-20">
             {/* Logo */}
-            <div className="flex items-center space-x-2 sm:space-x-3 mr-4 sm:mr-8">
+            <button
+              onClick={() => setActiveTab(user.role === 'ADMIN' ? 'dashboard' : 'opportunities')}
+              className="flex items-center space-x-2 sm:space-x-3 mr-4 sm:mr-8 hover:opacity-80 transition-opacity"
+            >
               <div className="bg-blue-600 p-2 rounded-lg">
                 <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <h1 className="text-lg sm:text-[21px] font-bold text-white">Sette CRM</h1>
-            </div>
+            </button>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-2 ml-auto mr-4">
