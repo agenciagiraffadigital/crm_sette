@@ -221,7 +221,7 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
               <div className="relative w-full sm:w-auto">
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
                 <select
-                  className="pl-9 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none w-full sm:w-auto"
+                  className="h-10 pl-9 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none w-full sm:w-auto"
                   value={filters.sellers.length === 1 ? filters.sellers[0] : 'all'}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -239,7 +239,7 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
             {/* Advanced Filters Toggle */}
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className={`relative px-4 py-2 border rounded-lg text-sm font-medium transition-colors w-full sm:w-auto ${
+              className={`relative h-10 px-4 py-2 border rounded-lg text-sm font-medium transition-colors w-full sm:w-auto ${
                 activeFiltersCount > 0 
                   ? 'bg-blue-50 border-blue-300 text-blue-700' 
                   : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
