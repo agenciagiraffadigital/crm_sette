@@ -194,6 +194,27 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         [field]: value 
       }
     });
+    
+    // Buscar CEP automaticamente
+    if (field === 'cep' && value.replace(/\D/g, '').length === 8) {
+      fetch(`https://viacep.com.br/ws/${value.replace(/\D/g, '')}/json/`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.erro) {
+            setFormData(prev => prev ? {
+              ...prev,
+              endereco: {
+                ...prev.endereco,
+                logradouro: data.logradouro || '',
+                bairro: data.bairro || '',
+                cidade: data.localidade || '',
+                uf: data.uf || ''
+              }
+            } : null);
+          }
+        })
+        .catch(console.error);
+    }
   };
 
   const addBeneficiary = () => {

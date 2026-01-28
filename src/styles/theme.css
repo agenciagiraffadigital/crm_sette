@@ -225,3 +225,10 @@ select {
   -moz-appearance: none !important;
   appearance: none !important;
 }
+
+/* Remove borda preta padrão do navegador em inputs e selects */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+}
