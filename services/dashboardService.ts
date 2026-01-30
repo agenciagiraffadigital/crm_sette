@@ -151,7 +151,7 @@ export const dashboardService = {
 
   // Calculate proposal metrics
   calculateProposalMetrics: (leads: Lead[]) => {
-    const total = leads.length;
+    const total = leads.length; // Count ALL leads regardless of status
     const byStatus = leads.reduce((acc, lead) => {
       acc[lead.status_kanban] = (acc[lead.status_kanban] || 0) + 1;
       return acc;
@@ -169,7 +169,7 @@ export const dashboardService = {
       'NEGOCIACAO': byStatus['NEGOCIACAO'] || 0,
     };
 
-    // Conversion rate based on IMPLANTADA status only
+    // Conversion rate: IMPLANTADA / total de TODOS os leads
     const implanted = byStatus['IMPLANTADA'] || 0;
     const conversionRate = total > 0 ? (implanted / total) * 100 : 0;
 

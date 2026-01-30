@@ -133,11 +133,14 @@ function App() {
 
     try {
       await leadService.updateLeadStatus(id, newStatus, user);
+      // Reload data to ensure dashboard metrics are updated
+      await loadLeads();
     } catch (error) {
       console.error("Failed to update status", error);
-      // Keep optimistic update even on error
+      // Reload anyway to sync with server state
+      await loadLeads();
     }
-  }, [user]);
+  }, [user, loadLeads]);
 
   const handleMoveOpportunity = useCallback(async (id: number, newStatus: OpportunityStatus, additionalData?: { quoted_value?: number }) => {
     if (!user) return;

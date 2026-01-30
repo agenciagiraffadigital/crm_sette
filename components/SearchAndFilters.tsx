@@ -1,10 +1,9 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Search, Filter, Stethoscope, Calendar, DollarSign, Star, X, Save, ArrowUpDown } from 'lucide-react';
 import { Card } from '../src/components/ui/Card';
 import { Input } from '../src/components/ui/Input';
 import { Select } from '../src/components/ui/Select';
 import { Button } from '../src/components/ui/Button';
-import { Menu } from 'primereact/menu';
 
 export interface DateRange {
   start?: string;
@@ -82,7 +81,7 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
   const [saveFilterName, setSaveFilterName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [searchDebounceTimer, setSearchDebounceTimer] = useState<NodeJS.Timeout | null>(null);
-  const sortMenu = useRef<Menu>(null);
+  const [showSortMenu, setShowSortMenu] = useState(false);
 
   const sortItems = [
     {
@@ -160,11 +159,11 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (filters.searchTerm) count++;
-    if (filters.sellers?.length > 0) count++;
-    if (filters.operators?.length > 0) count++;
-    if (filters.products?.length > 0) count++;
-    if (filters.status?.length > 0) count++;
-    if (filters.source?.length > 0) count++;
+    if (filters.sellers && filters.sellers.length > 0) count++;
+    if (filters.operators && filters.operators.length > 0) count++;
+    if (filters.products && filters.products.length > 0) count++;
+    if (filters.status && filters.status.length > 0) count++;
+    if (filters.source && filters.source.length > 0) count++;
     if (filters.dateRange?.start || filters.dateRange?.end) count++;
     if (filters.valueRange?.min !== undefined || filters.valueRange?.max !== undefined) count++;
     return count;
@@ -201,10 +200,9 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
           {/* Quick Filters */}
           <div className="flex flex-wrap sm:flex-nowrap gap-2">
             {/* Sort Button */}
-            <div>
-              <Menu model={sortItems} popup ref={sortMenu} />
+            <div className="relative">
               <button
-                onClick={(e) => sortMenu.current?.toggle(e)}
+                onClick={() => setShowSortMenu(!showSortMenu)}
                 className={`h-10 w-10 flex items-center justify-center border rounded-lg transition-colors ${
                   filters.sortBy 
                     ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
@@ -214,15 +212,34 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
               >
                 <ArrowUpDown className="w-4 h-4" />
               </button>
+              {showSortMenu && (
+                <div className="absolute top-full mt-1 right-0 bg-white border border-slate-200 rounded-lg shadow-lg z-50 min-w-[160px]">
+                  {sortItems.map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        item.command?.();
+                        setShowSortMenu(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 first:rounded-t-lg last:rounded-b-lg"
+                    >
+                      <span className={item.icon?.includes('check') ? 'text-blue-600' : 'text-slate-400'}>
+                        {item.icon?.includes('check') ? '✓' : ''}
+                      </span>
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Seller Filter (Admin Only) */}
-            {showSellerFilter && sellers.length > 0 && (
+            {showSellerFilter && sellers && sellers.length > 0 && (
               <div className="relative w-full sm:w-auto">
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
                 <select
                   className="h-10 pl-9 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white appearance-none w-full sm:w-auto"
-                  value={filters.sellers.length === 1 ? filters.sellers[0] : 'all'}
+                  value={filters.sellers && filters.sellers.length === 1 ? filters.sellers[0] : 'all'}
                   onChange={(e) => {
                     const value = e.target.value;
                     updateFilter('sellers', value === 'all' ? [] : [value]);
@@ -261,12 +278,12 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
           <div className="mt-4 pt-4 border-t border-slate-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Status */}
-              {statusOptions.length > 0 && (
+              {statusOptions && statusOptions.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
                   <select
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-                    value={filters.status.length === 1 ? filters.status[0] : ''}
+                    value={filters.status && filters.status.length === 1 ? filters.status[0] : ''}
                     onChange={(e) => {
                       const value = e.target.value;
                       updateFilter('status', value ? [value] : []);
@@ -289,12 +306,12 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
               </div>
 
               {/* Operadora */}
-              {operators.length > 0 && (
+              {operators && operators.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Operadora</label>
                   <select
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-                    value={filters.operators.length === 1 ? filters.operators[0] : ''}
+                    value={filters.operators && filters.operators.length === 1 ? filters.operators[0] : ''}
                     onChange={(e) => {
                       const value = e.target.value;
                       updateFilter('operators', value ? [value] : []);
@@ -309,12 +326,12 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
               )}
 
               {/* Produto */}
-              {products.length > 0 && (
+              {products && products.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Produto</label>
                   <select
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-                    value={filters.products.length === 1 ? filters.products[0] : ''}
+                    value={filters.products && filters.products.length === 1 ? filters.products[0] : ''}
                     onChange={(e) => {
                       const value = e.target.value;
                       updateFilter('products', value ? [value] : []);
@@ -329,12 +346,12 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
               )}
 
               {/* Canal de venda (Origem) */}
-              {sourceOptions.length > 0 && (
+              {sourceOptions && sourceOptions.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Canal de venda</label>
                   <select
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-                    value={filters.source.length === 1 ? filters.source[0] : ''}
+                    value={filters.source && filters.source.length === 1 ? filters.source[0] : ''}
                     onChange={(e) => {
                       const value = e.target.value;
                       updateFilter('source', value ? [value] : []);

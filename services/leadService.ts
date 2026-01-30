@@ -7,7 +7,6 @@ export const leadService = {
     let query = supabase
       .from('leads')
       .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at')
-      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'IMPLANTADA'])
       .order('created_at', { ascending: false });
     
     if (currentUser.role !== 'ADMIN') {
