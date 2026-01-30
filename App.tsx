@@ -34,6 +34,22 @@ function App() {
   const [lostDialogVisible, setLostDialogVisible] = useState(false);
   const [selectedLostLead, setSelectedLostLead] = useState<Lead | null>(null);
 
+  // Auto-hide success toast
+  useEffect(() => {
+    if (showSuccess) {
+      const timer = setTimeout(() => setShowSuccess(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
+
+  // Auto-hide error toast
+  useEffect(() => {
+    if (showError) {
+      const timer = setTimeout(() => setShowError(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showError]);
+
   // Check for existing session and setup auth listener
   useEffect(() => {
     let mounted = true;

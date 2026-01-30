@@ -242,6 +242,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     nome: '',
     email: '',
     telefone: '',
+    tipo_cliente: '',
     origem: '',
     vendedor_id: currentUser.id,
     notes: '',
@@ -257,17 +258,11 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   const [loadingCep, setLoadingCep] = useState(false);
 
   const origemOptions = [
-    'Tráfego Pago (Ads)',
-    'Tráfego Orgânico',
-    'Landing Pages / Site',
-    'WhatsApp',
-    'Indicação',
-    'Parcerias',
-    'Prospecção Ativa',
-    'Marketplaces / Leads Comprados',
-    'Offline',
-    'Retorno / Base Interna',
-    'Não Identificado'
+    'Plantão de Vendas',
+    'NetWorking',
+    'Diretoria',
+    'JustSell',
+    'Indicação (clientes)'
   ];
 
   // Extract filter options from opportunities
@@ -550,7 +545,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   };
 
   const handleSubmitNewOpp = async () => {
-    if (!newOppData.nome || !newOppData.email || !newOppData.telefone || !newOppData.origem || 
+    if (!newOppData.nome || !newOppData.email || !newOppData.telefone || !newOppData.tipo_cliente || !newOppData.origem || 
         !newOppData.cep || !newOppData.logradouro || !newOppData.numero || !newOppData.bairro || 
         !newOppData.cidade || !newOppData.estado) {
       alert('Preencha todos os campos obrigatórios');
@@ -572,6 +567,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       nome: '',
       email: '',
       telefone: '',
+      tipo_cliente: '',
       origem: '',
       vendedor_id: currentUser.id,
       notes: '',
@@ -776,6 +772,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
           nome: '',
           email: '',
           telefone: '',
+          tipo_cliente: '',
           origem: '',
           vendedor_id: currentUser.id,
           notes: '',
@@ -872,6 +869,21 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
               />
             </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-2">Tipo de Cliente *</label>
+              <select
+                value={newOppData.tipo_cliente || ''}
+                onChange={(e) => setNewOppData({...newOppData, tipo_cliente: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm bg-white"
+              >
+                <option value="">Selecione...</option>
+                <option value="PF">PF</option>
+                <option value="PME">PME</option>
+                <option value="ADESAO">Adesão</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             {currentUser.role === 'ADMIN' && (
               <div>
                 <label className="text-sm font-medium text-slate-700 block mb-2">Vendedor</label>

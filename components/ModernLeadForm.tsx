@@ -516,7 +516,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               label="Tipo de Cliente"
               value={formData.tipo_cliente}
               onChange={(value) => handleChange('tipo_cliente', value)}
-              options={['PF', 'PJ', 'ADESAO']}
+              options={['PF', 'PME', 'ADESAO']}
             />
           </div>
         </Card>
