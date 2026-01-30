@@ -9,8 +9,5 @@ export const getEnvironment = () => {
     import.meta.env?.MODE === 'development'
   );
   
-  return {
-    isDev,
-    leadsTable: isDev ? 'leads_dev' : 'leads'
-  };
+  return { isDev };
 };

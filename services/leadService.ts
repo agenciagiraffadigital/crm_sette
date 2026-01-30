@@ -1,13 +1,11 @@
 import { Lead, KanbanStatus, User } from '../types';
 import { supabase } from './supabaseClient';
 import { authService } from './authService';
-import { getEnvironment } from '../utils/environment';
 
 export const leadService = {
   getLeads: async (currentUser: User): Promise<Lead[]> => {
-    const { leadsTable } = getEnvironment();
     let query = supabase
-      .from(leadsTable)
+      .from('leads')
       .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at')
       .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'IMPLANTADA'])
       .order('created_at', { ascending: false });
@@ -68,9 +66,8 @@ export const leadService = {
   },
 
   getLeadById: async (id: number): Promise<Lead> => {
-    const { leadsTable } = getEnvironment();
     const { data, error } = await supabase
-      .from(leadsTable)
+      .from('leads')
       .select('*')
       .eq('id', id)
       .single();
@@ -108,9 +105,8 @@ export const leadService = {
   },
 
   saveLead: async (lead: Lead, currentUser?: User): Promise<Lead> => {
-    const { leadsTable } = getEnvironment();
     const { error } = await supabase
-      .from(leadsTable)
+      .from('leads')
       .update({
         nome: lead.nome,
         email: lead.email,
@@ -168,9 +164,8 @@ export const leadService = {
     const oldStatus = lead.status_kanban;
     const updatedLead = { ...lead, status_kanban: status, updated_at: new Date().toISOString() };
     
-    const { leadsTable } = getEnvironment();
     await supabase
-      .from(leadsTable)
+      .from('leads')
       .update({ status_kanban: status, updated_at: new Date().toISOString() })
       .eq('id', id);
     
@@ -222,9 +217,8 @@ export const leadService = {
     }
 
     // 3. Buscar último lead com vendedor definido
-    const { leadsTable } = getEnvironment();
     const { data: lastLead } = await supabase
-      .from(leadsTable)
+      .from('leads')
       .select('vendedor_id')
       .not('vendedor_id', 'is', null)
       .order('created_at', { ascending: false })
@@ -281,7 +275,7 @@ export const leadService = {
 
     // 6. Salvar no Supabase
     const { data, error } = await supabase
-      .from(leadsTable)
+      .from('leads')
       .insert(newLead)
       .select()
       .single();
@@ -373,9 +367,8 @@ export const leadService = {
     }
 
     // Update the lead
-    const { leadsTable } = getEnvironment();
     const { data, error } = await supabase
-      .from(leadsTable)
+      .from('leads')
       .update({
         vendedor: sellerData.name,
         vendedor_email: sellerData.email,
@@ -437,9 +430,8 @@ export const leadService = {
 
   // Get leads by user (seller)
   getLeadsByUser: async (userId: number): Promise<Lead[]> => {
-    const { leadsTable } = getEnvironment();
     const { data, error } = await supabase
-      .from(leadsTable)
+      .from('leads')
       .select('*')
       .eq('vendedor_id', userId)
       .order('created_at', { ascending: false });
@@ -458,9 +450,8 @@ export const leadService = {
       throw new Error('Apenas administradores podem excluir leads');
     }
 
-    const { leadsTable } = getEnvironment();
     const { error } = await supabase
-      .from(leadsTable)
+      .from('leads')
       .delete()
       .eq('id', leadId);
 
@@ -475,10 +466,9 @@ export const leadService = {
     followupData?: string;
     followupStatus?: string;
   }, currentUser: User): Promise<void> => {
-    const { leadsTable } = getEnvironment();
     
     const { error } = await supabase
-      .from(leadsTable)
+      .from('leads')
       .update({
         status_kanban: 'CANCELADA',
         motivo_perda: data.motivo,
@@ -519,17 +509,15 @@ export const leadService = {
     usuario_nome: string;
     metadata?: any;
   }): Promise<void> => {
-    const { isDev } = getEnvironment();
-    const logsTable = isDev ? 'lead_activity_logs_dev' : 'lead_activity_logs';
 
     const { error } = await supabase
-      .from(logsTable)
+      .from('activity_logs')
       .insert({
         lead_id: leadId,
-        tipo_atividade: data.tipo,
-        descricao: data.descricao,
-        usuario_id: data.usuario_id,
-        usuario_nome: data.usuario_nome,
+        type: data.tipo,
+        description: data.descricao,
+        user_id: data.usuario_id,
+        user_name: data.usuario_nome,
         metadata: data.metadata || null,
         created_at: new Date().toISOString()
       });
@@ -539,11 +527,9 @@ export const leadService = {
 
   // Buscar logs de atividade
   getActivityLogs: async (leadId: number): Promise<any[]> => {
-    const { isDev } = getEnvironment();
-    const logsTable = isDev ? 'lead_activity_logs_dev' : 'lead_activity_logs';
 
     const { data, error } = await supabase
-      .from(logsTable)
+      .from('activity_logs')
       .select('*')
       .eq('lead_id', leadId)
       .order('created_at', { ascending: false });

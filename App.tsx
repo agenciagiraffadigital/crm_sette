@@ -56,9 +56,9 @@ function App() {
 
     const initAuth = async () => {
       try {
-        const currentUser = await authService.getCurrentUser();
-        if (mounted && currentUser) {
-          setUser(currentUser);
+        const stored = localStorage.getItem('crm_user');
+        if (stored && mounted) {
+          setUser(JSON.parse(stored));
         }
       } catch (error) {
         console.error('Init auth error:', error);

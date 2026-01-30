@@ -1,24 +1,29 @@
 import { createClient } from '@supabase/supabase-js'
+import { getEnvironment } from '../utils/environment'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? ''
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY ?? ''
+const { isDev } = getEnvironment()
+
+// Seleciona as credenciais baseado no ambiente
+const supabaseUrl = isDev 
+  ? (import.meta.env.VITE_SUPABASE_DEV_URL ?? '')
+  : (import.meta.env.VITE_SUPABASE_URL ?? '')
+
+const supabaseAnonKey = isDev
+  ? (import.meta.env.VITE_SUPABASE_DEV_ANON_KEY ?? '')
+  : (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '')
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Faltam VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY no .env.local')
+  console.error('Faltam credenciais do Supabase no .env.local')
 }
 
 // Cliente normal para usuários
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-    storage: window.localStorage
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
   }
 })
 
-// Cliente admin para operações administrativas
-export const supabaseAdmin = supabaseServiceKey 
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : supabase
+export const supabase = supabaseClient
+export const supabaseAdmin = supabaseClient

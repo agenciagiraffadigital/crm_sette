@@ -13,16 +13,14 @@ export const authService = {
     if (error) throw new Error(error.message);
     if (!data.user) throw new Error('Usuário não encontrado');
 
-    // Buscar dados do usuário na tabela users_profile APENAS no login
     const { data: userData, error: userError } = await supabase
       .from('users_profile')
       .select('*')
       .eq('auth_id', data.user.id)
       .single();
 
-    if (userError) throw new Error('Dados do usuário não encontrados');
+    if (userError) throw new Error('Dados do usuário não encontrados: ' + userError.message);
 
-    // Armazenar no localStorage para acesso rápido
     const user = {
       id: userData.id,
       name: userData.name,
@@ -44,24 +42,14 @@ export const authService = {
   // Obter usuário atual da sessão
   getCurrentUser: async (): Promise<User | null> => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return null;
-
-      const { data: userData, error } = await supabase
-        .from('users_profile')
-        .select('*')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (error) return null;
-
-      return {
-        id: userData.id,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-      };
+      // Primeiro tenta pegar do localStorage (mais rápido)
+      const stored = localStorage.getItem('crm_user');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+      return null;
     } catch (error) {
+      console.error('❌ getCurrentUser error:', error);
       return null;
     }
   },
@@ -74,7 +62,6 @@ export const authService = {
         if (stored) {
           callback(JSON.parse(stored));
         } else {
-          // Buscar do banco se não tiver no localStorage
           const { data: userData } = await supabase
             .from('users_profile')
             .select('*')
@@ -240,21 +227,15 @@ export const authService = {
 
   // Helper for Round Robin logic - only active sellers
   getActiveSellers: async (): Promise<User[]> => {
-    console.log('🔍 Buscando vendedores ativos na tabela users_profile...');
     const { data, error } = await supabase
       .from('users_profile')
       .select('*')
       .eq('role', 'SELLER')
       .eq('active_for_distribution', true);
     
-    if (error) {
-      console.error('❌ Erro ao buscar vendedores:', error);
-      throw error;
-    }
+    if (error) throw error;
     
-    console.log('✅ Dados brutos do Supabase:', data);
-    
-    const mappedUsers = data.map(u => ({
+    return data.map(u => ({
       id: u.id,
       name: u.name,
       email: u.email,
@@ -266,9 +247,6 @@ export const authService = {
       created_at: u.created_at,
       updated_at: u.updated_at,
     }));
-    
-    console.log('✅ Vendedores mapeados:', mappedUsers);
-    return mappedUsers;
   },
 
   // Update user login timestamp
@@ -283,7 +261,6 @@ export const authService = {
 
   // Update lead assignment tracking
   updateLeadAssignmentTracking: async (userId: number): Promise<void> => {
-    // First get current count
     const { data: currentUser } = await supabase
       .from('users_profile')
       .select('total_leads_assigned')
