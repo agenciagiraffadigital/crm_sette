@@ -116,6 +116,7 @@ export interface Lead {
   // Enhanced tracking
   last_activity_at?: string;
   activity_log?: ActivityLog[];
+  notes?: Note[];
   
   // Reassignment tracking
   assignment_history?: AssignmentHistory[];
@@ -176,6 +177,7 @@ export interface Opportunity {
   
   // Notes
   notes?: string;
+  note_list?: Note[];
   
   // Loss Tracking
   lost_at?: string;
@@ -209,4 +211,18 @@ export interface ActivityLog {
   user_name: string;
   created_at: string;
   metadata?: any;
+}
+
+export interface Note {
+  id: string;
+  lead_id: number;
+  atividade: 'Apresentação' | 'Ligação' | 'Proposta' | 'Reunião' | 'Whatsapp';
+  data: string;
+  horario: string;
+  duracao?: string;
+  anotacoes: string;
+  user_id: number;
+  user_name: string;
+  created_at: string;
+  updated_at: string;
 }

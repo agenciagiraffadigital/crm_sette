@@ -1,4 +1,4 @@
-import { Lead, KanbanStatus, User } from '../types';
+import { Lead, KanbanStatus, User, Note } from '../types';
 import { supabase } from './supabaseClient';
 import { authService } from './authService';
 
@@ -611,5 +611,68 @@ export const leadService = {
       created_at: log.created_at,
       metadata: log.metadata
     }));
+  },
+
+  // Adicionar nota
+  addNote: async (leadId: number, note: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .insert({
+        lead_id: leadId,
+        atividade: note.atividade,
+        data: note.data,
+        horario: note.horario,
+        duracao: note.duracao,
+        anotacoes: note.anotacoes,
+        user_id: note.user_id,
+        user_name: note.user_name
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Atualizar nota
+  updateNote: async (noteId: string, note: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .update({
+        atividade: note.atividade,
+        data: note.data,
+        horario: note.horario,
+        duracao: note.duracao,
+        anotacoes: note.anotacoes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', noteId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Excluir nota
+  deleteNote: async (noteId: string): Promise<void> => {
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', noteId);
+
+    if (error) throw error;
+  },
+
+  // Buscar notas
+  getNotes: async (leadId: number): Promise<Note[]> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   },
 };

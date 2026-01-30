@@ -1,4 +1,4 @@
-import { Opportunity, OpportunityStatus, User, LossReason, ActivityLog, AssignmentHistory } from '../types';
+import { Opportunity, OpportunityStatus, User, LossReason, ActivityLog, AssignmentHistory, Note } from '../types';
 import { supabase } from './supabaseClient';
 
 export const opportunityService = {
@@ -589,5 +589,38 @@ export const opportunityService = {
       .eq('id', opportunityId);
 
     if (error) throw error;
+  },
+
+  // Adicionar nota
+  addNote: async (opportunityId: number, note: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .insert({
+        lead_id: opportunityId,
+        atividade: note.atividade,
+        data: note.data,
+        horario: note.horario,
+        duracao: note.duracao,
+        anotacoes: note.anotacoes,
+        user_id: note.user_id,
+        user_name: note.user_name
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Buscar notas
+  getNotes: async (opportunityId: number): Promise<Note[]> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('lead_id', opportunityId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   },
 };

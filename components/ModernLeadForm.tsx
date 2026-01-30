@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Lead, User, Beneficiary } from '../types';
+import { Lead, User, Beneficiary, Note } from '../types';
 import { KANBAN_COLUMNS, OPPORTUNITY_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
-import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
 import { maskCEP } from '../utils/cepMask';
 import { formatStatus, formatDateTime } from '../utils/formatters';
@@ -12,6 +12,7 @@ import { WhatsAppModal } from './WhatsAppModal';
 import { WinDialog } from './WinDialog';
 import { LostDialog } from './LostDialog';
 import { ErrorDialog } from './ErrorDialog';
+import { NotesDialog } from './NotesDialog';
 
 interface ModernLeadFormProps {
   leadId: number;
@@ -117,7 +118,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [formData, setFormData] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'beneficiarios' | 'docs' | 'historico'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'beneficiarios' | 'docs' | 'notas' | 'historico'>('info');
   const [showSellerModal, setShowSellerModal] = useState(false);
   const [sellers, setSellers] = useState<User[]>([]);
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
@@ -135,6 +136,12 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Notes state
+  const [notesDialog, setNotesDialog] = useState({ isOpen: false, loading: false });
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [editNote, setEditNote] = useState<Note | null>(null);
+  const [viewNote, setViewNote] = useState<Note | null>(null);
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -161,6 +168,10 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         
         const logs = await leadService.getActivityLogs(leadId);
         setActivityLogs(logs);
+        
+        // Load notes
+        const notesData = await leadService.getNotes(leadId);
+        setNotes(notesData);
       } catch (error) {
         console.error('Erro ao carregar lead:', error);
       }
@@ -301,6 +312,58 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     } catch (error) {
       console.error('Erro ao alterar vendedor:', error);
       setErrorMessage('Erro ao alterar vendedor');
+      setShowErrorDialog(true);
+    }
+  };
+
+  // Notes handlers
+  const handleAddNote = async (noteData: Omit<Note, 'id' | 'user_id' | 'user_name' | 'created_at' | 'updated_at'>) => {
+    if (!formData) return;
+    
+    setNotesDialog(prev => ({ ...prev, loading: true }));
+    
+    try {
+      if (editNote) {
+        // Editar nota existente
+        const updatedNote = await leadService.updateNote(editNote.id, {
+          ...noteData,
+          user_id: currentUser.id,
+          user_name: currentUser.name
+        });
+        
+        setNotes(prev => prev.map(n => n.id === editNote.id ? updatedNote : n));
+        setEditNote(null);
+      } else {
+        // Criar nova nota
+        const newNote = await leadService.addNote(formData.id, {
+          ...noteData,
+          user_id: currentUser.id,
+          user_name: currentUser.name
+        });
+        
+        setNotes(prev => [newNote, ...prev]);
+      }
+      
+      setNotesDialog({ isOpen: false, loading: false });
+      
+    } catch (error) {
+      console.error('Erro ao salvar nota:', error);
+      setErrorMessage('Erro ao salvar nota');
+      setShowErrorDialog(true);
+    } finally {
+      setNotesDialog(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta nota?')) return;
+    
+    try {
+      await leadService.deleteNote(noteId);
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+    } catch (error) {
+      console.error('Erro ao excluir nota:', error);
+      setErrorMessage('Erro ao excluir nota');
       setShowErrorDialog(true);
     }
   };
@@ -497,6 +560,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             { id: 'info', label: 'Informações', icon: UserIcon },
             { id: 'beneficiarios', label: `Beneficiários (${formData.beneficiarios.length})`, icon: Users },
             { id: 'docs', label: `Documentos (${formData.documentos.length})`, icon: FileText },
+            { id: 'notas', label: `Notas (${notes.length})`, icon: MessageSquare },
             { id: 'historico', label: `Histórico (${activityLogs.length})`, icon: MessageCircle }
           ].map(tab => (
             <button
@@ -755,6 +819,95 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notas Tab */}
+        {activeTab === 'notas' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-blue-600" />
+                Notas e Atividades
+              </h3>
+              <button 
+                onClick={() => {
+                  setEditNote(null);
+                  setNotesDialog({ isOpen: true, loading: false });
+                }} 
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Adicionar Nota
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {notes.length === 0 && (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">Nenhuma nota cadastrada.</p>
+                </div>
+              )}
+              {notes.map((note) => (
+                <div key={note.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow cursor-pointer group" onClick={() => setViewNote(note)}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-blue-500" />
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${
+                        note.atividade === 'Apresentação' ? 'bg-purple-100 text-purple-700' :
+                        note.atividade === 'Ligação' ? 'bg-green-100 text-green-700' :
+                        note.atividade === 'Proposta' ? 'bg-blue-100 text-blue-700' :
+                        note.atividade === 'Reunião' ? 'bg-orange-100 text-orange-700' :
+                        'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        {note.atividade}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(note.data + 'T' + note.horario).toLocaleString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                      {note.duracao && (
+                        <span className="text-xs text-gray-400">• {note.duracao}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditNote(note);
+                          setNotesDialog({ isOpen: true, loading: false });
+                        }}
+                        className="p-1 hover:bg-blue-50 rounded transition-colors"
+                        title="Editar nota"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteNote(note.id);
+                        }}
+                        className="p-1 hover:bg-red-50 rounded transition-colors"
+                        title="Excluir nota"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap line-clamp-2">{note.anotacoes}</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-xs text-gray-500">{note.user_name}</span>
+                    <span className="text-xs text-blue-600">Clique para ver detalhes</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -1123,6 +1276,95 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         onHide={() => setShowErrorDialog(false)}
         message={errorMessage}
       />
+
+      {/* Notes Dialog */}
+      <NotesDialog
+        isOpen={notesDialog.isOpen}
+        onClose={() => {
+          setNotesDialog({ isOpen: false, loading: false });
+          setEditNote(null);
+        }}
+        onSave={handleAddNote}
+        loading={notesDialog.loading}
+        editNote={editNote}
+      />
+
+      {/* View Note Dialog */}
+      {viewNote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Detalhes da Nota</h3>
+              <button
+                onClick={() => setViewNote(null)}
+                className="p-1 hover:bg-slate-100 rounded transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <span className={`text-sm font-bold px-3 py-1 rounded ${
+                  viewNote.atividade === 'Apresentação' ? 'bg-purple-100 text-purple-700' :
+                  viewNote.atividade === 'Ligação' ? 'bg-green-100 text-green-700' :
+                  viewNote.atividade === 'Proposta' ? 'bg-blue-100 text-blue-700' :
+                  viewNote.atividade === 'Reunião' ? 'bg-orange-100 text-orange-700' :
+                  'bg-emerald-100 text-emerald-700'
+                }`}>
+                  {viewNote.atividade}
+                </span>
+                <span className="text-sm text-gray-600">
+                  {new Date(viewNote.data + 'T' + viewNote.horario).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+                {viewNote.duracao && (
+                  <span className="text-sm text-gray-500">• {viewNote.duracao}</span>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Anotações:</h4>
+                <p className="text-gray-900 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
+                  {viewNote.anotacoes}
+                </p>
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t">
+                <span className="text-sm text-gray-500">Por: {viewNote.user_name}</span>
+                <span className="text-sm text-gray-500">
+                  Criado em: {new Date(viewNote.created_at).toLocaleString('pt-BR')}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setViewNote(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Fechar
+              </button>
+              <button
+                onClick={() => {
+                  setEditNote(viewNote);
+                  setViewNote(null);
+                  setNotesDialog({ isOpen: true, loading: false });
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Edit3 className="w-4 h-4" />
+                Editar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
