@@ -107,7 +107,7 @@ export const leadService = {
     };
   },
 
-  saveLead: async (lead: Lead): Promise<Lead> => {
+  saveLead: async (lead: Lead, currentUser?: User): Promise<Lead> => {
     const { leadsTable } = getEnvironment();
     const { error } = await supabase
       .from(leadsTable)
@@ -150,13 +150,41 @@ export const leadService = {
       })
       .eq('id', lead.id);
     if (error) throw error;
+    
+    if (currentUser) {
+      await leadService.addActivityLog(lead.id, {
+        tipo: 'ATUALIZACAO',
+        descricao: `Lead atualizado por ${currentUser.name}`,
+        usuario_id: currentUser.id,
+        usuario_nome: currentUser.name
+      });
+    }
+    
     return lead;
   },
 
-  updateLeadStatus: async function(id: number, status: KanbanStatus): Promise<Lead> {
+  updateLeadStatus: async function(id: number, status: KanbanStatus, currentUser?: User): Promise<Lead> {
     const lead = await leadService.getLeadById(id);
+    const oldStatus = lead.status_kanban;
     const updatedLead = { ...lead, status_kanban: status, updated_at: new Date().toISOString() };
-    return await leadService.saveLead(updatedLead);
+    
+    const { leadsTable } = getEnvironment();
+    await supabase
+      .from(leadsTable)
+      .update({ status_kanban: status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    
+    if (currentUser) {
+      await leadService.addActivityLog(id, {
+        tipo: 'MUDANCA_STATUS',
+        descricao: `Status alterado de ${oldStatus} para ${status}`,
+        usuario_id: currentUser.id,
+        usuario_nome: currentUser.name,
+        metadata: { status_anterior: oldStatus, status_novo: status }
+      });
+    }
+    
+    return updatedLead;
   },
 
   // Mock API to fetch CNPJ data

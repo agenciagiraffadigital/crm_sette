@@ -14,6 +14,8 @@ import { Card } from '../src/components/ui/Card';
 import { opportunityService } from '../services/opportunityService';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import { getEnvironment } from '../utils/environment';
 import { Dialog } from 'primereact/dialog';
 import { Plus } from 'lucide-react';
 
@@ -240,6 +242,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   const [successMessage, setSuccessMessage] = useState('');
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorDialogMessage, setErrorDialogMessage] = useState('');
+  const [showErrorToast, setShowErrorToast] = useState(false);
 
   // Auto-hide success toast
   React.useEffect(() => {
@@ -248,6 +251,14 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       return () => clearTimeout(timer);
     }
   }, [showSuccess]);
+  
+  // Auto-hide error toast
+  React.useEffect(() => {
+    if (showErrorToast) {
+      const timer = setTimeout(() => setShowErrorToast(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showErrorToast]);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newOppStep, setNewOppStep] = useState(1);
   const [newOppData, setNewOppData] = useState({
@@ -266,6 +277,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     cidade: '',
     estado: ''
   });
+  const [newOppErrors, setNewOppErrors] = useState<Record<string, string>>({});
   const [sellers, setSellers] = useState<User[]>([]);
   const [loadingCep, setLoadingCep] = useState(false);
 
@@ -570,22 +582,73 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   };
 
   const handleSubmitNewOpp = async () => {
-    if (!newOppData.nome || !newOppData.email || !newOppData.telefone || !newOppData.tipo_cliente || !newOppData.origem || 
-        !newOppData.cep || !newOppData.logradouro || !newOppData.numero || !newOppData.bairro || 
-        !newOppData.cidade || !newOppData.estado) {
-      setErrorDialogMessage('Preencha todos os campos obrigatórios');
-      setShowErrorDialog(true);
+    const errors: Record<string, string> = {};
+    
+    if (!newOppData.nome) errors.nome = 'Campo obrigatório';
+    if (!newOppData.email) errors.email = 'Campo obrigatório';
+    if (!newOppData.telefone) errors.telefone = 'Campo obrigatório';
+    if (!newOppData.tipo_cliente) errors.tipo_cliente = 'Campo obrigatório';
+    if (!newOppData.cep) errors.cep = 'Campo obrigatório';
+    if (!newOppData.logradouro) errors.logradouro = 'Campo obrigatório';
+    if (!newOppData.numero) errors.numero = 'Campo obrigatório';
+    if (!newOppData.bairro) errors.bairro = 'Campo obrigatório';
+    if (!newOppData.cidade) errors.cidade = 'Campo obrigatório';
+    if (!newOppData.estado) errors.estado = 'Campo obrigatório';
+    
+    if (Object.keys(errors).length > 0) {
+      setNewOppErrors(errors);
+      setShowErrorToast(true);
       return;
     }
     
     const seller = sellers.find(s => s.id === newOppData.vendedor_id) || currentUser;
     
-    await handleCreateNewOpportunity({
-      ...newOppData,
-      vendedor: seller.name,
-      vendedor_email: seller.email,
-      status: 'OPORTUNIDADES'
+    // Criar lead com endereço completo
+    const { leadsTable } = getEnvironment();
+    const { data, error } = await supabase
+      .from(leadsTable)
+      .insert({
+        nome: newOppData.nome,
+        email: newOppData.email,
+        telefone: newOppData.telefone,
+        tipo_cliente: newOppData.tipo_cliente,
+        status_kanban: 'OPORTUNIDADES',
+        vendedor: seller.name,
+        vendedor_email: seller.email,
+        vendedor_id: seller.id,
+        origem: newOppData.origem,
+        cep: newOppData.cep,
+        logradouro: newOppData.logradouro,
+        numero: newOppData.numero,
+        complemento: newOppData.complemento,
+        bairro: newOppData.bairro,
+        cidade: newOppData.cidade,
+        estado: newOppData.estado,
+        cpf_cnpj: '',
+        operadora: '',
+        produto: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      setErrorDialogMessage('Erro ao criar oportunidade: ' + error.message);
+      setShowErrorDialog(true);
+      return;
+    }
+    
+    // Registrar log
+    await leadService.addActivityLog(data.id, {
+      tipo: 'CRIACAO',
+      descricao: `Oportunidade criada - Origem: ${newOppData.origem}`,
+      usuario_id: currentUser.id,
+      usuario_nome: currentUser.name
     });
+    
+    setSuccessMessage('Oportunidade criada com sucesso!');
+    setShowSuccess(true);
     
     setShowNewDialog(false);
     setNewOppStep(1);
@@ -605,6 +668,10 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       cidade: '',
       estado: ''
     });
+    
+    setTimeout(() => {
+      onDataChange?.();
+    }, 2000);
   };
 
   // Show new opportunity form if requested
@@ -776,7 +843,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     
     {/* Success Toast */}
     {showSuccess && (
-      <div className="fixed bottom-4 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md">
+      <div className="fixed bottom-4 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md overflow-hidden">
         <div className="flex justify-between items-center">
           <span>{successMessage}</span>
           <button 
@@ -786,6 +853,23 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
             ×
           </button>
         </div>
+        <div className="absolute bottom-0 left-0 h-1 bg-green-700 animate-[shrink_2s_linear]" style={{width: '100%'}}></div>
+      </div>
+    )}
+    
+    {/* Error Toast */}
+    {showErrorToast && (
+      <div className="fixed bottom-4 right-4 z-50 bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md overflow-hidden">
+        <div className="flex justify-between items-center">
+          <span>Preencha todos os campos obrigatórios</span>
+          <button 
+            onClick={() => setShowErrorToast(false)}
+            className="ml-4 text-white hover:text-gray-200"
+          >
+            ×
+          </button>
+        </div>
+        <div className="absolute bottom-0 left-0 h-1 bg-red-700 animate-[shrink_2s_linear]" style={{width: '100%'}}></div>
       </div>
     )}
 
@@ -867,18 +951,30 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
               <input
                 type="text"
                 value={newOppData.nome}
-                onChange={(e) => setNewOppData({...newOppData, nome: e.target.value})}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+                onChange={(e) => {
+                  setNewOppData({...newOppData, nome: e.target.value});
+                  setNewOppErrors({...newOppErrors, nome: ''});
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm ${
+                  newOppErrors.nome ? 'border-red-400' : 'border-slate-300'
+                }`}
               />
+              {newOppErrors.nome && <span className="text-xs text-red-500 mt-1">{newOppErrors.nome}</span>}
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-2">Email *</label>
               <input
                 type="email"
                 value={newOppData.email}
-                onChange={(e) => setNewOppData({...newOppData, email: e.target.value})}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+                onChange={(e) => {
+                  setNewOppData({...newOppData, email: e.target.value});
+                  setNewOppErrors({...newOppErrors, email: ''});
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm ${
+                  newOppErrors.email ? 'border-red-400' : 'border-slate-300'
+                }`}
               />
+              {newOppErrors.email && <span className="text-xs text-red-500 mt-1">{newOppErrors.email}</span>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -890,23 +986,33 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                 onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, '').slice(0, 11);
                   setNewOppData({...newOppData, telefone: value});
+                  setNewOppErrors({...newOppErrors, telefone: ''});
                 }}
                 placeholder="(00) 00000-0000"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm ${
+                  newOppErrors.telefone ? 'border-red-400' : 'border-slate-300'
+                }`}
               />
+              {newOppErrors.telefone && <span className="text-xs text-red-500 mt-1">{newOppErrors.telefone}</span>}
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-2">Tipo de Cliente *</label>
               <select
                 value={newOppData.tipo_cliente || ''}
-                onChange={(e) => setNewOppData({...newOppData, tipo_cliente: e.target.value})}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm bg-white"
+                onChange={(e) => {
+                  setNewOppData({...newOppData, tipo_cliente: e.target.value});
+                  setNewOppErrors({...newOppErrors, tipo_cliente: ''});
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm bg-white ${
+                  newOppErrors.tipo_cliente ? 'border-red-400' : 'border-slate-300'
+                }`}
               >
                 <option value="">Selecione...</option>
                 <option value="PF">PF</option>
                 <option value="PME">PME</option>
                 <option value="ADESAO">Adesão</option>
               </select>
+              {newOppErrors.tipo_cliente && <span className="text-xs text-red-500 mt-1">{newOppErrors.tipo_cliente}</span>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -931,11 +1037,17 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
               <input
                 type="text"
                 value={newOppData.cep}
-                onChange={(e) => handleCepChange(e.target.value)}
+                onChange={(e) => {
+                  handleCepChange(e.target.value);
+                  setNewOppErrors({...newOppErrors, cep: ''});
+                }}
                 placeholder="00000-000"
                 maxLength={9}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm ${
+                  newOppErrors.cep ? 'border-red-400' : 'border-slate-300'
+                }`}
               />
+              {newOppErrors.cep && <span className="text-xs text-red-500 mt-1">{newOppErrors.cep}</span>}
               {loadingCep && <span className="text-xs text-slate-500 mt-1">Buscando...</span>}
             </div>
             <div className="col-span-2">
@@ -943,9 +1055,15 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
               <input
                 type="text"
                 value={newOppData.logradouro}
-                onChange={(e) => setNewOppData({...newOppData, logradouro: e.target.value})}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+                onChange={(e) => {
+                  setNewOppData({...newOppData, logradouro: e.target.value});
+                  setNewOppErrors({...newOppErrors, logradouro: ''});
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm ${
+                  newOppErrors.logradouro ? 'border-red-400' : 'border-slate-300'
+                }`}
               />
+              {newOppErrors.logradouro && <span className="text-xs text-red-500 mt-1">{newOppErrors.logradouro}</span>}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -954,9 +1072,15 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
               <input
                 type="text"
                 value={newOppData.numero}
-                onChange={(e) => setNewOppData({...newOppData, numero: e.target.value})}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+                onChange={(e) => {
+                  setNewOppData({...newOppData, numero: e.target.value});
+                  setNewOppErrors({...newOppErrors, numero: ''});
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm ${
+                  newOppErrors.numero ? 'border-red-400' : 'border-slate-300'
+                }`}
               />
+              {newOppErrors.numero && <span className="text-xs text-red-500 mt-1">{newOppErrors.numero}</span>}
             </div>
             <div className="col-span-2">
               <label className="text-sm font-medium text-slate-700 block mb-2">Complemento</label>
@@ -974,29 +1098,47 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
               <input
                 type="text"
                 value={newOppData.bairro}
-                onChange={(e) => setNewOppData({...newOppData, bairro: e.target.value})}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+                onChange={(e) => {
+                  setNewOppData({...newOppData, bairro: e.target.value});
+                  setNewOppErrors({...newOppErrors, bairro: ''});
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm ${
+                  newOppErrors.bairro ? 'border-red-400' : 'border-slate-300'
+                }`}
               />
+              {newOppErrors.bairro && <span className="text-xs text-red-500 mt-1">{newOppErrors.bairro}</span>}
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-2">Cidade *</label>
               <input
                 type="text"
                 value={newOppData.cidade}
-                onChange={(e) => setNewOppData({...newOppData, cidade: e.target.value})}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm"
+                onChange={(e) => {
+                  setNewOppData({...newOppData, cidade: e.target.value});
+                  setNewOppErrors({...newOppErrors, cidade: ''});
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm ${
+                  newOppErrors.cidade ? 'border-red-400' : 'border-slate-300'
+                }`}
               />
+              {newOppErrors.cidade && <span className="text-xs text-red-500 mt-1">{newOppErrors.cidade}</span>}
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-2">Estado *</label>
               <input
                 type="text"
                 value={newOppData.estado}
-                onChange={(e) => setNewOppData({...newOppData, estado: e.target.value.toUpperCase()})}
+                onChange={(e) => {
+                  setNewOppData({...newOppData, estado: e.target.value.toUpperCase()});
+                  setNewOppErrors({...newOppErrors, estado: ''});
+                }}
                 maxLength={2}
                 placeholder="SP"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm uppercase"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm uppercase ${
+                  newOppErrors.estado ? 'border-red-400' : 'border-slate-300'
+                }`}
               />
+              {newOppErrors.estado && <span className="text-xs text-red-500 mt-1">{newOppErrors.estado}</span>}
             </div>
           </div>
           <div>
