@@ -3,6 +3,7 @@ import { Lead, User } from '../types';
 import { leadService } from '../services/leadService';
 import { Save, ArrowLeft } from 'lucide-react';
 import { maskPhone } from '../utils/masks';
+import { SystemModal } from './SystemModal';
 
 interface LeadFormProps {
   leadId: number;
@@ -15,6 +16,12 @@ export const LeadFormSimple: React.FC<LeadFormProps> = ({ leadId, currentUser, o
   const [formData, setFormData] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [systemModal, setSystemModal] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({ isOpen: false, type: 'alert', title: '', message: '' });
 
   useEffect(() => {
     const loadLead = async () => {
@@ -38,7 +45,12 @@ export const LeadFormSimple: React.FC<LeadFormProps> = ({ leadId, currentUser, o
       onSave(updated);
     } catch (e) {
       console.error(e);
-      alert("Erro ao salvar");
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro ao Salvar',
+        message: 'Erro ao salvar as alterações'
+      });
     } finally {
       setSaving(false);
     }
@@ -141,6 +153,16 @@ export const LeadFormSimple: React.FC<LeadFormProps> = ({ leadId, currentUser, o
           </div>
         </div>
       </div>
+
+      {/* System Modal */}
+      <SystemModal
+        isOpen={systemModal.isOpen}
+        type={systemModal.type}
+        title={systemModal.title}
+        message={systemModal.message}
+        onConfirm={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+        onCancel={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+      />
     </div>
   );
 };

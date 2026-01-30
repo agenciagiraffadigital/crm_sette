@@ -8,6 +8,7 @@ import { Button } from '../src/components/ui/Button';
 import { Card } from '../src/components/ui/Card';
 import { Select as UISelect } from '../src/components/ui/Select';
 import { maskPhone, maskCPFOrCNPJ, maskRG, unmask, validatePhone, validateCPF, validateCNPJ } from '../utils/masks';
+import { SystemModal } from './SystemModal';
 
 interface LeadFormProps {
   leadId: number;
@@ -376,6 +377,13 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
     loading: false
   });
   
+  const [systemModal, setSystemModal] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({ isOpen: false, type: 'alert', title: '', message: '' });
+  
   // Determine which columns to use based on lead status
   const isOpportunity = formData && ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'].includes(formData.status_kanban);
   const statusColumns = isOpportunity ? OPPORTUNITY_COLUMNS : KANBAN_COLUMNS;
@@ -536,7 +544,12 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
       
     } catch (error: any) {
       console.error('Erro no upload:', error);
-      alert(`Erro ao fazer upload: ${error.message}`);
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro no Upload',
+        message: `Erro ao fazer upload: ${error.message}`
+      });
       setUploading(false);
       setUploadProgress(0);
     }
@@ -564,7 +577,12 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
       );
     } catch (error: any) {
       console.error('Erro ao deletar:', error);
-      alert(`Erro ao deletar: ${error.message}`);
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro ao Deletar',
+        message: `Erro ao deletar: ${error.message}`
+      });
     }
   };
 
@@ -574,7 +592,12 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
     // Validate required fields
     const hasErrors = Object.values(validationErrors).some(Boolean);
     if (hasErrors) {
-      alert('Por favor, corrija os erros antes de salvar.');
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro de Validação',
+        message: 'Por favor, corrija os erros antes de salvar.'
+      });
       return;
     }
     
@@ -585,7 +608,12 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
       onSave(updated);
     } catch (e) {
       console.error(e);
-      alert("Erro ao salvar");
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro ao Salvar',
+        message: 'Erro ao salvar as alterações'
+      });
     } finally {
       setSaving(false);
     }
@@ -613,10 +641,20 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
       setLastSaved(new Date());
       onSave(updatedLead);
       handleCloseReassignmentModal();
-      alert('Lead reatribuído com sucesso!');
+      setSystemModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Sucesso',
+        message: 'Lead reatribuído com sucesso!'
+      });
     } catch (error: any) {
       console.error('Erro ao reatribuir lead:', error);
-      alert(`Erro ao reatribuir lead: ${error.message}`);
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro ao Reatribuir',
+        message: `Erro ao reatribuir lead: ${error.message}`
+      });
     } finally {
       setReassignmentModal(prev => ({ ...prev, loading: false }));
     }
@@ -1157,6 +1195,16 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
         leadName={formData?.nome || ''}
         currentSeller={formData?.vendedor || ''}
         loading={reassignmentModal.loading}
+      />
+
+      {/* System Modal */}
+      <SystemModal
+        isOpen={systemModal.isOpen}
+        type={systemModal.type}
+        title={systemModal.title}
+        message={systemModal.message}
+        onConfirm={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+        onCancel={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
       />
     </div>
   );

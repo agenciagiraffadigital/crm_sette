@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Play, Code, CheckCircle, Database } from 'lucide-react';
 import { leadService } from '../services/leadService';
 import { Lead } from '../types';
+import { SystemModal } from './SystemModal';
 
 interface SimulationPanelProps {
   onNewLead: (lead: Lead) => void;
@@ -10,6 +11,12 @@ interface SimulationPanelProps {
 export const SimulationPanel: React.FC<SimulationPanelProps> = ({ onNewLead }) => {
   const [loading, setLoading] = useState(false);
   const [lastResult, setLastResult] = useState<Lead | null>(null);
+  const [systemModal, setSystemModal] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({ isOpen: false, type: 'alert', title: '', message: '' });
 
   const simulateWebhook = async () => {
     setLoading(true);
@@ -48,7 +55,12 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({ onNewLead }) =
       onNewLead(result);
     } catch (e) {
       console.error(e);
-      alert("Erro na simulação: " + e);
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro na Simulação',
+        message: 'Erro na simulação: ' + e
+      });
     } finally {
       setLoading(false);
     }
@@ -128,6 +140,16 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({ onNewLead }) =
           </div>
         </div>
       )}
+
+      {/* System Modal */}
+      <SystemModal
+        isOpen={systemModal.isOpen}
+        type={systemModal.type}
+        title={systemModal.title}
+        message={systemModal.message}
+        onConfirm={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+        onCancel={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+      />
     </div>
   );
 };

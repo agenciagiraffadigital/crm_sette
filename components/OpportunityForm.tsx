@@ -8,6 +8,7 @@ import { Button } from '../src/components/ui/Button';
 import { Card } from '../src/components/ui/Card';
 import { Select as UISelect } from '../src/components/ui/Select';
 import { maskPhone, unmask } from '../utils/masks';
+import { SystemModal } from './SystemModal';
 
 interface OpportunityFormProps {
   opportunityId: number;
@@ -205,6 +206,13 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
     isOpen: false,
     loading: false
   });
+  
+  const [systemModal, setSystemModal] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({ isOpen: false, type: 'alert', title: '', message: '' });
 
   useEffect(() => {
     const loadOpportunity = async () => {
@@ -234,10 +242,20 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
       const updated = await opportunityService.updateOpportunity(formData.id, formData);
       setLastSaved(new Date());
       onSave(updated);
-      alert('Oportunidade salva com sucesso!');
+      setSystemModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Sucesso',
+        message: 'Oportunidade salva com sucesso!'
+      });
     } catch (e) {
       console.error(e);
-      alert("Erro ao salvar oportunidade");
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro ao Salvar',
+        message: 'Erro ao salvar oportunidade'
+      });
     } finally {
       setSaving(false);
     }
@@ -263,10 +281,20 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
       setLastSaved(new Date());
       onSave(updatedOpportunity);
       handleCloseReassignmentModal();
-      alert('Oportunidade reatribuída com sucesso!');
+      setSystemModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Sucesso',
+        message: 'Oportunidade reatribuída com sucesso!'
+      });
     } catch (error: any) {
       console.error('Erro ao reatribuir oportunidade:', error);
-      alert(`Erro ao reatribuir oportunidade: ${error.message}`);
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro ao Reatribuir',
+        message: `Erro ao reatribuir oportunidade: ${error.message}`
+      });
     } finally {
       setReassignmentModal(prev => ({ ...prev, loading: false }));
     }
@@ -454,6 +482,16 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
         opportunityName={formData?.nome || ''}
         currentSeller={formData?.vendedor || ''}
         loading={reassignmentModal.loading}
+      />
+
+      {/* System Modal */}
+      <SystemModal
+        isOpen={systemModal.isOpen}
+        type={systemModal.type}
+        title={systemModal.title}
+        message={systemModal.message}
+        onConfirm={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+        onCancel={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
       />
     </div>
   );

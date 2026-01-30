@@ -5,12 +5,14 @@ import { OpportunityForm } from './OpportunityForm';
 import { NewOpportunityForm } from './NewOpportunityForm';
 import { SearchAndFilters, FilterState, SavedFilter, defaultFilters } from './SearchAndFilters';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { ErrorDialog } from './ErrorDialog';
 import { OPPORTUNITY_COLUMNS } from '../constants';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { Select } from '../src/components/ui/Select';
 import { Card } from '../src/components/ui/Card';
 import { opportunityService } from '../services/opportunityService';
+import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { Dialog } from 'primereact/dialog';
 import { Plus } from 'lucide-react';
@@ -236,6 +238,16 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorDialogMessage, setErrorDialogMessage] = useState('');
+
+  // Auto-hide success toast
+  React.useEffect(() => {
+    if (showSuccess) {
+      const timer = setTimeout(() => setShowSuccess(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newOppStep, setNewOppStep] = useState(1);
   const [newOppData, setNewOppData] = useState({
@@ -453,7 +465,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         );
         onDataChange?.();
       } catch (error) {
-        alert('Erro ao marcar como perdida: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+        setErrorDialogMessage('Erro ao marcar como perdida: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+        setShowErrorDialog(true);
       }
     }
   };
@@ -464,7 +477,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       onDataChange?.();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      alert('Erro na conversão: ' + errorMessage);
+      setErrorDialogMessage('Erro na conversão: ' + errorMessage);
+      setShowErrorDialog(true);
     }
   };
 
@@ -486,7 +500,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         setDeleteModalState({ isOpen: false, opportunityId: null, opportunityName: '' });
         onDataChange?.();
       } catch (error) {
-        alert('Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+        setErrorDialogMessage('Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+        setShowErrorDialog(true);
       }
     }
   };
@@ -503,7 +518,16 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     notes?: string;
   }) => {
     try {
-      await opportunityService.createOpportunityManually(opportunityData);
+      const newOpp = await opportunityService.createOpportunityManually(opportunityData);
+      
+      // Registrar log de criação
+      await leadService.addActivityLog(newOpp.id, {
+        tipo: 'CRIACAO',
+        descricao: `Oportunidade criada - Origem: ${opportunityData.origem}`,
+        usuario_id: currentUser.id,
+        usuario_nome: currentUser.name
+      });
+      
       setSuccessMessage('Oportunidade criada com sucesso!');
       setShowSuccess(true);
       setTimeout(() => {
@@ -513,7 +537,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     } catch (error) {
       console.error('Erro completo:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      alert('Erro ao criar oportunidade: ' + errorMessage);
+      setErrorDialogMessage('Erro ao criar oportunidade: ' + errorMessage);
+      setShowErrorDialog(true);
     }
   };
 
@@ -548,7 +573,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     if (!newOppData.nome || !newOppData.email || !newOppData.telefone || !newOppData.tipo_cliente || !newOppData.origem || 
         !newOppData.cep || !newOppData.logradouro || !newOppData.numero || !newOppData.bairro || 
         !newOppData.cidade || !newOppData.estado) {
-      alert('Preencha todos os campos obrigatórios');
+      setErrorDialogMessage('Preencha todos os campos obrigatórios');
+      setShowErrorDialog(true);
       return;
     }
     
@@ -999,6 +1025,12 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         </div>
       )}
     </Dialog>
+
+    <ErrorDialog
+      visible={showErrorDialog}
+      onHide={() => setShowErrorDialog(false)}
+      message={errorDialogMessage}
+    />
     </>
   );
 };

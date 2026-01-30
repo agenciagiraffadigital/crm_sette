@@ -9,6 +9,7 @@ import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
 import { WhatsAppModal } from './WhatsAppModal';
 import { WinDialog } from './WinDialog';
 import { LostDialog } from './LostDialog';
+import { ErrorDialog } from './ErrorDialog';
 
 interface ModernLeadFormProps {
   leadId: number;
@@ -129,6 +130,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [tempValue, setTempValue] = useState<number | null>(null);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [showLostDialog, setShowLostDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -256,7 +260,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       setShowSellerModal(true);
     } catch (error) {
       console.error('Erro ao carregar vendedores:', error);
-      alert('Erro ao carregar lista de vendedores');
+      setErrorMessage('Erro ao carregar lista de vendedores');
+      setShowErrorDialog(true);
     }
   };
 
@@ -275,7 +280,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       setShowSuccessModal(true);
     } catch (error) {
       console.error('Erro ao alterar vendedor:', error);
-      alert('Erro ao alterar vendedor');
+      setErrorMessage('Erro ao alterar vendedor');
+      setShowErrorDialog(true);
     }
   };
 
@@ -283,19 +289,34 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     if (!formData) return;
     setSaving(true);
     try {
-      // Check if we should auto-advance status based on filled fields
       let updatedFormData = { ...formData };
+      const oldStatus = formData.status_kanban;
       
-      // If it's an opportunity in EM_CONTATO and valor_produto is filled, advance to NEGOCIACAO
       if (formData.status_kanban === 'EM_CONTATO' && formData.valor_produto && !isNaN(Number(formData.valor_produto))) {
         updatedFormData.status_kanban = 'NEGOCIACAO';
       }
       
       const updated = await leadService.saveLead(updatedFormData);
+      
+      // Registrar log se mudou status
+      if (oldStatus !== updated.status_kanban) {
+        await leadService.addActivityLog(updated.id, {
+          tipo: 'MUDANCA_STATUS',
+          descricao: `Status alterado de ${oldStatus} para ${updated.status_kanban}`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name
+        });
+        
+        // Recarregar logs
+        const logs = await leadService.getActivityLogs(leadId);
+        setActivityLogs(logs);
+      }
+      
       onSave(updated);
     } catch (e) {
       console.error(e);
-      alert("Erro ao salvar");
+      setErrorMessage('Erro ao salvar lead');
+      setShowErrorDialog(true);
     } finally {
       setSaving(false);
     }
@@ -415,19 +436,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                     <div className="border-t border-gray-200 my-2"></div>
                     {currentUser.role === 'ADMIN' && (
                       <button
-                        onClick={async () => {
-                          if (confirm('Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita.')) {
-                            setShowActionsMenu(false);
-                            try {
-                              await leadService.deleteLead(formData.id, currentUser);
-                              setSuccessMessage('Lead excluído com sucesso!');
-                              setShowSuccessModal(true);
-                              setTimeout(() => onBack(), 1500);
-                            } catch (error) {
-                              console.error('Erro ao excluir lead:', error);
-                              alert('Erro ao excluir lead');
-                            }
-                          }
+                        onClick={() => {
+                          setShowActionsMenu(false);
+                          setShowDeleteDialog(true);
                         }}
                         className="w-full px-4 py-2 text-sm hover:bg-red-50 flex items-center justify-start gap-3 text-red-700"
                       >
@@ -882,7 +893,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             setShowSuccessModal(true);
           } catch (error) {
             console.error('Erro ao salvar:', error);
-            alert('Erro ao salvar lead');
+            setErrorMessage('Erro ao salvar lead');
+            setShowErrorDialog(true);
           }
         }}
       />
@@ -927,7 +939,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               <button
                 onClick={() => {
                   if (!tempValue || tempValue <= 0) {
-                    alert('Por favor, insira um valor válido');
+                    setErrorMessage('Por favor, insira um valor válido');
+                    setShowErrorDialog(true);
                     return;
                   }
                   setShowValueDialog(false);
@@ -954,12 +967,73 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             setShowLostDialog(false);
             setSuccessMessage('Lead marcado como perdido!');
             setShowSuccessModal(true);
-            setTimeout(() => onBack(), 1500);
+            setTimeout(() => {
+              onBack();
+              window.location.reload();
+            }, 1500);
           } catch (error) {
             console.error('Erro ao marcar como perdido:', error);
-            alert('Erro ao marcar lead como perdido');
+            setErrorMessage('Erro ao marcar lead como perdido');
+            setShowErrorDialog(true);
           }
         }}
+      />
+
+      {/* Delete Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Confirmar Exclusão</h3>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700 mb-2">Tem certeza que deseja excluir este lead?</p>
+              <p className="text-sm text-gray-600"><strong>{formData?.nome}</strong></p>
+              <p className="text-sm text-red-600 mt-2">Esta ação não pode ser desfeita.</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteDialog(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (!formData) return;
+                  try {
+                    await leadService.deleteLead(formData.id, currentUser);
+                    setShowDeleteDialog(false);
+                    setSuccessMessage('Lead excluído com sucesso!');
+                    setShowSuccessModal(true);
+                    setTimeout(() => {
+                      onBack();
+                      window.location.reload();
+                    }, 1500);
+                  } catch (error) {
+                    console.error('Erro ao excluir lead:', error);
+                    setErrorMessage('Erro ao excluir lead');
+                    setShowErrorDialog(true);
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ErrorDialog
+        visible={showErrorDialog}
+        onHide={() => setShowErrorDialog(false)}
+        message={errorMessage}
       />
     </div>
   );

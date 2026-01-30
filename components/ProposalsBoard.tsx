@@ -3,6 +3,7 @@ import { Lead, KanbanStatus, User } from '../types';
 import { ProposalCard } from './ProposalCard';
 import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { SystemModal } from './SystemModal';
 import { Button } from '../src/components/ui/Button';
 import { KANBAN_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
@@ -52,6 +53,13 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     proposalId: null,
     proposalName: ''
   });
+  
+  const [systemModal, setSystemModal] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({ isOpen: false, type: 'alert', title: '', message: '' });
 
   const { sellers, operators, statusOptions, sourceOptions } = useMemo(() => {
     const allSellers = new Set<string>();
@@ -198,7 +206,12 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
         setDeleteModalState({ isOpen: false, proposalId: null, proposalName: '' });
         window.location.reload();
       } catch (error) {
-        alert('Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+        setSystemModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Erro ao Excluir',
+          message: 'Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido')
+        });
       }
     }
   };
@@ -285,6 +298,16 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
       onConfirm={handleConfirmDelete}
       itemName={deleteModalState.proposalName}
       itemType="lead"
+    />
+
+    {/* System Modal */}
+    <SystemModal
+      isOpen={systemModal.isOpen}
+      type={systemModal.type}
+      title={systemModal.title}
+      message={systemModal.message}
+      onConfirm={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+      onCancel={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
     />
     </>
   );
