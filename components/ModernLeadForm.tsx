@@ -4,8 +4,10 @@ import { KANBAN_COLUMNS, OPPORTUNITY_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
-import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash } from 'lucide-react';
+import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
+import { maskCEP } from '../utils/cepMask';
+import { formatStatus, formatDateTime } from '../utils/formatters';
 import { WhatsAppModal } from './WhatsAppModal';
 import { WinDialog } from './WinDialog';
 import { LostDialog } from './LostDialog';
@@ -187,6 +189,24 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     if (!formData) return;
     const cleanValue = (field === 'telefone' || field === 'cpf_cnpj') ? unmask(value) : value;
     setFormData({ ...formData, [field]: cleanValue });
+    
+    // Buscar CEP automaticamente
+    if (field === 'cep' && cleanValue.replace(/\D/g, '').length === 8) {
+      fetch(`https://viacep.com.br/ws/${cleanValue.replace(/\D/g, '')}/json/`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.erro) {
+            setFormData(prev => prev ? {
+              ...prev,
+              logradouro: data.logradouro || '',
+              bairro: data.bairro || '',
+              cidade: data.localidade || '',
+              estado: data.uf || ''
+            } : null);
+          }
+        })
+        .catch(console.error);
+    }
   };
 
   const handleAddressChange = (field: string, value: string) => {
@@ -289,32 +309,38 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     if (!formData) return;
     setSaving(true);
     try {
-      let updatedFormData = { ...formData };
       const oldStatus = formData.status_kanban;
       
-      if (formData.status_kanban === 'EM_CONTATO' && formData.valor_produto && !isNaN(Number(formData.valor_produto))) {
-        updatedFormData.status_kanban = 'NEGOCIACAO';
-      }
-      
-      const updated = await leadService.saveLead(updatedFormData);
+      const updated = await leadService.saveLead(formData);
       
       // Registrar log se mudou status
       if (oldStatus !== updated.status_kanban) {
-        await leadService.addActivityLog(updated.id, {
+        console.log('Status mudou de', oldStatus, 'para', updated.status_kanban);
+        console.log('Registrando log com:', {
           tipo: 'MUDANCA_STATUS',
-          descricao: `Status alterado de ${oldStatus} para ${updated.status_kanban}`,
+          descricao: `Status alterado de ${formatStatus(oldStatus)} para ${formatStatus(updated.status_kanban)}`,
           usuario_id: currentUser.id,
           usuario_nome: currentUser.name
         });
         
+        await leadService.addActivityLog(updated.id, {
+          tipo: 'MUDANCA_STATUS',
+          descricao: `Status alterado de ${formatStatus(oldStatus)} para ${formatStatus(updated.status_kanban)}`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name
+        });
+        
+        console.log('Log registrado com sucesso');
+        
         // Recarregar logs
         const logs = await leadService.getActivityLogs(leadId);
+        console.log('Logs recarregados:', logs);
         setActivityLogs(logs);
       }
       
       onSave(updated);
     } catch (e) {
-      console.error(e);
+      console.error('Erro completo:', e);
       setErrorMessage('Erro ao salvar lead');
       setShowErrorDialog(true);
     } finally {
@@ -537,34 +563,36 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Input
               label="CEP"
-              value={formData.endereco?.cep || ''}
-              onChange={(value) => handleAddressChange('cep', value)}
+              value={maskCEP(formData.cep || '')}
+              onChange={(value) => handleChange('cep', value)}
+              mask={maskCEP}
+              placeholder="00000-000"
             />
             <Input
               label="Logradouro"
-              value={formData.endereco?.logradouro || ''}
-              onChange={(value) => handleAddressChange('logradouro', value)}
+              value={formData.logradouro || ''}
+              onChange={(value) => handleChange('logradouro', value)}
               className="lg:col-span-2"
             />
             <Input
               label="Número"
-              value={formData.endereco?.numero || ''}
-              onChange={(value) => handleAddressChange('numero', value)}
+              value={formData.numero || ''}
+              onChange={(value) => handleChange('numero', value)}
             />
             <Input
               label="Bairro"
-              value={formData.endereco?.bairro || ''}
-              onChange={(value) => handleAddressChange('bairro', value)}
+              value={formData.bairro || ''}
+              onChange={(value) => handleChange('bairro', value)}
             />
             <Input
               label="Cidade"
-              value={formData.endereco?.cidade || ''}
-              onChange={(value) => handleAddressChange('cidade', value)}
+              value={formData.cidade || ''}
+              onChange={(value) => handleChange('cidade', value)}
             />
             <Input
               label="UF"
-              value={formData.endereco?.uf || ''}
-              onChange={(value) => handleAddressChange('uf', value)}
+              value={formData.estado || ''}
+              onChange={(value) => handleChange('estado', value)}
             />
           </div>
         </Card>
@@ -741,25 +769,74 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {activityLogs.map((log) => (
-                    <div key={log.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <MessageCircle className="w-4 h-4 text-blue-600" />
+                  {activityLogs.map((log) => {
+                    // Definir ícone e cor baseado no tipo
+                    let IconComponent = MessageCircle;
+                    let iconColor = 'text-blue-600';
+                    let bgColor = 'bg-blue-100';
+                    
+                    switch(log.tipo) {
+                      case 'CRIACAO':
+                        IconComponent = Plus;
+                        iconColor = 'text-green-600';
+                        bgColor = 'bg-green-100';
+                        break;
+                      case 'MUDANCA_STATUS':
+                        IconComponent = RefreshCw;
+                        iconColor = 'text-blue-600';
+                        bgColor = 'bg-blue-100';
+                        break;
+                      case 'LEAD_GANHO':
+                        IconComponent = Trophy;
+                        iconColor = 'text-yellow-600';
+                        bgColor = 'bg-yellow-100';
+                        break;
+                      case 'LEAD_PERDIDO':
+                        IconComponent = XCircle;
+                        iconColor = 'text-red-600';
+                        bgColor = 'bg-red-100';
+                        break;
+                      case 'LEAD_RECUPERADO':
+                        IconComponent = TrendingUp;
+                        iconColor = 'text-emerald-600';
+                        bgColor = 'bg-emerald-100';
+                        break;
+                      case 'ATUALIZACAO':
+                        IconComponent = Edit3;
+                        iconColor = 'text-slate-600';
+                        bgColor = 'bg-slate-100';
+                        break;
+                      case 'FOLLOWUP_AGENDADO':
+                        IconComponent = AlertCircle;
+                        iconColor = 'text-orange-600';
+                        bgColor = 'bg-orange-100';
+                        break;
+                      default:
+                        IconComponent = MessageCircle;
+                        iconColor = 'text-blue-600';
+                        bgColor = 'bg-blue-100';
+                    }
+                    
+                    return (
+                      <div key={log.id} className="flex gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex-shrink-0">
+                          <div className={`w-8 h-8 ${bgColor} rounded-full flex items-center justify-center`}>
+                            <IconComponent className={`w-4 h-4 ${iconColor}`} />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-900">{log.descricao}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-gray-500">{log.usuario_nome}</span>
+                            <span className="text-xs text-gray-400">•</span>
+                            <span className="text-xs text-gray-500">
+                              {formatDateTime(log.created_at)}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-900">{log.descricao}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500">{log.usuario_nome}</span>
-                          <span className="text-xs text-gray-400">•</span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(log.created_at).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </Card>
@@ -878,6 +955,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               ...formData,
               status_kanban: 'ENVIADA' as any,
               valor_produto: tempValue || formData.valor_produto,
+              converted_to_proposal_at: new Date().toISOString(),
               dados_proposta: {
                 motivo_ganho: motivo,
                 motivo_ganho_outro: motivoOutro,
@@ -885,6 +963,16 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               }
             };
             await leadService.saveLead(updatedLead);
+            
+            // Registrar log de proposta ganha
+            await leadService.addActivityLog(formData.id, {
+              tipo: 'LEAD_GANHO',
+              descricao: `Proposta ganha! Motivo: ${motivo}${motivoOutro ? ' - ' + motivoOutro : ''}`,
+              usuario_id: currentUser.id,
+              usuario_nome: currentUser.name,
+              metadata: { motivo, motivoOutro, valor: tempValue || formData.valor_produto }
+            });
+            
             setFormData(updatedLead);
             onSave(updatedLead);
             setShowWinDialog(false);

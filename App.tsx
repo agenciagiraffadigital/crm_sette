@@ -132,7 +132,7 @@ function App() {
     );
 
     try {
-      await leadService.updateLeadStatus(id, newStatus);
+      await leadService.updateLeadStatus(id, newStatus, user);
     } catch (error) {
       console.error("Failed to update status", error);
       // Keep optimistic update even on error
@@ -198,6 +198,11 @@ function App() {
     localStorage.setItem('activeTab', tab);
     setSelectedLeadId(null); // Clear selected lead when changing tabs
     setShowNewOpportunityForm(false); // Clear new opportunity form when changing tabs
+    
+    // Recarregar dados ao mudar de aba
+    if (tab === 'opportunities' || tab === 'kanban' || tab === 'lost') {
+      loadLeads();
+    }
   };
 
   if (initializing) {

@@ -244,6 +244,15 @@ export const opportunityService = {
   updateOpportunityStatus: async (id: number, status: OpportunityStatus, currentUser: User, additionalData?: {
     quoted_value?: number;
   }): Promise<Opportunity> => {
+    // Buscar status anterior
+    const { data: currentData } = await supabase
+      .from('leads')
+      .select('status_kanban')
+      .eq('id', id)
+      .single();
+    
+    const oldStatus = currentData?.status_kanban;
+    
     const updateData: any = {
       status_kanban: status,
     };
@@ -261,6 +270,20 @@ export const opportunityService = {
 
     if (error) {
       throw new Error(`Erro ao atualizar: ${error.message}`);
+    }
+
+    // Registrar log de mudança de status
+    if (oldStatus && oldStatus !== status) {
+      const { leadService } = await import('./leadService');
+      const { formatStatus } = await import('../utils/formatters');
+      
+      await leadService.addActivityLog(id, {
+        tipo: 'MUDANCA_STATUS',
+        descricao: `Status alterado de ${formatStatus(oldStatus)} para ${formatStatus(status)}`,
+        usuario_id: currentUser.id,
+        usuario_nome: currentUser.name,
+        metadata: { status_anterior: oldStatus, status_novo: status }
+      });
     }
 
     return {

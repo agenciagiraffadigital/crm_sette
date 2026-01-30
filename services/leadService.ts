@@ -89,6 +89,14 @@ export const leadService = {
       reducao_carencia: data.reducao_carencia,
       coparticipacao: data.coparticipacao,
       vigencia: data.vigencia,
+      // Campos de endereço diretos
+      cep: data.cep,
+      logradouro: data.logradouro,
+      numero: data.numero,
+      complemento: data.complemento,
+      bairro: data.bairro,
+      cidade: data.cidade,
+      estado: data.estado,
       endereco: data.endereco,
       beneficiarios: data.beneficiarios,
       mensagens: data.mensagens,
@@ -123,13 +131,13 @@ export const leadService = {
         reducao_carencia: lead.reducao_carencia,
         coparticipacao: lead.coparticipacao,
         vigencia: lead.vigencia,
-        cep: lead.endereco?.cep || '',
-        logradouro: lead.endereco?.logradouro || '',
-        numero: lead.endereco?.numero || '',
-        complemento: lead.endereco?.complemento || '',
-        bairro: lead.endereco?.bairro || '',
-        cidade: lead.endereco?.cidade || '',
-        estado: lead.endereco?.uf || '',
+        cep: lead.cep || lead.endereco?.cep || '',
+        logradouro: lead.logradouro || lead.endereco?.logradouro || '',
+        numero: lead.numero || lead.endereco?.numero || '',
+        complemento: lead.complemento || lead.endereco?.complemento || '',
+        bairro: lead.bairro || lead.endereco?.bairro || '',
+        cidade: lead.cidade || lead.endereco?.cidade || '',
+        estado: lead.estado || lead.endereco?.uf || '',
         beneficiarios: lead.beneficiarios,
         mensagens: lead.mensagens,
         documentos: lead.documentos,
@@ -160,8 +168,16 @@ export const leadService = {
   },
 
   updateLeadStatus: async function(id: number, status: KanbanStatus, currentUser?: User): Promise<Lead> {
+    // Buscar status anterior ANTES de atualizar
+    const { data: currentLead } = await supabase
+      .from('leads')
+      .select('status_kanban')
+      .eq('id', id)
+      .single();
+    
+    const oldStatus = currentLead?.status_kanban;
+    
     const lead = await leadService.getLeadById(id);
-    const oldStatus = lead.status_kanban;
     const updatedLead = { ...lead, status_kanban: status, updated_at: new Date().toISOString() };
     
     await supabase
@@ -169,14 +185,49 @@ export const leadService = {
       .update({ status_kanban: status, updated_at: new Date().toISOString() })
       .eq('id', id);
     
-    if (currentUser) {
-      await leadService.addActivityLog(id, {
-        tipo: 'MUDANCA_STATUS',
-        descricao: `Status alterado de ${oldStatus} para ${status}`,
-        usuario_id: currentUser.id,
-        usuario_nome: currentUser.name,
-        metadata: { status_anterior: oldStatus, status_novo: status }
-      });
+    if (currentUser && oldStatus) {
+      const { formatStatus } = await import('../utils/formatters');
+      
+      // Log especial para CANCELADA (perdida)
+      if (status === 'CANCELADA') {
+        await leadService.addActivityLog(id, {
+          tipo: 'LEAD_PERDIDO',
+          descricao: `Lead movido para Perdidas`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name,
+          metadata: { status_anterior: oldStatus, status_novo: status }
+        });
+      }
+      // Log especial para IMPLANTADA (ganhou)
+      else if (status === 'IMPLANTADA') {
+        await leadService.addActivityLog(id, {
+          tipo: 'LEAD_GANHO',
+          descricao: `Proposta ganha! Lead movido para Implantada`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name,
+          metadata: { status_anterior: oldStatus, status_novo: status }
+        });
+      }
+      // Log especial quando sai de CANCELADA
+      else if (oldStatus === 'CANCELADA') {
+        await leadService.addActivityLog(id, {
+          tipo: 'LEAD_RECUPERADO',
+          descricao: `Lead recuperado de Perdidas para ${formatStatus(status)}`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name,
+          metadata: { status_anterior: oldStatus, status_novo: status }
+        });
+      }
+      // Log normal de mudança de status
+      else {
+        await leadService.addActivityLog(id, {
+          tipo: 'MUDANCA_STATUS',
+          descricao: `Status alterado de ${formatStatus(oldStatus)} para ${formatStatus(status)}`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name,
+          metadata: { status_anterior: oldStatus, status_novo: status }
+        });
+      }
     }
     
     return updatedLead;
@@ -281,6 +332,14 @@ export const leadService = {
       .single();
 
     if (error) throw error;
+
+    // Registrar log de criação
+    await leadService.addActivityLog(data.id, {
+      tipo: 'CRIACAO',
+      descricao: `Lead criado via webhook - Origem: ${newLead.origem}`,
+      usuario_id: nextSeller.id,
+      usuario_nome: nextSeller.name
+    });
 
     return {
       id: data.id,
@@ -522,7 +581,10 @@ export const leadService = {
         created_at: new Date().toISOString()
       });
 
-    if (error) console.error('Erro ao registrar log:', error);
+    if (error) {
+      console.error('Erro ao registrar log:', error);
+      throw error; // Lançar erro ao invés de só logar
+    }
   },
 
   // Buscar logs de atividade
@@ -539,6 +601,15 @@ export const leadService = {
       return [];
     }
 
-    return data || [];
+    // Mapear campos do banco para o formato esperado
+    return (data || []).map(log => ({
+      id: log.id,
+      tipo: log.type,
+      descricao: log.description,
+      usuario_id: log.user_id,
+      usuario_nome: log.user_name,
+      created_at: log.created_at,
+      metadata: log.metadata
+    }));
   },
 };

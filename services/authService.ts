@@ -107,15 +107,14 @@ export const authService = {
   // Admin Only: Create new user
   createUser: async (user: Omit<User, 'id'>, password: string): Promise<User> => {
     try {
-      // Usar o cliente normal mas com signUp (mais seguro)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Usar admin API para criar usuário
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: user.email,
         password,
-        options: {
-          data: {
-            name: user.name,
-            role: user.role
-          }
+        email_confirm: true,
+        user_metadata: {
+          name: user.name,
+          role: user.role
         }
       });
 

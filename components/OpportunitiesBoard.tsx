@@ -604,9 +604,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     const seller = sellers.find(s => s.id === newOppData.vendedor_id) || currentUser;
     
     // Criar lead com endereço completo
-    const { leadsTable } = getEnvironment();
     const { data, error } = await supabase
-      .from(leadsTable)
+      .from('leads')
       .insert({
         nome: newOppData.nome,
         email: newOppData.email,

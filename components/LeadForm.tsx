@@ -362,7 +362,9 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
   const [formData, setFormData] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'beneficiarios' | 'docs'>('info');
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'beneficiarios' | 'docs' | 'historico'>('info');
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploading, setUploading] = useState(false);
@@ -409,6 +411,24 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
     };
     loadLead();
   }, [leadId]);
+
+  const loadActivityLogs = useCallback(async () => {
+    setLoadingLogs(true);
+    try {
+      const logs = await leadService.getActivityLogs(leadId);
+      setActivityLogs(logs);
+    } catch (error) {
+      console.error('Erro ao carregar logs:', error);
+    } finally {
+      setLoadingLogs(false);
+    }
+  }, [leadId]);
+
+  useEffect(() => {
+    if (activeTab === 'historico') {
+      loadActivityLogs();
+    }
+  }, [activeTab, loadActivityLogs]);
 
   // Auto-save functionality with debouncing
   const scheduleAutoSave = useCallback(() => {
@@ -603,9 +623,12 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
     
     setSaving(true);
     try {
-      const updated = await leadService.saveLead(formData);
+      const updated = await leadService.saveLead(formData, currentUser);
       setLastSaved(new Date());
       onSave(updated);
+      if (activeTab === 'historico') {
+        loadActivityLogs();
+      }
     } catch (e) {
       console.error(e);
       setSystemModal({
@@ -775,7 +798,8 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
         {[
           { id: 'info', label: 'Dados do Cliente', completed: sectionCompletion.info },
           { id: 'beneficiarios', label: `Beneficiários (${formData.beneficiarios.length})`, completed: sectionCompletion.beneficiarios },
-          { id: 'docs', label: `Documentos (${formData.documentos.length})`, completed: sectionCompletion.docs }
+          { id: 'docs', label: `Documentos (${formData.documentos.length})`, completed: sectionCompletion.docs },
+          { id: 'historico', label: 'Histórico', completed: false }
         ].map(tab => (
           <button
             key={tab.id}
@@ -1181,6 +1205,68 @@ export const LeadForm: React.FC<LeadFormProps> = ({ leadId, currentUser, onBack,
                             )}
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* TAB: HISTORICO */}
+            {activeTab === 'historico' && (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-bold text-slate-800">Histórico de Atividades</h3>
+                        <button 
+                          onClick={loadActivityLogs} 
+                          disabled={loadingLogs}
+                          className="flex items-center text-sm bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-200 transition-colors disabled:opacity-50"
+                        >
+                            {loadingLogs ? 'Atualizando...' : 'Atualizar'}
+                        </button>
+                    </div>
+
+                    {loadingLogs ? (
+                        <div className="flex items-center justify-center py-12">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            <span className="ml-3 text-slate-600">Carregando histórico...</span>
+                        </div>
+                    ) : activityLogs.length === 0 ? (
+                        <p className="text-slate-500 text-center py-12 bg-slate-50 rounded border border-dashed border-slate-300">
+                            Nenhuma atividade registrada ainda.
+                        </p>
+                    ) : (
+                        <div className="space-y-3">
+                            {activityLogs.map((log, idx) => (
+                                <div key={idx} className="border border-slate-200 rounded-lg p-4 bg-white hover:shadow-sm transition-shadow">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className={`text-xs font-bold px-2 py-1 rounded ${
+                                                    log.type === 'MUDANCA_STATUS' ? 'bg-blue-100 text-blue-700' :
+                                                    log.type === 'ATUALIZACAO' ? 'bg-green-100 text-green-700' :
+                                                    log.type === 'LEAD_PERDIDO' ? 'bg-red-100 text-red-700' :
+                                                    log.type === 'FOLLOWUP_AGENDADO' ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-slate-100 text-slate-700'
+                                                }`}>
+                                                    {log.type}
+                                                </span>
+                                                <span className="text-xs text-slate-500">
+                                                    {new Date(log.created_at).toLocaleString('pt-BR')}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-slate-700 mb-1">{log.description}</p>
+                                            <p className="text-xs text-slate-500">Por: {log.user_name}</p>
+                                            {log.metadata && (
+                                                <details className="mt-2">
+                                                    <summary className="text-xs text-blue-600 cursor-pointer hover:underline">Ver detalhes</summary>
+                                                    <pre className="text-xs bg-slate-50 p-2 rounded mt-1 overflow-auto">
+                                                        {JSON.stringify(log.metadata, null, 2)}
+                                                    </pre>
+                                                </details>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 

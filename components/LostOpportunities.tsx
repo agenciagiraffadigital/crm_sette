@@ -21,11 +21,8 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
   const loadLostLeads = async () => {
     setLoading(true);
     try {
-      const isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('dev');
-      const leadsTable = isDev ? 'leads_dev' : 'leads';
-      
       let query = supabase
-        .from(leadsTable)
+        .from('leads')
         .select('*')
         .eq('status_kanban', 'CANCELADA')
         .order('updated_at', { ascending: false });
@@ -93,6 +90,19 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
       return matchesSearch && matchesSeller && matchesOperator && matchesSource && matchesDateRange;
     });
   }, [lostLeads, filters, currentUser.role]);
+
+  const handleRecoverLead = async (leadId: number) => {
+    try {
+      // Remover da lista imediatamente (otimista)
+      setLostLeads(prev => prev.filter(l => l.id !== leadId));
+      
+      await leadService.updateLeadStatus(leadId, 'OPORTUNIDADES', currentUser);
+    } catch (error) {
+      console.error('Erro ao recuperar lead:', error);
+      // Recarregar em caso de erro
+      await loadLostLeads();
+    }
+  };
 
   const handleFiltersChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
@@ -179,6 +189,17 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
                         {new Date(lead.updated_at).toLocaleDateString('pt-BR')}
                       </p>
                     )}
+                    {lead.followup_data && (
+                      <p className="text-xs text-slate-600 mt-2 font-medium">
+                        Data de Follow Up: {new Date(lead.followup_data).toLocaleDateString('pt-BR')}
+                      </p>
+                    )}
+                    <button
+                      onClick={() => handleRecoverLead(lead.id)}
+                      className="mt-3 w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
+                    >
+                      Recuperar para Oportunidades
+                    </button>
                   </div>
                 </div>
               </div>

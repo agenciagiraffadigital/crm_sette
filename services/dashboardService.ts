@@ -374,11 +374,9 @@ export const dashboardService = {
   // Get canceled leads
   getCanceledLeads: async (currentUser: User): Promise<Lead[]> => {
     const { supabase } = await import('./supabaseClient');
-    const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('dev'));
-    const leadsTable = isDev ? 'leads_dev' : 'leads';
 
     let query = supabase
-      .from(leadsTable)
+      .from('leads')
       .select('*')
       .eq('status_kanban', 'CANCELADA')
       .order('created_at', { ascending: false });

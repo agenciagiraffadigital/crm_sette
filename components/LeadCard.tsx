@@ -12,6 +12,22 @@ interface LeadCardProps {
 
 export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick, onLost }) => {
   
+  const handleDragStart = (e: React.DragEvent) => {
+    e.stopPropagation();
+    console.log('Drag started:', lead.id, lead.status_kanban);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      leadId: lead.id,
+      currentStatus: lead.status_kanban
+    }));
+  };
+  
+  const handleClick = (e: React.MouseEvent) => {
+    // Não abrir se estiver arrastando
+    if ((e.target as HTMLElement).draggable) return;
+    onClick(lead);
+  };
+  
   const getNextStatus = (current: KanbanStatus): KanbanStatus | null => {
     const idx = KANBAN_COLUMNS.findIndex(c => c.id === current);
     if (idx !== -1 && idx < KANBAN_COLUMNS.length - 1) {
@@ -32,8 +48,10 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick, onLos
 
   return (
     <div 
-      onClick={() => onClick(lead)}
-      className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 group cursor-pointer relative transform hover:scale-[1.02]"
+      draggable
+      onDragStart={handleDragStart}
+      onClick={handleClick}
+      className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 group cursor-move relative"
     >
       <div className="flex justify-between items-start mb-3">
         <div className={`flex items-center space-x-1 text-xs font-bold px-2 py-1 rounded-full ${typeConfig.color}`}>
