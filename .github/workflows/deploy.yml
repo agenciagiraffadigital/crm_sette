@@ -55,8 +55,11 @@ jobs:
             git pull origin develop
             
             # Criar .env.local para desenvolvimento
-            echo "VITE_SUPABASE_URL=https://hbfltrjuwpefcrkygsak.supabase.co" > .env.local
-            echo "VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiZmx0cmp1d3BlZmNya3lnc2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODE1MTIsImV4cCI6MjA4MTU1NzUxMn0.ZtF9KjzDZxyS1R9kol8RMo_u7irVAB2BJrE404-8yJM" >> .env.local
+            echo "VITE_SUPABASE_URL=https://cmeusxhjciomrjhgpgzf.supabase.co" > .env.local
+            echo "VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZXVzeGhqY2lvbXJqaGdwZ3pmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3ODY5NDMsImV4cCI6MjA4NTM2Mjk0M30.JyvCw90xQvNKl2JGIC37oknRekA37kDy0RTWWjuG6Y" >> .env.local
+            echo "VITE_SUPABASE_DEV_URL=https://cmeusxhjciomrjhgpgzf.supabase.co" >> .env.local
+            echo "VITE_SUPABASE_DEV_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZXVzeGhqY2lvbXJqaGdwZ3pmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3ODY5NDMsImV4cCI6MjA4NTM2Mjk0M30.JyvCw90xQvNKl2JGIC37oknRekA37kDy0RTWWjuG6Y" >> .env.local
+            echo "VITE_SUPABASE_DEV_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZXVzeGhqY2lvbXJqaGdwZ3pmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTc4Njk0MywiZXhwIjoyMDg1MzYyOTQzfQ.5_fvOMi936MZkeFyIVbiudrQwI5lusnl_gQyaLP_2po" >> .env.local
             
             rm -rf node_modules package-lock.json
             npm install
