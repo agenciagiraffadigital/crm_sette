@@ -3,21 +3,17 @@ import { getEnvironment } from '../utils/environment'
 
 const { isDev } = getEnvironment()
 
-// Seleciona as credenciais baseado no ambiente
-const supabaseUrl = isDev 
-  ? (import.meta.env.VITE_SUPABASE_DEV_URL ?? '')
-  : (import.meta.env.VITE_SUPABASE_URL ?? '')
-
-const supabaseAnonKey = isDev
-  ? (import.meta.env.VITE_SUPABASE_DEV_ANON_KEY ?? '')
-  : (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '')
-
+// Usa sempre as mesmas variáveis, mas valores diferentes no .env
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
 const supabaseServiceKey = isDev
   ? (import.meta.env.VITE_SUPABASE_DEV_SERVICE_ROLE_KEY ?? '')
-  : (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '') // PROD usa anon (secret está no servidor)
+  : supabaseAnonKey
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Faltam credenciais do Supabase no .env.local')
+  console.error('URL:', supabaseUrl)
+  console.error('Key:', supabaseAnonKey ? 'presente' : 'ausente')
 }
 
 // Cliente normal para usuários
