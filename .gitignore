@@ -11,11 +11,12 @@ build/
 # Environment variables
 .env
 .env.local
-.env.development
 .env.development.local
 .env.production
 .env.test.local
 .env.production.local
+
+# NOTA: .env.development NÃO está ignorado (é banco de DEV, pode commitar)
 
 # IDE
 .vscode/
