@@ -46,6 +46,7 @@ jobs:
             # Criar .env.local para PRODUÇÃO
             echo "VITE_SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" > .env.local
             echo "VITE_SUPABASE_ANON_KEY=${{ secrets.PROD_SUPABASE_ANON_KEY }}" >> .env.local
+            echo "VITE_SUPABASE_SERVICE_ROLE_KEY=${{ secrets.PROD_SUPABASE_SERVICE_KEY }}" >> .env.local
             
             rm -rf node_modules package-lock.json
             npm install
@@ -62,6 +63,7 @@ jobs:
             # Criar .env.local para DESENVOLVIMENTO
             echo "VITE_SUPABASE_URL=${{ secrets.DEV_SUPABASE_URL }}" > .env.local
             echo "VITE_SUPABASE_ANON_KEY=${{ secrets.DEV_SUPABASE_ANON_KEY }}" >> .env.local
+            echo "VITE_SUPABASE_SERVICE_ROLE_KEY=${{ secrets.DEV_SUPABASE_SERVICE_KEY }}" >> .env.local
             
             rm -rf node_modules package-lock.json
             npm install
