@@ -21,9 +21,9 @@ echo "📦 Instalando dependências..."
 cd $PROJECT_PATH
 npm ci --production
 
-# Build inicial
-echo "🔨 Fazendo build inicial..."
-npm run build
+# Build inicial (modo development para dev.settesaude.com.br)
+echo "🔨 Fazendo build inicial (development mode)..."
+npm run build:dev
 
 # Configurar PM2
 echo "⚙️ Configurando PM2..."
