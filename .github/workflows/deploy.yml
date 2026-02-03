@@ -42,6 +42,11 @@ jobs:
             git reset --hard HEAD
             git clean -fd
             git pull origin master
+            
+            # Criar .env.local para PRODUÇÃO
+            echo "VITE_SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" > .env.local
+            echo "VITE_SUPABASE_ANON_KEY=${{ secrets.PROD_SUPABASE_ANON_KEY }}" >> .env.local
+            
             rm -rf node_modules package-lock.json
             npm install
             npm run build
@@ -54,12 +59,9 @@ jobs:
             git clean -fd
             git pull origin develop
             
-            # Criar .env.local para desenvolvimento
+            # Criar .env.local para DESENVOLVIMENTO
             echo "VITE_SUPABASE_URL=${{ secrets.DEV_SUPABASE_URL }}" > .env.local
             echo "VITE_SUPABASE_ANON_KEY=${{ secrets.DEV_SUPABASE_ANON_KEY }}" >> .env.local
-            echo "VITE_SUPABASE_DEV_URL=${{ secrets.DEV_SUPABASE_URL }}" >> .env.local
-            echo "VITE_SUPABASE_DEV_ANON_KEY=${{ secrets.DEV_SUPABASE_ANON_KEY }}" >> .env.local
-            echo "VITE_SUPABASE_DEV_SERVICE_ROLE_KEY=${{ secrets.DEV_SUPABASE_SERVICE_KEY }}" >> .env.local
             
             rm -rf node_modules package-lock.json
             npm install
