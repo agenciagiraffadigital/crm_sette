@@ -173,7 +173,7 @@ export const authService = {
 
     // Atualizar email no auth se mudou
     if (data.email && data.email !== updated.email) {
-      await supabase.auth.admin.updateUserById(updated.auth_id, {
+      await supabaseAdmin.auth.admin.updateUserById(updated.auth_id, {
         email: data.email,
       });
     }
@@ -202,7 +202,7 @@ export const authService = {
 
     if (userError) throw userError;
 
-    const { error } = await supabase.auth.admin.updateUserById(userData.auth_id, {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userData.auth_id, {
       password: newPassword,
     });
 
@@ -220,7 +220,7 @@ export const authService = {
     if (userError) throw userError;
 
     // Deletar do auth (cascade vai deletar da tabela users)
-    const { error } = await supabase.auth.admin.deleteUser(userData.auth_id);
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userData.auth_id);
     if (error) throw error;
   },
 
