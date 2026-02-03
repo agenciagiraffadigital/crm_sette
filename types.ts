@@ -36,6 +36,26 @@ export interface Address {
   uf: string;
 }
 
+export interface ResponsavelFinanceiro {
+  id: string;
+  lead_id: number;
+  nome: string;
+  cpf: string;
+  rg?: string;
+  data_nascimento?: string;
+  telefone?: string;
+  email?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Beneficiary {
   id: string;
   nome: string;
@@ -89,6 +109,10 @@ export interface Lead {
     data_nascimento: string;
   };
   havera_remissao?: boolean;
+
+  // Responsável Financeiro
+  titular_eh_responsavel_financeiro?: boolean;
+  responsavel_financeiro?: ResponsavelFinanceiro;
 
   // Common Product Info
   operadora: string;

@@ -64,6 +64,7 @@ export const leadService = {
     return leads;
   },
 
+  // Get lead by ID with responsavel financeiro
   getLeadById: async (id: number): Promise<Lead> => {
     const { data, error } = await supabase
       .from('leads')
@@ -71,6 +72,21 @@ export const leadService = {
       .eq('id', id)
       .single();
     if (error || !data) throw new Error("Lead not found");
+    
+    // Buscar responsável financeiro se existir
+    let responsavel_financeiro = undefined;
+    if (!data.titular_eh_responsavel_financeiro) {
+      const { data: respData, error: respError } = await supabase
+        .from('responsaveis_financeiros')
+        .select('*')
+        .eq('lead_id', id)
+        .maybeSingle();
+      
+      if (!respError && respData) {
+        responsavel_financeiro = respData;
+      }
+    }
+    
     return {
       id: data.id,
       nome: data.nome,
@@ -82,6 +98,8 @@ export const leadService = {
       data_nascimento_abertura: data.data_nascimento_abertura,
       dados_responsavel: data.dados_responsavel,
       havera_remissao: data.havera_remissao,
+      titular_eh_responsavel_financeiro: data.titular_eh_responsavel_financeiro ?? true,
+      responsavel_financeiro,
       operadora: data.operadora,
       produto: data.produto,
       valor_produto: data.valor_produto,
@@ -124,6 +142,7 @@ export const leadService = {
         data_nascimento_abertura: lead.data_nascimento_abertura,
         dados_responsavel: lead.dados_responsavel,
         havera_remissao: lead.havera_remissao,
+        titular_eh_responsavel_financeiro: lead.titular_eh_responsavel_financeiro ?? true,
         operadora: lead.operadora,
         produto: lead.produto,
         valor_produto: lead.valor_produto || null,
@@ -153,6 +172,67 @@ export const leadService = {
       })
       .eq('id', lead.id);
     if (error) throw error;
+    
+    // Gerenciar responsável financeiro
+    if (!lead.titular_eh_responsavel_financeiro && lead.responsavel_financeiro) {
+      const respData = lead.responsavel_financeiro;
+      
+      // Verificar se já existe
+      const { data: existing } = await supabase
+        .from('responsaveis_financeiros')
+        .select('id')
+        .eq('lead_id', lead.id)
+        .maybeSingle();
+      
+      if (existing) {
+        // Atualizar
+        await supabase
+          .from('responsaveis_financeiros')
+          .update({
+            nome: respData.nome,
+            cpf: respData.cpf,
+            rg: respData.rg,
+            data_nascimento: respData.data_nascimento,
+            telefone: respData.telefone,
+            email: respData.email,
+            cep: respData.cep,
+            logradouro: respData.logradouro,
+            numero: respData.numero,
+            complemento: respData.complemento,
+            bairro: respData.bairro,
+            cidade: respData.cidade,
+            estado: respData.estado,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id);
+      } else {
+        // Criar
+        await supabase
+          .from('responsaveis_financeiros')
+          .insert({
+            lead_id: lead.id,
+            nome: respData.nome,
+            cpf: respData.cpf,
+            rg: respData.rg,
+            data_nascimento: respData.data_nascimento,
+            telefone: respData.telefone,
+            email: respData.email,
+            cep: respData.cep,
+            logradouro: respData.logradouro,
+            numero: respData.numero,
+            complemento: respData.complemento,
+            bairro: respData.bairro,
+            cidade: respData.cidade,
+            estado: respData.estado,
+          });
+      }
+    } else if (lead.titular_eh_responsavel_financeiro) {
+      // Deletar responsável financeiro se titular passou a ser o responsável
+      await supabase
+        .from('responsaveis_financeiros')
+        .delete()
+        .eq('lead_id', lead.id);
+    }
     
     if (currentUser) {
       await leadService.addActivityLog(lead.id, {

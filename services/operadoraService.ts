@@ -22,6 +22,7 @@ export const operadoraService = {
     const { data, error } = await supabase
       .from('operadoras')
       .select('*')
+      .eq('ativa', true)
       .order('nome');
     
     if (error) throw error;

@@ -5,7 +5,7 @@ import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
 import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X } from 'lucide-react';
-import { maskPhone, maskCPFOrCNPJ, unmask } from '../utils/masks';
+import { maskPhone, maskCPFOrCNPJ, unmask, maskRG } from '../utils/masks';
 import { maskCEP } from '../utils/cepMask';
 import { formatStatus, formatDateTime } from '../utils/formatters';
 import { WhatsAppModal } from './WhatsAppModal';
@@ -83,11 +83,11 @@ const Select = ({
     <select
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
     >
       <option value="">Selecione...</option>
-      {options.map((opt: any) => (
-        <option key={opt.value || opt} value={opt.value || opt}>
+      {options.map((opt: any, idx) => (
+        <option key={idx} value={opt.value || opt}>
           {opt.label || opt}
         </option>
       ))}
@@ -619,7 +619,189 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               onChange={(value) => handleChange('tipo_cliente', value)}
               options={['PF', 'PME', 'ADESAO']}
             />
+            <Select
+              label="Titular é o responsável financeiro?"
+              value={formData.titular_eh_responsavel_financeiro ? 'SIM' : 'NAO'}
+              onChange={(value) => {
+                const isTitular = value === 'SIM';
+                setFormData(prev => prev ? {
+                  ...prev,
+                  titular_eh_responsavel_financeiro: isTitular,
+                  responsavel_financeiro: isTitular ? undefined : (prev.responsavel_financeiro || {
+                    id: '',
+                    lead_id: prev.id,
+                    nome: '',
+                    cpf: '',
+                    rg: '',
+                    data_nascimento: '',
+                    telefone: '',
+                    email: '',
+                    cep: '',
+                    logradouro: '',
+                    numero: '',
+                    complemento: '',
+                    bairro: '',
+                    cidade: '',
+                    estado: '',
+                    created_at: '',
+                    updated_at: ''
+                  })
+                } : null);
+              }}
+              options={[
+                { value: 'SIM', label: 'Sim' },
+                { value: 'NAO', label: 'Não' }
+              ]}
+              required
+            />
           </div>
+
+          {!formData.titular_eh_responsavel_financeiro && (
+            <div className="mt-6 pt-6 border-t">
+              <h4 className="text-sm font-semibold text-gray-700 mb-4">Dados do Responsável Financeiro</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Input
+                  label="Nome Completo"
+                  value={formData.responsavel_financeiro?.nome || ''}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, nome: value }
+                  } : null)}
+                  icon={UserIcon}
+                  required
+                />
+                <Input
+                  label="CPF"
+                  value={maskCPFOrCNPJ(formData.responsavel_financeiro?.cpf || '')}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, cpf: unmask(value) }
+                  } : null)}
+                  mask={maskCPFOrCNPJ}
+                  required
+                />
+                <Input
+                  label="RG"
+                  value={maskRG(formData.responsavel_financeiro?.rg || '')}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, rg: unmask(value) }
+                  } : null)}
+                  mask={maskRG}
+                  placeholder="Ex: 12.345.678-9"
+                />
+                <Input
+                  label="Data de Nascimento"
+                  type="date"
+                  value={formData.responsavel_financeiro?.data_nascimento || ''}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, data_nascimento: value }
+                  } : null)}
+                />
+                <Input
+                  label="Telefone"
+                  value={maskPhone(formData.responsavel_financeiro?.telefone || '')}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, telefone: unmask(value) }
+                  } : null)}
+                  icon={Phone}
+                  mask={maskPhone}
+                />
+                <Input
+                  label="E-mail"
+                  type="email"
+                  value={formData.responsavel_financeiro?.email || ''}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, email: value }
+                  } : null)}
+                  icon={Mail}
+                />
+                <Input
+                  label="CEP"
+                  value={maskCEP(formData.responsavel_financeiro?.cep || '')}
+                  onChange={(value) => {
+                    const cleanCep = unmask(value);
+                    setFormData(prev => prev ? {
+                      ...prev,
+                      responsavel_financeiro: { ...prev.responsavel_financeiro!, cep: cleanCep }
+                    } : null);
+                    
+                    if (cleanCep.length === 8) {
+                      fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+                        .then(res => res.json())
+                        .then(data => {
+                          if (!data.erro) {
+                            setFormData(prev => prev ? {
+                              ...prev,
+                              responsavel_financeiro: {
+                                ...prev.responsavel_financeiro!,
+                                logradouro: data.logradouro || '',
+                                bairro: data.bairro || '',
+                                cidade: data.localidade || '',
+                                estado: data.uf || ''
+                              }
+                            } : null);
+                          }
+                        })
+                        .catch(console.error);
+                    }
+                  }}
+                  mask={maskCEP}
+                />
+                <Input
+                  label="Logradouro"
+                  value={formData.responsavel_financeiro?.logradouro || ''}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, logradouro: value }
+                  } : null)}
+                />
+                <Input
+                  label="Número"
+                  value={formData.responsavel_financeiro?.numero || ''}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, numero: value }
+                  } : null)}
+                />
+                <Input
+                  label="Complemento"
+                  value={formData.responsavel_financeiro?.complemento || ''}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, complemento: value }
+                  } : null)}
+                />
+                <Input
+                  label="Bairro"
+                  value={formData.responsavel_financeiro?.bairro || ''}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, bairro: value }
+                  } : null)}
+                />
+                <Input
+                  label="Cidade"
+                  value={formData.responsavel_financeiro?.cidade || ''}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, cidade: value }
+                  } : null)}
+                />
+                <Input
+                  label="Estado"
+                  value={formData.responsavel_financeiro?.estado || ''}
+                  onChange={(value) => setFormData(prev => prev ? {
+                    ...prev,
+                    responsavel_financeiro: { ...prev.responsavel_financeiro!, estado: value }
+                  } : null)}
+                />
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Address */}
@@ -664,23 +846,48 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         {/* Product Info */}
         <Card title="Produto" icon={Package}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Select
-              label="Operadora"
-              value={formData.operadora}
-              onChange={(value) => {
-                handleChange('operadora', value);
-                handleChange('produto', ''); // Reset produto when operadora changes
-              }}
-              options={operadoras.map(op => op.nome)}
-              required
-            />
-            <Select
-              label="Produto"
-              value={formData.produto}
-              onChange={(value) => handleChange('produto', value)}
-              options={produtos.map(p => p.nome)}
-              required
-            />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                Operadora
+                <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.operadora || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => prev ? { ...prev, operadora: value, produto: '' } : null);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">Selecione...</option>
+                {operadoras.map((op) => (
+                  <option key={op.id} value={op.nome}>
+                    {op.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                Produto
+                <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.produto || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => prev ? { ...prev, produto: value } : null);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">Selecione...</option>
+                {produtos.map((p) => (
+                  <option key={p.id} value={p.nome}>
+                    {p.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Input
               label="Valor (R$)"
               value={formData.valor_produto}

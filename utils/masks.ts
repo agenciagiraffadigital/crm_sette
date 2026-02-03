@@ -58,20 +58,23 @@ export const maskCPFOrCNPJ = (value: string): string => {
 export const maskRG = (value: string): string => {
   const cleaned = value.replace(/[^\dXx]/g, '').toUpperCase();
   
-  if (cleaned.length <= 8) {
-    // Formato: X.XXX.XXX
+  if (cleaned.length <= 7) {
+    // Até 7 dígitos sem formatação
+    return cleaned;
+  } else if (cleaned.length === 8) {
+    // 8 dígitos: X.XXX.XXX
     return cleaned
       .replace(/^(\d{1})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d)/, '$1.$2');
   } else if (cleaned.length === 9) {
-    // Formato: XX.XXX.XXX-X
+    // 9 dígitos: XX.XXX.XXX-X
     return cleaned
       .replace(/^(\d{2})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d)/, '$1.$2')
       .replace(/(\d{3})(\d{1})$/, '$1-$2');
   } else {
-    // Formato livre para RGs mais longos (até 12 caracteres)
-    return cleaned.slice(0, 12);
+    // Limita a 9 dígitos
+    return cleaned.slice(0, 9);
   }
 };
 
