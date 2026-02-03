@@ -65,6 +65,13 @@ export interface Beneficiary {
   data_nascimento: string;
   parentesco: string; // Titular, Conjugue, Filho, etc.
   type: 'TITULAR' | 'DEPENDENTE';
+  // Endereço
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
 }
 
 export interface LeadMessage {
@@ -113,6 +120,9 @@ export interface Lead {
   // Responsável Financeiro
   titular_eh_responsavel_financeiro?: boolean;
   responsavel_financeiro?: ResponsavelFinanceiro;
+
+  // Beneficiários
+  possui_dependentes?: boolean;
 
   // Common Product Info
   operadora: string;

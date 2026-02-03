@@ -86,6 +86,34 @@ export const leadService = {
         responsavel_financeiro = respData;
       }
     }
+
+    // Buscar beneficiários se possui dependentes
+    let beneficiarios = data.beneficiarios || [];
+    if (data.possui_dependentes) {
+      const { data: benData, error: benError } = await supabase
+        .from('beneficiarios')
+        .select('*')
+        .eq('lead_id', id);
+      
+      if (!benError && benData) {
+        beneficiarios = benData.map(ben => ({
+          id: ben.id,
+          nome: ben.nome,
+          cpf: ben.cpf,
+          email: ben.email,
+          telefone: ben.telefone,
+          data_nascimento: ben.data_nascimento,
+          parentesco: 'Titular',
+          type: 'TITULAR' as const,
+          cep: ben.cep,
+          logradouro: ben.logradouro,
+          numero: ben.numero,
+          bairro: ben.bairro,
+          cidade: ben.cidade,
+          estado: ben.estado
+        }));
+      }
+    }
     
     return {
       id: data.id,
@@ -100,6 +128,7 @@ export const leadService = {
       havera_remissao: data.havera_remissao,
       titular_eh_responsavel_financeiro: data.titular_eh_responsavel_financeiro ?? true,
       responsavel_financeiro,
+      possui_dependentes: data.possui_dependentes ?? false,
       operadora: data.operadora,
       produto: data.produto,
       valor_produto: data.valor_produto,
@@ -115,7 +144,7 @@ export const leadService = {
       cidade: data.cidade,
       estado: data.estado,
       endereco: data.endereco,
-      beneficiarios: data.beneficiarios,
+      beneficiarios,
       mensagens: data.mensagens,
       documentos: data.documentos,
       origem: data.origem,
@@ -143,6 +172,7 @@ export const leadService = {
         dados_responsavel: lead.dados_responsavel,
         havera_remissao: lead.havera_remissao,
         titular_eh_responsavel_financeiro: lead.titular_eh_responsavel_financeiro ?? true,
+        possui_dependentes: lead.possui_dependentes ?? false,
         operadora: lead.operadora,
         produto: lead.produto,
         valor_produto: lead.valor_produto || null,
@@ -230,6 +260,44 @@ export const leadService = {
       // Deletar responsável financeiro se titular passou a ser o responsável
       await supabase
         .from('responsaveis_financeiros')
+        .delete()
+        .eq('lead_id', lead.id);
+    }
+
+    // Gerenciar beneficiários
+    if (lead.possui_dependentes && lead.beneficiarios.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('beneficiarios')
+        .delete()
+        .eq('lead_id', lead.id);
+      
+      if (deleteError) console.error('Erro ao deletar beneficiários:', deleteError);
+      
+      const beneficiariosToInsert = lead.beneficiarios.map(ben => ({
+        lead_id: lead.id,
+        nome: ben.nome,
+        cpf: ben.cpf || null,
+        rg: null,
+        data_nascimento: ben.data_nascimento || null,
+        telefone: ben.telefone || null,
+        email: ben.email || null,
+        cep: ben.cep || null,
+        logradouro: ben.logradouro || null,
+        numero: ben.numero || null,
+        complemento: null,
+        bairro: ben.bairro || null,
+        cidade: ben.cidade || null,
+        estado: ben.estado || null
+      }));
+      
+      const { error: insertError } = await supabase
+        .from('beneficiarios')
+        .insert(beneficiariosToInsert);
+      
+      if (insertError) throw insertError;
+    } else if (!lead.possui_dependentes) {
+      await supabase
+        .from('beneficiarios')
         .delete()
         .eq('lead_id', lead.id);
     }

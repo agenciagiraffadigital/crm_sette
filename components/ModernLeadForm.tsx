@@ -558,7 +558,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         <div className="flex gap-2 mb-6">
           {[
             { id: 'info', label: 'Informações', icon: UserIcon },
-            { id: 'beneficiarios', label: `Beneficiários (${formData.beneficiarios.length})`, icon: Users },
+            ...(formData.possui_dependentes ? [{ id: 'beneficiarios', label: `Beneficiários (${formData.beneficiarios.length})`, icon: Users }] : []),
             { id: 'docs', label: `Documentos (${formData.documentos.length})`, icon: FileText },
             { id: 'notas', label: `Notas (${notes.length})`, icon: MessageSquare },
             { id: 'historico', label: `Histórico (${activityLogs.length})`, icon: MessageCircle }
@@ -654,6 +654,48 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               ]}
               required
             />
+            <Select
+              label="Possui dependentes?"
+              value={formData.possui_dependentes ? 'SIM' : 'NAO'}
+              onChange={(value) => handleChange('possui_dependentes', value === 'SIM')}
+              options={[
+                { value: 'NAO', label: 'Não' },
+                { value: 'SIM', label: 'Sim' }
+              ]}
+            />
+          </div>
+
+          {/* Botão Replicar Para Beneficiário */}
+          <div className="mt-6 pt-6 border-t">
+            <button
+              onClick={() => {
+                if (!formData) return;
+                const newBen: Beneficiary = {
+                  id: Math.random().toString(36).substr(2, 9),
+                  nome: formData.nome,
+                  data_nascimento: "",
+                  parentesco: "Titular",
+                  type: 'TITULAR',
+                  cpf: formData.cpf_cnpj,
+                  telefone: formData.telefone,
+                  email: formData.email,
+                  cep: formData.cep,
+                  logradouro: formData.logradouro,
+                  numero: formData.numero,
+                  bairro: formData.bairro,
+                  cidade: formData.cidade,
+                  estado: formData.estado
+                };
+                setFormData({ ...formData, beneficiarios: [...formData.beneficiarios, newBen], possui_dependentes: true });
+                setActiveTab('beneficiarios');
+                setSuccessMessage('Titular replicado para beneficiários!');
+                setShowSuccessModal(true);
+              }}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+            >
+              <Users className="w-4 h-4" />
+              Replicar Para Beneficiário
+            </button>
           </div>
 
           {!formData.titular_eh_responsavel_financeiro && (
@@ -921,11 +963,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         {/* Beneficiários Tab */}
         {activeTab === 'beneficiarios' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" />
-                Lista de Vidas
-              </h3>
+            <div className="flex justify-end items-center mb-6">
               <button 
                 onClick={addBeneficiary} 
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
@@ -935,44 +973,147 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               </button>
             </div>
 
-            <div className="space-y-4">
-              {formData.beneficiarios.length === 0 && (
-                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">Nenhum beneficiário cadastrado.</p>
-                </div>
-              )}
-              {formData.beneficiarios.map((ben) => (
-                <div key={ben.id} className="bg-white border border-gray-200 rounded-lg p-4 relative group">
-                  <button 
-                    onClick={() => removeBeneficiary(ben.id)} 
-                    className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
+            {formData.beneficiarios.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Nenhum beneficiário cadastrado.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {formData.beneficiarios.map((ben, index) => (
+                  <Card 
+                    key={ben.id} 
+                    title={`Beneficiário ${index + 1}`}
+                    icon={UserIcon}
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-12">
-                    <Input 
-                      label="Nome Completo" 
-                      value={ben.nome} 
-                      onChange={(v) => updateBeneficiary(ben.id, 'nome', v)} 
-                      required
-                    />
-                    <Input 
-                      label="Data Nascimento" 
-                      type="date" 
-                      value={ben.data_nascimento} 
-                      onChange={(v) => updateBeneficiary(ben.id, 'data_nascimento', v)} 
-                      required
-                    />
-                    <Input 
-                      label="Parentesco" 
-                      value={ben.parentesco} 
-                      onChange={(v) => updateBeneficiary(ben.id, 'parentesco', v)} 
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+                    <div className="relative">
+                      <button 
+                        onClick={() => removeBeneficiary(ben.id)} 
+                        className="absolute -top-2 -right-2 text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                        title="Remover beneficiário"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      
+                      <div className="space-y-6">
+                        {/* Dados Básicos */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-4">Dados Básicos</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <Input 
+                              label="Nome Completo" 
+                              value={ben.nome} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'nome', v)} 
+                              icon={UserIcon}
+                              required
+                            />
+                            <Input 
+                              label="CPF" 
+                              value={maskCPFOrCNPJ(ben.cpf || '')} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'cpf', unmask(v))} 
+                              mask={maskCPFOrCNPJ}
+                            />
+                            <Input 
+                              label="Data Nascimento" 
+                              type="date" 
+                              value={ben.data_nascimento} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'data_nascimento', v)} 
+                              required
+                            />
+                            <Input 
+                              label="Parentesco" 
+                              value={ben.parentesco} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'parentesco', v)} 
+                            />
+                            <Input 
+                              label="Telefone" 
+                              value={maskPhone(ben.telefone || '')} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'telefone', unmask(v))} 
+                              icon={Phone}
+                              mask={maskPhone}
+                            />
+                            <Input 
+                              label="E-mail" 
+                              type="email" 
+                              value={ben.email || ''} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'email', v)} 
+                              icon={Mail}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Endereço */}
+                        <div className="pt-4 border-t">
+                          <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-blue-600" />
+                            Endereço
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <Input 
+                              label="CEP" 
+                              value={maskCEP(ben.cep || '')} 
+                              onChange={(v) => {
+                                const cleanCep = unmask(v);
+                                updateBeneficiary(ben.id, 'cep', cleanCep);
+                                if (cleanCep.length === 8) {
+                                  fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+                                    .then(res => res.json())
+                                    .then(data => {
+                                      if (!data.erro && formData) {
+                                        const updated = formData.beneficiarios.map(b => 
+                                          b.id === ben.id ? {
+                                            ...b,
+                                            logradouro: data.logradouro || '',
+                                            bairro: data.bairro || '',
+                                            cidade: data.localidade || '',
+                                            estado: data.uf || ''
+                                          } : b
+                                        );
+                                        setFormData({ ...formData, beneficiarios: updated });
+                                      }
+                                    })
+                                    .catch(console.error);
+                                }
+                              }} 
+                              mask={maskCEP}
+                              placeholder="00000-000"
+                            />
+                            <div className="md:col-span-2">
+                              <Input 
+                                label="Logradouro" 
+                                value={ben.logradouro || ''} 
+                                onChange={(v) => updateBeneficiary(ben.id, 'logradouro', v)} 
+                              />
+                            </div>
+                            <Input 
+                              label="Número" 
+                              value={ben.numero || ''} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'numero', v)} 
+                            />
+                            <Input 
+                              label="Bairro" 
+                              value={ben.bairro || ''} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'bairro', v)} 
+                            />
+                            <Input 
+                              label="Cidade" 
+                              value={ben.cidade || ''} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'cidade', v)} 
+                            />
+                            <Input 
+                              label="Estado" 
+                              value={ben.estado || ''} 
+                              onChange={(v) => updateBeneficiary(ben.id, 'estado', v)} 
+                              placeholder="UF"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
