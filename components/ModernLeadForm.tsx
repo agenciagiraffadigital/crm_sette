@@ -4,6 +4,7 @@ import { KANBAN_COLUMNS, OPPORTUNITY_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
+import { documentoConfigService } from '../services/documentoConfigService';
 import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask, maskRG } from '../utils/masks';
 import { maskCEP } from '../utils/cepMask';
@@ -13,6 +14,8 @@ import { WinDialog } from './WinDialog';
 import { LostDialog } from './LostDialog';
 import { ErrorDialog } from './ErrorDialog';
 import { NotesDialog } from './NotesDialog';
+import { BeneficiarioDocumentos } from './BeneficiarioDocumentos';
+import { getBeneficiarioDocumentoStatus } from '../utils/documentoStatus';
 
 interface ModernLeadFormProps {
   leadId: number;
@@ -39,7 +42,9 @@ const Input = ({
   icon?: React.ComponentType<any>;
   required?: boolean;
   mask?: (value: string) => string;
-}) => (
+}) => {
+  const isEmpty = required && (!value || value.trim() === '');
+  return (
   <div className="space-y-2">
     <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
       {Icon && <Icon className="w-4 h-4" />}
@@ -54,10 +59,13 @@ const Input = ({
         onChange(newValue);
       }}
       placeholder={placeholder}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+        isEmpty ? 'border-red-500 bg-red-50' : 'border-gray-300'
+      }`}
     />
   </div>
-);
+  );
+};
 
 const Select = ({ 
   label, 
@@ -73,7 +81,9 @@ const Select = ({
   options: (string | {value: string, label: string})[];
   icon?: React.ComponentType<any>;
   required?: boolean;
-}) => (
+}) => {
+  const isEmpty = required && (!value || value === '');
+  return (
   <div className="space-y-2">
     <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
       {Icon && <Icon className="w-4 h-4" />}
@@ -83,7 +93,9 @@ const Select = ({
     <select
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white ${
+        isEmpty ? 'border-red-500 bg-red-50' : 'border-gray-300'
+      }`}
     >
       <option value="">Selecione...</option>
       {options.map((opt: any, idx) => (
@@ -93,17 +105,18 @@ const Select = ({
       ))}
     </select>
   </div>
-);
+  );
+};
 
 const Card = ({ title, children, icon: Icon }: {
-  title: string;
+  title: string | React.ReactNode;
   children: React.ReactNode;
   icon?: React.ComponentType<any>;
 }) => (
   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
       {Icon && <Icon className="w-5 h-5 text-blue-600" />}
-      {title}
+      {typeof title === 'string' ? title : <div className="flex-1">{title}</div>}
     </h3>
     {children}
   </div>
@@ -136,6 +149,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [expandedBeneficiario, setExpandedBeneficiario] = useState<string | null>(null);
+  const [beneficiariosStatus, setBeneficiariosStatus] = useState<Map<string, any>>(new Map());
   
   // Notes state
   const [notesDialog, setNotesDialog] = useState({ isOpen: false, loading: false });
@@ -164,7 +179,25 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     const loadLead = async () => {
       try {
         const data = await leadService.getLeadById(leadId);
-        if (data) setFormData(data);
+        if (data) {
+          setFormData(data);
+          // Carregar status dos documentos de cada beneficiário e dependentes
+          if (data.beneficiarios && data.beneficiarios.length > 0) {
+            const statusMap = new Map();
+            for (const ben of data.beneficiarios) {
+              const status = await getBeneficiarioDocumentoStatus(ben.id);
+              statusMap.set(ben.id, status);
+              // Carregar status dos dependentes
+              if (ben.dependentes) {
+                for (const dep of ben.dependentes) {
+                  const depStatus = await getBeneficiarioDocumentoStatus(dep.id);
+                  statusMap.set(dep.id, depStatus);
+                }
+              }
+            }
+            setBeneficiariosStatus(statusMap);
+          }
+        }
         
         const logs = await leadService.getActivityLogs(leadId);
         setActivityLogs(logs);
@@ -265,20 +298,60 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       nome: "",
       data_nascimento: "",
       parentesco: "Titular",
-      type: 'DEPENDENTE'
+      type: 'TITULAR',
+      dependentes: []
     };
     setFormData({ ...formData, beneficiarios: [...formData.beneficiarios, newBen] });
   };
 
+  const addDependente = (titularId: string) => {
+    if (!formData) return;
+    const newDep: Beneficiary = {
+      id: Math.random().toString(36).substr(2, 9),
+      nome: "",
+      data_nascimento: "",
+      parentesco: "Dependente",
+      type: 'DEPENDENTE',
+      titular_id: titularId
+    };
+    
+    const updated = formData.beneficiarios.map(b => {
+      if (b.id === titularId) {
+        return { ...b, dependentes: [...(b.dependentes || []), newDep] };
+      }
+      return b;
+    });
+    setFormData({ ...formData, beneficiarios: updated });
+  };
+
   const updateBeneficiary = (id: string, field: keyof Beneficiary, value: string) => {
     if (!formData) return;
-    const updated = formData.beneficiarios.map(b => b.id === id ? { ...b, [field]: value } : b);
+    const updated = formData.beneficiarios.map(b => {
+      if (b.id === id) return { ...b, [field]: value };
+      // Atualizar dependente
+      if (b.dependentes) {
+        const depUpdated = b.dependentes.map(d => d.id === id ? { ...d, [field]: value } : d);
+        return { ...b, dependentes: depUpdated };
+      }
+      return b;
+    });
     setFormData({ ...formData, beneficiarios: updated });
   };
 
   const removeBeneficiary = (id: string) => {
     if (!formData) return;
     setFormData({ ...formData, beneficiarios: formData.beneficiarios.filter(b => b.id !== id) });
+  };
+
+  const removeDependente = (titularId: string, dependenteId: string) => {
+    if (!formData) return;
+    const updated = formData.beneficiarios.map(b => {
+      if (b.id === titularId && b.dependentes) {
+        return { ...b, dependentes: b.dependentes.filter(d => d.id !== dependenteId) };
+      }
+      return b;
+    });
+    setFormData({ ...formData, beneficiarios: updated });
   };
 
   const handleOpenSellerModal = async () => {
@@ -370,6 +443,50 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
 
   const handleSubmit = async () => {
     if (!formData) return;
+    
+    // Validar campos obrigatórios
+    const errors: string[] = [];
+    
+    if (!formData.nome) errors.push('Nome');
+    if (!formData.email) errors.push('E-mail');
+    if (!formData.telefone) errors.push('Telefone');
+    if (!formData.operadora) errors.push('Operadora');
+    if (!formData.produto) errors.push('Produto');
+    
+    // Validar beneficiários
+    formData.beneficiarios.forEach((ben, idx) => {
+      if (!ben.nome) errors.push(`Beneficiário ${idx + 1}: Nome`);
+      if (!ben.cpf) errors.push(`Beneficiário ${idx + 1}: CPF`);
+      if (!ben.data_nascimento) errors.push(`Beneficiário ${idx + 1}: Data de Nascimento`);
+      
+      // Validar dependentes
+      ben.dependentes?.forEach((dep, depIdx) => {
+        if (!dep.nome) errors.push(`Beneficiário ${idx + 1} - Dependente ${depIdx + 1}: Nome`);
+        if (!dep.cpf) errors.push(`Beneficiário ${idx + 1} - Dependente ${depIdx + 1}: CPF`);
+        if (!dep.data_nascimento) errors.push(`Beneficiário ${idx + 1} - Dependente ${depIdx + 1}: Data de Nascimento`);
+      });
+    });
+    
+    if (errors.length > 0) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    
+    // Validar documentos se estiver mudando para ANÁLISE
+    if (formData.status_kanban === 'ANÁLISE') {
+      try {
+        const { completo, pendentes } = await documentoConfigService.checkDocumentosCompletos(formData.id);
+        if (!completo) {
+          const msg = `⚠️ Documentação Incompleta\n\nNão é possível enviar para ANÁLISE.\n\nDocumentos pendentes:\n${pendentes.map(p => `• ${p}`).join('\n')}`;
+          setErrorMessage(msg);
+          setShowErrorDialog(true);
+          return;
+        }
+      } catch (error) {
+        console.error('Erro ao validar documentos:', error);
+      }
+    }
+    
     setSaving(true);
     try {
       const oldStatus = formData.status_kanban;
@@ -402,10 +519,13 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       }
       
       onSave(updated);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Erro completo:', e);
-      setErrorMessage('Erro ao salvar lead');
-      setShowErrorDialog(true);
+      // Só mostrar erro se não for validação de campo obrigatório
+      if (e?.code !== '23502') {
+        setErrorMessage('Erro ao salvar lead');
+        setShowErrorDialog(true);
+      }
     } finally {
       setSaving(false);
     }
@@ -455,6 +575,12 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
 
             {/* Right */}
             <div className="flex items-center gap-3">
+              {formData.status_kanban === 'ENVIADA' && Array.from(beneficiariosStatus.values()).some(s => s.statusGeral !== 'completo') && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-yellow-600" />
+                  <span className="text-xs font-medium text-yellow-700">Documentos pendentes</span>
+                </div>
+              )}
               <select
                 value={formData.status_kanban}
                 onChange={(e) => handleChange('status_kanban', e.target.value)}
@@ -558,7 +684,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         <div className="flex gap-2 mb-6">
           {[
             { id: 'info', label: 'Informações', icon: UserIcon },
-            ...(formData.possui_dependentes ? [{ id: 'beneficiarios', label: `Beneficiários (${formData.beneficiarios.length})`, icon: Users }] : []),
+            { id: 'beneficiarios', label: `Beneficiários (${formData.beneficiarios.length})`, icon: Users },
             { id: 'docs', label: `Documentos (${formData.documentos.length})`, icon: FileText },
             { id: 'notas', label: `Notas (${notes.length})`, icon: MessageSquare },
             { id: 'historico', label: `Histórico (${activityLogs.length})`, icon: MessageCircle }
@@ -654,15 +780,6 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               ]}
               required
             />
-            <Select
-              label="Possui dependentes?"
-              value={formData.possui_dependentes ? 'SIM' : 'NAO'}
-              onChange={(value) => handleChange('possui_dependentes', value === 'SIM')}
-              options={[
-                { value: 'NAO', label: 'Não' },
-                { value: 'SIM', label: 'Sim' }
-              ]}
-            />
           </div>
 
           {/* Botão Replicar Para Beneficiário */}
@@ -686,7 +803,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   cidade: formData.cidade,
                   estado: formData.estado
                 };
-                setFormData({ ...formData, beneficiarios: [...formData.beneficiarios, newBen], possui_dependentes: true });
+                setFormData({ ...formData, beneficiarios: [...formData.beneficiarios, newBen] });
                 setActiveTab('beneficiarios');
                 setSuccessMessage('Titular replicado para beneficiários!');
                 setShowSuccessModal(true);
@@ -963,6 +1080,40 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         {/* Beneficiários Tab */}
         {activeTab === 'beneficiarios' && (
           <div className="space-y-6">
+            {/* Resumo Geral */}
+            {formData.beneficiarios.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-blue-900 mb-1">Status da Documentação</h4>
+                    <p className="text-sm text-blue-700">
+                      {Array.from(beneficiariosStatus.values()).filter(s => s.statusGeral === 'completo').length} de {formData.beneficiarios.length} beneficiários com documentação completa
+                    </p>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {Array.from(beneficiariosStatus.values()).reduce((acc, s) => acc + s.aprovados, 0)}
+                      </div>
+                      <div className="text-xs text-gray-600">Aprovados</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {Array.from(beneficiariosStatus.values()).reduce((acc, s) => acc + s.enviados, 0)}
+                      </div>
+                      <div className="text-xs text-gray-600">Aguardando</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-600">
+                        {Array.from(beneficiariosStatus.values()).reduce((acc, s) => acc + s.pendentes + s.rejeitados, 0)}
+                      </div>
+                      <div className="text-xs text-gray-600">Pendentes</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end items-center mb-6">
               <button 
                 onClick={addBeneficiary} 
@@ -980,10 +1131,37 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               </div>
             ) : (
               <div className="space-y-6">
-                {formData.beneficiarios.map((ben, index) => (
+                {formData.beneficiarios.map((ben, index) => {
+                  const isExpanded = expandedBeneficiario === ben.id;
+                  const docStatus = beneficiariosStatus.get(ben.id);
+                  return (
                   <Card 
                     key={ben.id} 
-                    title={`Beneficiário ${index + 1}`}
+                    title={
+                      <div className="flex items-center justify-between w-full">
+                        <span>Beneficiário {index + 1} - {ben.nome || 'Sem nome'}</span>
+                        {docStatus && docStatus.total > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600">
+                              {docStatus.aprovados}/{docStatus.total} docs
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                              docStatus.statusGeral === 'completo' ? 'bg-green-100 text-green-700' :
+                              docStatus.statusGeral === 'aguardando' ? 'bg-yellow-100 text-yellow-700' :
+                              docStatus.statusGeral === 'rejeitado' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {docStatus.icone} {
+                                docStatus.statusGeral === 'completo' ? 'Completo' :
+                                docStatus.statusGeral === 'aguardando' ? 'Aguardando' :
+                                docStatus.statusGeral === 'rejeitado' ? 'Rejeitado' :
+                                'Pendente'
+                              }
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    }
                     icon={UserIcon}
                   >
                     <div className="relative">
@@ -995,10 +1173,56 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                         <Trash2 className="w-4 h-4" />
                       </button>
                       
+                      {/* Tabs */}
+                      <div className="flex gap-2 mb-4 border-b border-gray-200">
+                        <button
+                          onClick={() => setExpandedBeneficiario(isExpanded ? null : ben.id)}
+                          className={`px-4 py-2 text-sm font-medium transition-colors ${
+                            !isExpanded ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          Dados Básicos
+                        </button>
+                        <button
+                          onClick={() => setExpandedBeneficiario(ben.id)}
+                          className={`px-4 py-2 text-sm font-medium transition-colors ${
+                            isExpanded ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          Documentos
+                        </button>
+                      </div>
+
+                      {!isExpanded ? (
                       <div className="space-y-6">
                         {/* Dados Básicos */}
                         <div>
-                          <h4 className="text-sm font-semibold text-gray-700 mb-4">Dados Básicos</h4>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-sm font-semibold text-gray-700">Dados Básicos</h4>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-600">Possui dependentes?</span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={ben.dependentes && ben.dependentes.length > 0}
+                                  onChange={(e) => {
+                                    if (e.target.checked && (!ben.dependentes || ben.dependentes.length === 0)) {
+                                      addDependente(ben.id);
+                                    } else if (!e.target.checked && ben.dependentes && ben.dependentes.length > 0) {
+                                      if (confirm('Isso removerá todos os dependentes. Confirma?')) {
+                                        const updated = formData.beneficiarios.map(b => 
+                                          b.id === ben.id ? { ...b, dependentes: [] } : b
+                                        );
+                                        setFormData({ ...formData, beneficiarios: updated });
+                                      }
+                                    }
+                                  }}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                              </label>
+                            </div>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <Input 
                               label="Nome Completo" 
@@ -1012,6 +1236,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                               value={maskCPFOrCNPJ(ben.cpf || '')} 
                               onChange={(v) => updateBeneficiary(ben.id, 'cpf', unmask(v))} 
                               mask={maskCPFOrCNPJ}
+                              required
                             />
                             <Input 
                               label="Data Nascimento" 
@@ -1108,10 +1333,240 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                             />
                           </div>
                         </div>
+
+                        {/* Dependentes */}
+                        {ben.dependentes && ben.dependentes.length > 0 && (
+                        <div className="pt-4 border-t">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                              <Users className="w-4 h-4 text-blue-600" />
+                              Dependentes ({ben.dependentes.length})
+                            </h4>
+                            <button
+                              onClick={() => addDependente(ben.id)}
+                              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Adicionar
+                            </button>
+                          </div>
+
+                          {ben.dependentes && ben.dependentes.length > 0 ? (
+                            <div className="space-y-4">
+                              {ben.dependentes.map((dep, depIndex) => {
+                                const depDocStatus = beneficiariosStatus.get(dep.id);
+                                const isDepExpanded = expandedBeneficiario === dep.id;
+                                return (
+                                <div key={dep.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <h5 className="text-sm font-medium text-gray-700">Dependente {depIndex + 1} - {dep.nome || 'Sem nome'}</h5>
+                                      {depDocStatus && depDocStatus.total > 0 && (
+                                        <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                                          depDocStatus.statusGeral === 'completo' ? 'bg-green-100 text-green-700' :
+                                          depDocStatus.statusGeral === 'aguardando' ? 'bg-yellow-100 text-yellow-700' :
+                                          depDocStatus.statusGeral === 'rejeitado' ? 'bg-red-100 text-red-700' :
+                                          'bg-gray-100 text-gray-700'
+                                        }`}>
+                                          {depDocStatus.icone} {depDocStatus.aprovados}/{depDocStatus.total}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() => removeDependente(ben.id, dep.id)}
+                                      className="text-red-500 hover:text-red-700 p-1"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+
+                                  {/* Tabs Dependente */}
+                                  <div className="flex gap-2 mb-3 border-b border-gray-300">
+                                    <button
+                                      onClick={() => setExpandedBeneficiario(isDepExpanded ? null : dep.id)}
+                                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                                        !isDepExpanded ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'
+                                      }`}
+                                    >
+                                      Dados
+                                    </button>
+                                    <button
+                                      onClick={() => setExpandedBeneficiario(dep.id)}
+                                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                                        isDepExpanded ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'
+                                      }`}
+                                    >
+                                      Documentos
+                                    </button>
+                                  </div>
+
+                                  {!isDepExpanded ? (
+                                    <div className="space-y-3">
+                                      {/* Dados Básicos */}
+                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        <Input 
+                                          label="Nome Completo" 
+                                          value={dep.nome} 
+                                          onChange={(v) => updateBeneficiary(dep.id, 'nome', v)} 
+                                          required
+                                        />
+                                        <Input 
+                                          label="CPF" 
+                                          value={maskCPFOrCNPJ(dep.cpf || '')} 
+                                          onChange={(v) => updateBeneficiary(dep.id, 'cpf', unmask(v))} 
+                                          mask={maskCPFOrCNPJ}
+                                          required
+                                        />
+                                        <Input 
+                                          label="RG" 
+                                          value={maskRG(dep.rg || '')} 
+                                          onChange={(v) => updateBeneficiary(dep.id, 'rg', unmask(v))} 
+                                          mask={maskRG}
+                                        />
+                                        <Input 
+                                          label="Data Nascimento" 
+                                          type="date" 
+                                          value={dep.data_nascimento} 
+                                          onChange={(v) => updateBeneficiary(dep.id, 'data_nascimento', v)} 
+                                          required
+                                        />
+                                        <Input 
+                                          label="Parentesco" 
+                                          value={dep.parentesco} 
+                                          onChange={(v) => updateBeneficiary(dep.id, 'parentesco', v)} 
+                                          placeholder="Ex: Cônjuge, Filho(a)"
+                                        />
+                                        <Input 
+                                          label="Telefone" 
+                                          value={maskPhone(dep.telefone || '')} 
+                                          onChange={(v) => updateBeneficiary(dep.id, 'telefone', unmask(v))} 
+                                          mask={maskPhone}
+                                        />
+                                        <Input 
+                                          label="E-mail" 
+                                          type="email" 
+                                          value={dep.email || ''} 
+                                          onChange={(v) => updateBeneficiary(dep.id, 'email', v)} 
+                                        />
+                                      </div>
+
+                                      {/* Endereço */}
+                                      <div className="pt-3 border-t border-gray-300">
+                                        <h6 className="text-xs font-semibold text-gray-600 mb-2">Endereço</h6>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                                          <Input 
+                                            label="CEP" 
+                                            value={maskCEP(dep.cep || '')} 
+                                            onChange={(v) => {
+                                              const cleanCep = unmask(v);
+                                              updateBeneficiary(dep.id, 'cep', cleanCep);
+                                              if (cleanCep.length === 8) {
+                                                fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+                                                  .then(res => res.json())
+                                                  .then(data => {
+                                                    if (!data.erro && formData) {
+                                                      setFormData(prev => {
+                                                        if (!prev) return null;
+                                                        const updated = prev.beneficiarios.map(b => {
+                                                          if (b.dependentes) {
+                                                            const depsUpdated = b.dependentes.map(d => 
+                                                              d.id === dep.id ? {
+                                                                ...d,
+                                                                logradouro: data.logradouro || '',
+                                                                bairro: data.bairro || '',
+                                                                cidade: data.localidade || '',
+                                                                estado: data.uf || ''
+                                                              } : d
+                                                            );
+                                                            return { ...b, dependentes: depsUpdated };
+                                                          }
+                                                          return b;
+                                                        });
+                                                        return { ...prev, beneficiarios: updated };
+                                                      });
+                                                    }
+                                                  })
+                                                  .catch(console.error);
+                                              }
+                                            }} 
+                                            mask={maskCEP}
+                                          />
+                                          <div className="md:col-span-2">
+                                            <Input 
+                                              label="Logradouro" 
+                                              value={dep.logradouro || ''} 
+                                              onChange={(v) => updateBeneficiary(dep.id, 'logradouro', v)} 
+                                            />
+                                          </div>
+                                          <Input 
+                                            label="Número" 
+                                            value={dep.numero || ''} 
+                                            onChange={(v) => updateBeneficiary(dep.id, 'numero', v)} 
+                                          />
+                                          <Input 
+                                            label="Bairro" 
+                                            value={dep.bairro || ''} 
+                                            onChange={(v) => updateBeneficiary(dep.id, 'bairro', v)} 
+                                          />
+                                          <Input 
+                                            label="Cidade" 
+                                            value={dep.cidade || ''} 
+                                            onChange={(v) => updateBeneficiary(dep.id, 'cidade', v)} 
+                                          />
+                                          <Input 
+                                            label="Estado" 
+                                            value={dep.estado || ''} 
+                                            onChange={(v) => updateBeneficiary(dep.id, 'estado', v)} 
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <BeneficiarioDocumentos
+                                        beneficiarioId={dep.id}
+                                        leadId={formData.id}
+                                        operadoraId={operadoras.find(op => op.nome === formData.operadora)?.id || 0}
+                                        produtoId={produtos.find(p => p.nome === formData.produto)?.id || 0}
+                                        tipoCliente={formData.tipo_cliente}
+                                        isAdmin={currentUser.role === 'ADMIN'}
+                                        currentUserId={currentUser.id}
+                                        onStatusChange={async () => {
+                                          const status = await getBeneficiarioDocumentoStatus(dep.id);
+                                          setBeneficiariosStatus(prev => new Map(prev).set(dep.id, status));
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                        )}
                       </div>
+                      ) : (
+                        <div>
+                          <BeneficiarioDocumentos
+                            beneficiarioId={ben.id}
+                            leadId={formData.id}
+                            operadoraId={operadoras.find(op => op.nome === formData.operadora)?.id || 0}
+                            produtoId={produtos.find(p => p.nome === formData.produto)?.id || 0}
+                            tipoCliente={formData.tipo_cliente}
+                            isAdmin={currentUser.role === 'ADMIN'}
+                            currentUserId={currentUser.id}
+                            onStatusChange={async () => {
+                              const status = await getBeneficiarioDocumentoStatus(ben.id);
+                              setBeneficiariosStatus(prev => new Map(prev).set(ben.id, status));
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

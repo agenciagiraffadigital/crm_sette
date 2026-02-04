@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
-import { Plus, Trash2, Building2, ArrowLeft, Package, Edit } from 'lucide-react';
+import { Plus, Trash2, Building2, ArrowLeft, Package, Edit, FileText } from 'lucide-react';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { SystemModal } from './SystemModal';
+import { DocumentoConfigPanel } from './DocumentoConfigPanel';
 
 export const OperadorasManagement: React.FC = () => {
   const [operadoras, setOperadoras] = useState<Operadora[]>([]);
   const [selectedOperadora, setSelectedOperadora] = useState<Operadora | null>(null);
+  const [selectedProduto, setSelectedProduto] = useState<Produto | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [novaOperadora, setNovaOperadora] = useState('');
   const [novoProduto, setNovoProduto] = useState('');
@@ -187,6 +189,17 @@ export const OperadorasManagement: React.FC = () => {
       <img src="/loading.gif" alt="Carregando..." className="w-16 h-16" />
     </div>
   );
+
+  // Configuração de Documentos
+  if (selectedProduto && selectedOperadora) {
+    return (
+      <DocumentoConfigPanel
+        operadora={selectedOperadora}
+        produto={selectedProduto}
+        onBack={() => setSelectedProduto(null)}
+      />
+    );
+  }
 
   // Lista de Operadoras
   if (!selectedOperadora) {
@@ -461,6 +474,13 @@ export const OperadorasManagement: React.FC = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={() => setSelectedProduto(prod)}
+                    className="text-blue-500 hover:text-blue-700 p-2 rounded hover:bg-blue-50"
+                    title="Configurar documentos"
+                  >
+                    <FileText className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => handleDeleteProduto(prod.id)}
                     className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50"

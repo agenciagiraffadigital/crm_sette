@@ -65,6 +65,7 @@ export interface Beneficiary {
   data_nascimento: string;
   parentesco: string; // Titular, Conjugue, Filho, etc.
   type: 'TITULAR' | 'DEPENDENTE';
+  titular_id?: string; // ID do titular (se for dependente)
   // Endereço
   cep?: string;
   logradouro?: string;
@@ -72,6 +73,36 @@ export interface Beneficiary {
   bairro?: string;
   cidade?: string;
   estado?: string;
+  // Documentos
+  documentos?: BeneficiarioDocumento[];
+  // Dependentes
+  dependentes?: Beneficiary[];
+}
+
+export interface DocumentoConfig {
+  id: string;
+  operadora_id: number;
+  produto_id: number;
+  tipo_cliente: ClientType;
+  nome_documento: string;
+  ordem: number;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BeneficiarioDocumento {
+  id: string;
+  beneficiario_id: string;
+  documento_config_id: string;
+  arquivo_nome?: string;
+  arquivo_url?: string;
+  status: 'PENDENTE' | 'ENVIADO' | 'APROVADO' | 'REJEITADO';
+  uploaded_at?: string;
+  approved_by?: number;
+  approved_at?: string;
+  motivo_rejeicao?: string;
+  documento_config?: DocumentoConfig;
 }
 
 export interface LeadMessage {
