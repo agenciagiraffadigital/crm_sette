@@ -87,32 +87,53 @@ export const leadService = {
       }
     }
 
-    // Buscar beneficiários se possui dependentes
-    let beneficiarios = data.beneficiarios || [];
-    if (data.possui_dependentes) {
-      const { data: benData, error: benError } = await supabase
-        .from('beneficiarios')
-        .select('*')
-        .eq('lead_id', id);
-      
-      if (!benError && benData) {
-        beneficiarios = benData.map(ben => ({
-          id: ben.id,
-          nome: ben.nome,
-          cpf: ben.cpf,
-          email: ben.email,
-          telefone: ben.telefone,
-          data_nascimento: ben.data_nascimento,
-          parentesco: 'Titular',
-          type: 'TITULAR' as const,
-          cep: ben.cep,
-          logradouro: ben.logradouro,
-          numero: ben.numero,
-          bairro: ben.bairro,
-          cidade: ben.cidade,
-          estado: ben.estado
-        }));
-      }
+    // Buscar beneficiários
+    const { data: benData, error: benError } = await supabase
+      .from('beneficiarios')
+      .select('*')
+      .eq('lead_id', id);
+    
+    let beneficiarios = [];
+    if (!benError && benData) {
+      // Agrupar titulares e dependentes
+      const titulares = benData.filter(b => b.tipo === 'TITULAR');
+      beneficiarios = titulares.map(titular => ({
+        id: titular.id,
+        nome: titular.nome,
+        cpf: titular.cpf,
+        rg: titular.rg,
+        email: titular.email,
+        telefone: titular.telefone,
+        data_nascimento: titular.data_nascimento,
+        parentesco: titular.parentesco,
+        type: 'TITULAR' as const,
+        cep: titular.cep,
+        logradouro: titular.logradouro,
+        numero: titular.numero,
+        complemento: titular.complemento,
+        bairro: titular.bairro,
+        cidade: titular.cidade,
+        estado: titular.estado,
+        dependentes: benData.filter(b => b.tipo === 'DEPENDENTE' && b.titular_id === titular.id).map(dep => ({
+          id: dep.id,
+          nome: dep.nome,
+          cpf: dep.cpf,
+          rg: dep.rg,
+          email: dep.email,
+          telefone: dep.telefone,
+          data_nascimento: dep.data_nascimento,
+          parentesco: dep.parentesco,
+          type: 'DEPENDENTE' as const,
+          titular_id: dep.titular_id,
+          cep: dep.cep,
+          logradouro: dep.logradouro,
+          numero: dep.numero,
+          complemento: dep.complemento,
+          bairro: dep.bairro,
+          cidade: dep.cidade,
+          estado: dep.estado
+        }))
+      }));
     }
     
     return {
@@ -264,42 +285,110 @@ export const leadService = {
         .eq('lead_id', lead.id);
     }
 
-    // Gerenciar beneficiários
-    if (lead.possui_dependentes && lead.beneficiarios.length > 0) {
-      const { error: deleteError } = await supabase
-        .from('beneficiarios')
-        .delete()
-        .eq('lead_id', lead.id);
+    // Gerenciar beneficiários - sempre salvar se houver
+    if (lead.beneficiarios && lead.beneficiarios.length > 0) {
+      // Deletar todos os beneficiários existentes
+      await supabase.from('beneficiarios').delete().eq('lead_id', lead.id);
       
-      if (deleteError) console.error('Erro ao deletar beneficiários:', deleteError);
+      // Inserir titulares e dependentes
+      const allBeneficiarios: any[] = [];
       
-      const beneficiariosToInsert = lead.beneficiarios.map(ben => ({
-        lead_id: lead.id,
-        nome: ben.nome,
-        cpf: ben.cpf || null,
-        rg: null,
-        data_nascimento: ben.data_nascimento || null,
-        telefone: ben.telefone || null,
-        email: ben.email || null,
-        cep: ben.cep || null,
-        logradouro: ben.logradouro || null,
-        numero: ben.numero || null,
-        complemento: null,
-        bairro: ben.bairro || null,
-        cidade: ben.cidade || null,
-        estado: ben.estado || null
-      }));
+      lead.beneficiarios.forEach(titular => {
+        allBeneficiarios.push({
+          lead_id: lead.id,
+          nome: titular.nome,
+          cpf: titular.cpf || null,
+          rg: titular.rg || null,
+          data_nascimento: titular.data_nascimento || null,
+          telefone: titular.telefone || null,
+          email: titular.email || null,
+          cep: titular.cep || null,
+          logradouro: titular.logradouro || null,
+          numero: titular.numero || null,
+          complemento: titular.complemento || null,
+          bairro: titular.bairro || null,
+          cidade: titular.cidade || null,
+          estado: titular.estado || null,
+          parentesco: titular.parentesco || 'Titular',
+          tipo: 'TITULAR'
+        });
+        
+        if (titular.dependentes) {
+          titular.dependentes.forEach(dep => {
+            allBeneficiarios.push({
+              lead_id: lead.id,
+              nome: dep.nome,
+              cpf: dep.cpf || null,
+              rg: dep.rg || null,
+              data_nascimento: dep.data_nascimento || null,
+              telefone: dep.telefone || null,
+              email: dep.email || null,
+              cep: dep.cep || null,
+              logradouro: dep.logradouro || null,
+              numero: dep.numero || null,
+              complemento: dep.complemento || null,
+              bairro: dep.bairro || null,
+              cidade: dep.cidade || null,
+              estado: dep.estado || null,
+              parentesco: dep.parentesco || 'Dependente',
+              tipo: 'DEPENDENTE'
+            });
+          });
+        }
+      });
       
-      const { error: insertError } = await supabase
-        .from('beneficiarios')
-        .insert(beneficiariosToInsert);
-      
-      if (insertError) throw insertError;
-    } else if (!lead.possui_dependentes) {
-      await supabase
-        .from('beneficiarios')
-        .delete()
-        .eq('lead_id', lead.id);
+      if (allBeneficiarios.length > 0) {
+        const { data: insertedBens, error: insertError } = await supabase
+          .from('beneficiarios')
+          .insert(allBeneficiarios)
+          .select();
+        
+        if (insertError) throw insertError;
+        
+        // Criar documentos obrigatórios para cada beneficiário
+        if (insertedBens && lead.operadora && lead.produto && lead.tipo_cliente) {
+          const { data: operadora } = await supabase
+            .from('operadoras')
+            .select('id')
+            .eq('nome', lead.operadora)
+            .single();
+          
+          const { data: produto } = await supabase
+            .from('produtos')
+            .select('id')
+            .eq('nome', lead.produto)
+            .single();
+          
+          if (operadora && produto) {
+            const { data: configs } = await supabase
+              .from('documento_configs')
+              .select('id')
+              .eq('operadora_id', operadora.id)
+              .eq('produto_id', produto.id)
+              .eq('tipo_cliente', lead.tipo_cliente)
+              .eq('ativo', true);
+            
+            if (configs && configs.length > 0) {
+              const docsToCreate = [];
+              for (const ben of insertedBens) {
+                for (const config of configs) {
+                  docsToCreate.push({
+                    beneficiario_id: ben.id,
+                    documento_config_id: config.id,
+                    status: 'PENDENTE'
+                  });
+                }
+              }
+              
+              if (docsToCreate.length > 0) {
+                await supabase.from('beneficiario_documentos').insert(docsToCreate);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      await supabase.from('beneficiarios').delete().eq('lead_id', lead.id);
     }
     
     if (currentUser) {
@@ -311,7 +400,7 @@ export const leadService = {
       });
     }
     
-    return lead;
+    return await leadService.getLeadById(lead.id);
   },
 
   updateLeadStatus: async function(id: number, status: KanbanStatus, currentUser?: User): Promise<Lead> {

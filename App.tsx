@@ -111,6 +111,10 @@ function App() {
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
+    if (loggedInUser.role === 'SELLER') {
+      setActiveTab('opportunities');
+      localStorage.setItem('activeTab', 'opportunities');
+    }
   };
 
   const handleLogout = async () => {

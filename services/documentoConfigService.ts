@@ -103,7 +103,7 @@ class DocumentoConfigService {
         documento_config_id: documentoConfigId,
         status: 'PENDENTE'
       })
-      .select()
+      .select('*, documento_config:documento_configs(*)')
       .single();
     
     if (error) throw error;
@@ -183,27 +183,51 @@ class DocumentoConfigService {
   }
 
   async checkDocumentosCompletos(leadId: number): Promise<{ completo: boolean; pendentes: string[] }> {
-    // Buscar todos os beneficiários do lead
-    const { data: beneficiarios, error: benError } = await supabase
+    // Buscar todos os beneficiários titulares do lead
+    const { data: titulares, error: benError } = await supabase
       .from('beneficiarios')
-      .select('id, nome')
-      .eq('lead_id', leadId);
+      .select('id, nome, tipo')
+      .eq('lead_id', leadId)
+      .eq('tipo', 'TITULAR');
     
     if (benError) throw benError;
 
     const pendentes: string[] = [];
 
-    for (const ben of beneficiarios || []) {
-      const { data: docs } = await supabase
+    for (const titular of titulares || []) {
+      // Verificar documentos do titular
+      const { data: docsTitular } = await supabase
         .from('beneficiario_documentos')
         .select('status, documento_config:documento_configs(nome_documento)')
-        .eq('beneficiario_id', ben.id)
+        .eq('beneficiario_id', titular.id)
         .neq('status', 'APROVADO');
       
-      if (docs && docs.length > 0) {
-        docs.forEach(doc => {
-          pendentes.push(`${ben.nome}: ${(doc.documento_config as any)?.nome_documento}`);
+      if (docsTitular && docsTitular.length > 0) {
+        docsTitular.forEach(doc => {
+          pendentes.push(`${titular.nome}: ${(doc.documento_config as any)?.nome_documento}`);
         });
+      }
+
+      // Buscar dependentes do titular
+      const { data: dependentes } = await supabase
+        .from('beneficiarios')
+        .select('id, nome')
+        .eq('titular_id', titular.id)
+        .eq('tipo', 'DEPENDENTE');
+      
+      // Verificar documentos dos dependentes
+      for (const dep of dependentes || []) {
+        const { data: docsDep } = await supabase
+          .from('beneficiario_documentos')
+          .select('status, documento_config:documento_configs(nome_documento)')
+          .eq('beneficiario_id', dep.id)
+          .neq('status', 'APROVADO');
+        
+        if (docsDep && docsDep.length > 0) {
+          docsDep.forEach(doc => {
+            pendentes.push(`${dep.nome} (Dependente): ${(doc.documento_config as any)?.nome_documento}`);
+          });
+        }
       }
     }
 

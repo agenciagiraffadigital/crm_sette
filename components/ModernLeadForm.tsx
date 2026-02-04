@@ -184,14 +184,20 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
           // Carregar status dos documentos de cada beneficiário e dependentes
           if (data.beneficiarios && data.beneficiarios.length > 0) {
             const statusMap = new Map();
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             for (const ben of data.beneficiarios) {
-              const status = await getBeneficiarioDocumentoStatus(ben.id);
-              statusMap.set(ben.id, status);
+              // Só carregar status se for UUID válido
+              if (ben.id && uuidRegex.test(ben.id)) {
+                const status = await getBeneficiarioDocumentoStatus(ben.id);
+                statusMap.set(ben.id, status);
+              }
               // Carregar status dos dependentes
               if (ben.dependentes) {
                 for (const dep of ben.dependentes) {
-                  const depStatus = await getBeneficiarioDocumentoStatus(dep.id);
-                  statusMap.set(dep.id, depStatus);
+                  if (dep.id && uuidRegex.test(dep.id)) {
+                    const depStatus = await getBeneficiarioDocumentoStatus(dep.id);
+                    statusMap.set(dep.id, depStatus);
+                  }
                 }
               }
             }
@@ -518,7 +524,26 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         setActivityLogs(logs);
       }
       
-      onSave(updated);
+      setFormData(updated);
+      
+      // Recarregar status dos documentos
+      const statusMap = new Map();
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      for (const ben of updated.beneficiarios) {
+        if (ben.id && uuidRegex.test(ben.id)) {
+          const status = await getBeneficiarioDocumentoStatus(ben.id);
+          statusMap.set(ben.id, status);
+        }
+        if (ben.dependentes) {
+          for (const dep of ben.dependentes) {
+            if (dep.id && uuidRegex.test(dep.id)) {
+              const depStatus = await getBeneficiarioDocumentoStatus(dep.id);
+              statusMap.set(dep.id, depStatus);
+            }
+          }
+        }
+      }
+      setBeneficiariosStatus(statusMap);
     } catch (e: any) {
       console.error('Erro completo:', e);
       // Só mostrar erro se não for validação de campo obrigatório
@@ -709,6 +734,46 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
           <div className="space-y-6">
         {/* Basic Info */}
         <Card title="Informações Básicas" icon={UserIcon}>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-sm font-semibold text-gray-700">Dados do Titular</h4>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Responsável financeiro?</span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.titular_eh_responsavel_financeiro}
+                  onChange={(e) => {
+                    const isTitular = e.target.checked;
+                    setFormData(prev => prev ? {
+                      ...prev,
+                      titular_eh_responsavel_financeiro: isTitular,
+                      responsavel_financeiro: isTitular ? undefined : (prev.responsavel_financeiro || {
+                        id: '',
+                        lead_id: prev.id,
+                        nome: '',
+                        cpf: '',
+                        rg: '',
+                        data_nascimento: '',
+                        telefone: '',
+                        email: '',
+                        cep: '',
+                        logradouro: '',
+                        numero: '',
+                        complemento: '',
+                        bairro: '',
+                        cidade: '',
+                        estado: '',
+                        created_at: '',
+                        updated_at: ''
+                      })
+                    } : null);
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Input
               label="Nome Completo"
@@ -739,53 +804,73 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               onChange={(value) => handleChange('cpf_cnpj', value)}
               mask={maskCPFOrCNPJ}
             />
+            <Input
+              label="Data de Nascimento"
+              type="date"
+              value={formData.data_nascimento_abertura || ''}
+              onChange={(value) => handleChange('data_nascimento_abertura', value)}
+            />
             <Select
               label="Tipo de Cliente"
               value={formData.tipo_cliente}
               onChange={(value) => handleChange('tipo_cliente', value)}
               options={['PF', 'PME', 'ADESAO']}
             />
-            <Select
-              label="Titular é o responsável financeiro?"
-              value={formData.titular_eh_responsavel_financeiro ? 'SIM' : 'NAO'}
-              onChange={(value) => {
-                const isTitular = value === 'SIM';
-                setFormData(prev => prev ? {
-                  ...prev,
-                  titular_eh_responsavel_financeiro: isTitular,
-                  responsavel_financeiro: isTitular ? undefined : (prev.responsavel_financeiro || {
-                    id: '',
-                    lead_id: prev.id,
-                    nome: '',
-                    cpf: '',
-                    rg: '',
-                    data_nascimento: '',
-                    telefone: '',
-                    email: '',
-                    cep: '',
-                    logradouro: '',
-                    numero: '',
-                    complemento: '',
-                    bairro: '',
-                    cidade: '',
-                    estado: '',
-                    created_at: '',
-                    updated_at: ''
-                  })
-                } : null);
-              }}
-              options={[
-                { value: 'SIM', label: 'Sim' },
-                { value: 'NAO', label: 'Não' }
-              ]}
-              required
-            />
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              Endereço
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Input
+                label="CEP"
+                value={maskCEP(formData.cep || '')}
+                onChange={(value) => handleChange('cep', value)}
+                mask={maskCEP}
+                placeholder="00000-000"
+              />
+              <div className="md:col-span-2">
+                <Input
+                  label="Logradouro"
+                  value={formData.logradouro || ''}
+                  onChange={(value) => handleChange('logradouro', value)}
+                />
+              </div>
+              <Input
+                label="Número"
+                value={formData.numero || ''}
+                onChange={(value) => handleChange('numero', value)}
+              />
+              <Input
+                label="Complemento"
+                value={formData.complemento || ''}
+                onChange={(value) => handleChange('complemento', value)}
+              />
+              <Input
+                label="Bairro"
+                value={formData.bairro || ''}
+                onChange={(value) => handleChange('bairro', value)}
+              />
+              <Input
+                label="Cidade"
+                value={formData.cidade || ''}
+                onChange={(value) => handleChange('cidade', value)}
+              />
+              <Input
+                label="UF"
+                value={formData.estado || ''}
+                onChange={(value) => handleChange('estado', value)}
+                placeholder="UF"
+              />
+            </div>
           </div>
 
           {/* Botão Replicar Para Beneficiário */}
-          <div className="mt-6 pt-6 border-t">
+          <div className="mt-6 pt-6 border-t border-gray-200">
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!formData) return;
                 const newBen: Beneficiary = {
                   id: Math.random().toString(36).substr(2, 9),
@@ -803,12 +888,35 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   cidade: formData.cidade,
                   estado: formData.estado
                 };
-                setFormData({ ...formData, beneficiarios: [...formData.beneficiarios, newBen] });
-                setActiveTab('beneficiarios');
-                setSuccessMessage('Titular replicado para beneficiários!');
-                setShowSuccessModal(true);
+                const updatedFormData = { ...formData, beneficiarios: [...formData.beneficiarios, newBen] };
+                setFormData(updatedFormData);
+                
+                // Salvar automaticamente
+                try {
+                  const saved = await leadService.saveLead(updatedFormData);
+                  setFormData(saved);
+                  
+                  // Carregar status dos documentos
+                  const statusMap = new Map();
+                  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                  for (const ben of saved.beneficiarios) {
+                    if (ben.id && uuidRegex.test(ben.id)) {
+                      const status = await getBeneficiarioDocumentoStatus(ben.id);
+                      statusMap.set(ben.id, status);
+                    }
+                  }
+                  setBeneficiariosStatus(statusMap);
+                  
+                  setActiveTab('beneficiarios');
+                  setSuccessMessage('Titular replicado para beneficiários!');
+                  setShowSuccessModal(true);
+                } catch (error) {
+                  console.error('Erro ao salvar:', error);
+                }
               }}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+              disabled={!formData.operadora || !formData.produto}
+              title={!formData.operadora || !formData.produto ? 'Preencha a Operadora e Produto' : ''}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Users className="w-4 h-4" />
               Replicar Para Beneficiário
@@ -816,8 +924,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
           </div>
 
           {!formData.titular_eh_responsavel_financeiro && (
-            <div className="mt-6 pt-6 border-t">
-              <h4 className="text-sm font-semibold text-gray-700 mb-4">Dados do Responsável Financeiro</h4>
+            <Card title="Responsável Financeiro" icon={UserIcon}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Input
                   label="Nome Completo"
@@ -878,128 +985,102 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   } : null)}
                   icon={Mail}
                 />
-                <Input
-                  label="CEP"
-                  value={maskCEP(formData.responsavel_financeiro?.cep || '')}
-                  onChange={(value) => {
-                    const cleanCep = unmask(value);
-                    setFormData(prev => prev ? {
-                      ...prev,
-                      responsavel_financeiro: { ...prev.responsavel_financeiro!, cep: cleanCep }
-                    } : null);
-                    
-                    if (cleanCep.length === 8) {
-                      fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
-                        .then(res => res.json())
-                        .then(data => {
-                          if (!data.erro) {
-                            setFormData(prev => prev ? {
-                              ...prev,
-                              responsavel_financeiro: {
-                                ...prev.responsavel_financeiro!,
-                                logradouro: data.logradouro || '',
-                                bairro: data.bairro || '',
-                                cidade: data.localidade || '',
-                                estado: data.uf || ''
-                              }
-                            } : null);
-                          }
-                        })
-                        .catch(console.error);
-                    }
-                  }}
-                  mask={maskCEP}
-                />
-                <Input
-                  label="Logradouro"
-                  value={formData.responsavel_financeiro?.logradouro || ''}
-                  onChange={(value) => setFormData(prev => prev ? {
-                    ...prev,
-                    responsavel_financeiro: { ...prev.responsavel_financeiro!, logradouro: value }
-                  } : null)}
-                />
-                <Input
-                  label="Número"
-                  value={formData.responsavel_financeiro?.numero || ''}
-                  onChange={(value) => setFormData(prev => prev ? {
-                    ...prev,
-                    responsavel_financeiro: { ...prev.responsavel_financeiro!, numero: value }
-                  } : null)}
-                />
-                <Input
-                  label="Complemento"
-                  value={formData.responsavel_financeiro?.complemento || ''}
-                  onChange={(value) => setFormData(prev => prev ? {
-                    ...prev,
-                    responsavel_financeiro: { ...prev.responsavel_financeiro!, complemento: value }
-                  } : null)}
-                />
-                <Input
-                  label="Bairro"
-                  value={formData.responsavel_financeiro?.bairro || ''}
-                  onChange={(value) => setFormData(prev => prev ? {
-                    ...prev,
-                    responsavel_financeiro: { ...prev.responsavel_financeiro!, bairro: value }
-                  } : null)}
-                />
-                <Input
-                  label="Cidade"
-                  value={formData.responsavel_financeiro?.cidade || ''}
-                  onChange={(value) => setFormData(prev => prev ? {
-                    ...prev,
-                    responsavel_financeiro: { ...prev.responsavel_financeiro!, cidade: value }
-                  } : null)}
-                />
-                <Input
-                  label="Estado"
-                  value={formData.responsavel_financeiro?.estado || ''}
-                  onChange={(value) => setFormData(prev => prev ? {
-                    ...prev,
-                    responsavel_financeiro: { ...prev.responsavel_financeiro!, estado: value }
-                  } : null)}
-                />
               </div>
-            </div>
-          )}
-        </Card>
 
-        {/* Address */}
-        <Card title="Endereço" icon={MapPin}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Input
-              label="CEP"
-              value={maskCEP(formData.cep || '')}
-              onChange={(value) => handleChange('cep', value)}
-              mask={maskCEP}
-              placeholder="00000-000"
-            />
-            <Input
-              label="Logradouro"
-              value={formData.logradouro || ''}
-              onChange={(value) => handleChange('logradouro', value)}
-              className="lg:col-span-2"
-            />
-            <Input
-              label="Número"
-              value={formData.numero || ''}
-              onChange={(value) => handleChange('numero', value)}
-            />
-            <Input
-              label="Bairro"
-              value={formData.bairro || ''}
-              onChange={(value) => handleChange('bairro', value)}
-            />
-            <Input
-              label="Cidade"
-              value={formData.cidade || ''}
-              onChange={(value) => handleChange('cidade', value)}
-            />
-            <Input
-              label="UF"
-              value={formData.estado || ''}
-              onChange={(value) => handleChange('estado', value)}
-            />
-          </div>
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-blue-600" />
+                  Endereço do Responsável
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Input
+                    label="CEP"
+                    value={maskCEP(formData.responsavel_financeiro?.cep || '')}
+                    onChange={(value) => {
+                      const cleanCep = unmask(value);
+                      setFormData(prev => prev ? {
+                        ...prev,
+                        responsavel_financeiro: { ...prev.responsavel_financeiro!, cep: cleanCep }
+                      } : null);
+                      
+                      if (cleanCep.length === 8) {
+                        fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+                          .then(res => res.json())
+                          .then(data => {
+                            if (!data.erro) {
+                              setFormData(prev => prev ? {
+                                ...prev,
+                                responsavel_financeiro: {
+                                  ...prev.responsavel_financeiro!,
+                                  logradouro: data.logradouro || '',
+                                  bairro: data.bairro || '',
+                                  cidade: data.localidade || '',
+                                  estado: data.uf || ''
+                                }
+                              } : null);
+                            }
+                          })
+                          .catch(console.error);
+                      }
+                    }}
+                    mask={maskCEP}
+                    placeholder="00000-000"
+                  />
+                  <div className="md:col-span-2">
+                    <Input
+                      label="Logradouro"
+                      value={formData.responsavel_financeiro?.logradouro || ''}
+                      onChange={(value) => setFormData(prev => prev ? {
+                        ...prev,
+                        responsavel_financeiro: { ...prev.responsavel_financeiro!, logradouro: value }
+                      } : null)}
+                    />
+                  </div>
+                  <Input
+                    label="Número"
+                    value={formData.responsavel_financeiro?.numero || ''}
+                    onChange={(value) => setFormData(prev => prev ? {
+                      ...prev,
+                      responsavel_financeiro: { ...prev.responsavel_financeiro!, numero: value }
+                    } : null)}
+                  />
+                  <Input
+                    label="Complemento"
+                    value={formData.responsavel_financeiro?.complemento || ''}
+                    onChange={(value) => setFormData(prev => prev ? {
+                      ...prev,
+                      responsavel_financeiro: { ...prev.responsavel_financeiro!, complemento: value }
+                    } : null)}
+                  />
+                  <Input
+                    label="Bairro"
+                    value={formData.responsavel_financeiro?.bairro || ''}
+                    onChange={(value) => setFormData(prev => prev ? {
+                      ...prev,
+                      responsavel_financeiro: { ...prev.responsavel_financeiro!, bairro: value }
+                    } : null)}
+                  />
+                  <Input
+                    label="Cidade"
+                    value={formData.responsavel_financeiro?.cidade || ''}
+                    onChange={(value) => setFormData(prev => prev ? {
+                      ...prev,
+                      responsavel_financeiro: { ...prev.responsavel_financeiro!, cidade: value }
+                    } : null)}
+                  />
+                  <Input
+                    label="Estado"
+                    value={formData.responsavel_financeiro?.estado || ''}
+                    onChange={(value) => setFormData(prev => prev ? {
+                      ...prev,
+                      responsavel_financeiro: { ...prev.responsavel_financeiro!, estado: value }
+                    } : null)}
+                    placeholder="UF"
+                  />
+                </div>
+              </div>
+            </Card>
+          )}
         </Card>
 
         {/* Product Info */}
@@ -1551,7 +1632,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                           <BeneficiarioDocumentos
                             beneficiarioId={ben.id}
                             leadId={formData.id}
-                            operadoraId={operadoras.find(op => op.nome === formData.operadora)?.id || 0}
+                            operadoraId={operadoras.find(o => o.nome === formData.operadora)?.id || 0}
                             produtoId={produtos.find(p => p.nome === formData.produto)?.id || 0}
                             tipoCliente={formData.tipo_cliente}
                             isAdmin={currentUser.role === 'ADMIN'}

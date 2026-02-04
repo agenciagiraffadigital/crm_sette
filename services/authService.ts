@@ -10,7 +10,12 @@ export const authService = {
       password,
     });
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      const errorMessage = error.message === 'Invalid login credentials' 
+        ? 'Credenciais de login inválidas' 
+        : error.message;
+      throw new Error(errorMessage);
+    }
     if (!data.user) throw new Error('Usuário não encontrado');
 
     const { data: userData, error: userError } = await supabase

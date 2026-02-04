@@ -13,6 +13,21 @@ export interface DocumentoStatusSummary {
 
 export async function getBeneficiarioDocumentoStatus(beneficiarioId: string): Promise<DocumentoStatusSummary> {
   try {
+    // Validar se é UUID válido (beneficiário salvo no banco)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!beneficiarioId || !uuidRegex.test(beneficiarioId)) {
+      return {
+        total: 0,
+        pendentes: 0,
+        enviados: 0,
+        aprovados: 0,
+        rejeitados: 0,
+        statusGeral: 'pendente',
+        cor: 'gray',
+        icone: '⚪'
+      };
+    }
+
     const docs = await documentoConfigService.getBeneficiarioDocumentos(beneficiarioId);
     
     const total = docs.length;

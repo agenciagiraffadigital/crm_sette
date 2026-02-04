@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { documentoConfigService, BeneficiarioDocumento } from '../services/documentoConfigService';
 import { FileText, Upload, Download, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 
 interface BeneficiarioDocumentosProps {
   beneficiarioId: string;
@@ -33,6 +34,21 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
 
   const loadDocumentos = async () => {
     try {
+      // Verificar se beneficiário existe no banco (é UUID válido)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(beneficiarioId)) {
+        setDocumentos([]);
+        setLoading(false);
+        return;
+      }
+
+      // Validar se tem operadora e produto
+      if (!operadoraId || !produtoId || operadoraId === 0 || produtoId === 0) {
+        setDocumentos([]);
+        setLoading(false);
+        return;
+      }
+
       // Buscar configs de documentos
       const configs = await documentoConfigService.getDocumentoConfigs(operadoraId, produtoId, tipoCliente);
       
@@ -47,12 +63,29 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
         if (docsMap.has(config.id)) {
           todosDocumentos.push(docsMap.get(config.id)!);
         } else {
-          const novoDoc = await documentoConfigService.createBeneficiarioDocumento(beneficiarioId, config.id);
-          todosDocumentos.push(novoDoc);
+          // Verificar se já existe no banco antes de criar
+          const { data: existing } = await supabase
+            .from('beneficiario_documentos')
+            .select('*, documento_config:documento_configs(*)')
+            .eq('beneficiario_id', beneficiarioId)
+            .eq('documento_config_id', config.id)
+            .maybeSingle();
+          
+          if (existing) {
+            todosDocumentos.push(existing as BeneficiarioDocumento);
+          } else {
+            const novoDoc = await documentoConfigService.createBeneficiarioDocumento(beneficiarioId, config.id);
+            todosDocumentos.push(novoDoc);
+          }
         }
       }
       
       setDocumentos(todosDocumentos);
+      
+      // Notificar mudança de status
+      if (todosDocumentos.length > 0) {
+        onStatusChange?.();
+      }
     } catch (error) {
       console.error('Erro ao carregar documentos:', error);
     } finally {
@@ -121,10 +154,21 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
   }
 
   if (documentos.length === 0) {
+    // Verificar se é beneficiário temporário
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(beneficiarioId)) {
+      return (
+        <div className="text-center py-8 text-gray-500">
+          <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+          <p>Salve o lead primeiro para gerenciar documentos</p>
+        </div>
+      );
+    }
+    
     return (
       <div className="text-center py-8 text-gray-500">
         <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-        <p>Nenhum documento configurado para este produto</p>
+        <p>Selecione operadora e produto para configurar documentos</p>
       </div>
     );
   }
@@ -133,11 +177,11 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
     <div className="space-y-3">
       {documentos.map((doc) => (
         <div key={doc.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3 flex-1">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-1">
               {getStatusIcon(doc.status)}
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2">
                   <h4 className="font-medium text-gray-900">{doc.documento_config?.nome_documento}</h4>
                   <span className={`text-xs px-2 py-1 rounded-full font-semibold ${getStatusBadge(doc.status)}`}>
                     {doc.status}
@@ -145,11 +189,11 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
                 </div>
                 
                 {doc.arquivo_nome && (
-                  <p className="text-sm text-gray-600 mb-2">{doc.arquivo_nome}</p>
+                  <p className="text-sm text-gray-600 mt-1">{doc.arquivo_nome}</p>
                 )}
                 
                 {doc.motivo_rejeicao && (
-                  <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                  <p className="text-sm text-red-600 bg-red-50 p-2 rounded mt-2">
                     <strong>Motivo:</strong> {doc.motivo_rejeicao}
                   </p>
                 )}
@@ -158,7 +202,7 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
 
             <div className="flex items-center gap-2">
               {/* Upload Button */}
-              {doc.status !== 'APROVADO' && !isAdmin && (
+              {doc.status !== 'APROVADO' && (
                 <label className="cursor-pointer">
                   <div className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
                     {uploading === doc.id ? (
