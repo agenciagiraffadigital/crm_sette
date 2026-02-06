@@ -726,7 +726,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       </div>
 
       {/* Content */}
-      <div className="bg-slate-50 min-h-screen" style={{ marginTop: '152px' }}>
+      <div className="bg-slate-50 min-h-screen" style={{ marginTop: '104px' }}>
         <div className="px-8 py-6">
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
