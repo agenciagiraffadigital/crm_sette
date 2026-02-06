@@ -8,6 +8,21 @@ export type Role = 'ADMIN' | 'SELLER';
 
 export type CoparticipationType = 'NÃO' | 'PARCIAL' | 'COMPLETA';
 
+export type TipoDependente = 'CONJUGE' | 'FILHO_FILHA' | 'PAI_MAE' | 'IRMAOS' | 'PADRASTO_MADRASTA' | 'TIOS' | 'SOGROS' | 'SOBRINHOS' | 'CUNHADOS' | 'GENRO_NORA';
+
+export const TIPOS_DEPENDENTE: { value: TipoDependente; label: string }[] = [
+  { value: 'CONJUGE', label: 'Cônjuge' },
+  { value: 'FILHO_FILHA', label: 'Filho/Filha' },
+  { value: 'PAI_MAE', label: 'Pai e/ou Mãe' },
+  { value: 'IRMAOS', label: 'Irmãos' },
+  { value: 'PADRASTO_MADRASTA', label: 'Padrasto e/ou Madrasta' },
+  { value: 'TIOS', label: 'Tios' },
+  { value: 'SOGROS', label: 'Sogros' },
+  { value: 'SOBRINHOS', label: 'Sobrinhos' },
+  { value: 'CUNHADOS', label: 'Cunhados' },
+  { value: 'GENRO_NORA', label: 'Genro/Nora' }
+];
+
 export interface User {
   id: number;
   name: string;
@@ -60,11 +75,14 @@ export interface Beneficiary {
   id: string;
   nome: string;
   cpf?: string;
+  rg?: string;
   email?: string;
   telefone?: string;
   data_nascimento: string;
-  parentesco: string; // Titular, Conjugue, Filho, etc.
-  type: 'TITULAR' | 'DEPENDENTE';
+  parentesco: string; // Mantido para compatibilidade
+  tipo_beneficiario: 'TITULAR' | 'DEPENDENTE';
+  tipo_dependente?: 'CONJUGE' | 'FILHO_FILHA' | 'PAI_MAE' | 'IRMAOS' | 'PADRASTO_MADRASTA' | 'TIOS' | 'SOGROS' | 'SOBRINHOS' | 'CUNHADOS' | 'GENRO_NORA';
+  type: 'TITULAR' | 'DEPENDENTE'; // Mantido para compatibilidade
   titular_id?: string; // ID do titular (se for dependente)
   // Endereço
   cep?: string;

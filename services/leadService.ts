@@ -106,6 +106,8 @@ export const leadService = {
         telefone: titular.telefone,
         data_nascimento: titular.data_nascimento,
         parentesco: titular.parentesco,
+        tipo_beneficiario: titular.tipo_beneficiario || 'TITULAR',
+        tipo_dependente: titular.tipo_dependente,
         type: 'TITULAR' as const,
         cep: titular.cep,
         logradouro: titular.logradouro,
@@ -123,6 +125,8 @@ export const leadService = {
           telefone: dep.telefone,
           data_nascimento: dep.data_nascimento,
           parentesco: dep.parentesco,
+          tipo_beneficiario: dep.tipo_beneficiario || 'DEPENDENTE',
+          tipo_dependente: dep.tipo_dependente,
           type: 'DEPENDENTE' as const,
           titular_id: dep.titular_id,
           cep: dep.cep,
@@ -310,6 +314,8 @@ export const leadService = {
           cidade: titular.cidade || null,
           estado: titular.estado || null,
           parentesco: titular.parentesco || 'Titular',
+          tipo_beneficiario: titular.tipo_beneficiario || 'TITULAR',
+          tipo_dependente: titular.tipo_dependente || null,
           tipo: 'TITULAR'
         });
         
@@ -331,6 +337,8 @@ export const leadService = {
               cidade: dep.cidade || null,
               estado: dep.estado || null,
               parentesco: dep.parentesco || 'Dependente',
+              tipo_beneficiario: dep.tipo_beneficiario || 'DEPENDENTE',
+              tipo_dependente: dep.tipo_dependente || 'CONJUGE',
               tipo: 'DEPENDENTE'
             });
           });

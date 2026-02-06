@@ -169,9 +169,9 @@ export const dashboardService = {
       'NEGOCIACAO': byStatus['NEGOCIACAO'] || 0,
     };
 
-    // Conversion rate: IMPLANTADA / total de TODOS os leads
-    const implanted = byStatus['IMPLANTADA'] || 0;
-    const conversionRate = total > 0 ? (implanted / total) * 100 : 0;
+    // Conversion rate: ENVIADA, ANÁLISE, IMPLANTADA / total de TODOS os leads
+    const converted = (byStatus['ENVIADA'] || 0) + (byStatus['ANÁLISE'] || 0) + (byStatus['IMPLANTADA'] || 0);
+    const conversionRate = total > 0 ? (converted / total) * 100 : 0;
 
     // Calculate average proposal value
     const proposalsWithValue = leads.filter(lead => lead.valor_produto && lead.valor_produto > 0);

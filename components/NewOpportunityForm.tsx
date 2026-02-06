@@ -136,9 +136,18 @@ export const NewOpportunityForm: React.FC<NewOpportunityFormProps> = ({
       const loadSellers = async () => {
         try {
           const activeSellers = await authService.getActiveSellers();
-          setSellers(activeSellers);
+          // Incluir todos os usuários ativos (vendedores e admins)
+          const allUsers = await authService.getAllActiveUsers();
+          setSellers(allUsers || activeSellers);
         } catch (error) {
           console.error('Erro ao carregar vendedores:', error);
+          // Fallback para vendedores se não conseguir carregar todos
+          try {
+            const activeSellers = await authService.getActiveSellers();
+            setSellers(activeSellers);
+          } catch (fallbackError) {
+            console.error('Erro no fallback:', fallbackError);
+          }
         }
       };
       loadSellers();

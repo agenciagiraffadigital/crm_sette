@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lead, User, Beneficiary, Note } from '../types';
+import { Lead, User, Beneficiary, Note, TIPOS_DEPENDENTE } from '../types';
 import { KANBAN_COLUMNS, OPPORTUNITY_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
@@ -9,6 +9,7 @@ import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, Dollar
 import { maskPhone, maskCPFOrCNPJ, unmask, maskRG } from '../utils/masks';
 import { maskCEP } from '../utils/cepMask';
 import { formatStatus, formatDateTime } from '../utils/formatters';
+import { getTipoDependenteLabel, getTipoBeneficiarioLabel } from '../utils/beneficiarioUtils';
 import { WhatsAppModal } from './WhatsAppModal';
 import { WinDialog } from './WinDialog';
 import { LostDialog } from './LostDialog';
@@ -174,6 +175,20 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showActionsMenu]);
 
+  // Prevent page refresh/close when there are unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        setShowUnsavedDialog(true);
+        return false;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
+
   // Determine which status columns to use
   const isOpportunity = formData && ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'].includes(formData.status_kanban);
   const statusColumns = isOpportunity ? OPPORTUNITY_COLUMNS : KANBAN_COLUMNS;
@@ -311,8 +326,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       id: Math.random().toString(36).substr(2, 9),
       nome: "",
       data_nascimento: "",
-      parentesco: "Titular",
-      type: 'TITULAR',
+      parentesco: "Titular", // Mantido para compatibilidade
+      tipo_beneficiario: 'TITULAR',
+      type: 'TITULAR', // Mantido para compatibilidade
       dependentes: []
     };
     setFormData({ ...formData, beneficiarios: [...formData.beneficiarios, newBen] });
@@ -325,8 +341,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       id: Math.random().toString(36).substr(2, 9),
       nome: "",
       data_nascimento: "",
-      parentesco: "Dependente",
-      type: 'DEPENDENTE',
+      parentesco: "Dependente", // Mantido para compatibilidade
+      tipo_beneficiario: 'DEPENDENTE',
+      type: 'DEPENDENTE', // Mantido para compatibilidade
       titular_id: titularId
     };
     
@@ -340,13 +357,30 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     setHasChanges(true);
   };
 
-  const updateBeneficiary = (id: string, field: keyof Beneficiary, value: string) => {
+  const updateBeneficiary = (id: string, field: keyof Beneficiary, value: any) => {
     if (!formData) return;
     const updated = formData.beneficiarios.map(b => {
-      if (b.id === id) return { ...b, [field]: value };
+      if (b.id === id) {
+        const updatedBen = { ...b, [field]: value };
+        // Se mudou para dependente, garantir que tem tipo_dependente
+        if (field === 'tipo_beneficiario' && value === 'DEPENDENTE' && !updatedBen.tipo_dependente) {
+          updatedBen.tipo_dependente = '';
+        }
+        return updatedBen;
+      }
       // Atualizar dependente
       if (b.dependentes) {
-        const depUpdated = b.dependentes.map(d => d.id === id ? { ...d, [field]: value } : d);
+        const depUpdated = b.dependentes.map(d => {
+          if (d.id === id) {
+            const updatedDep = { ...d, [field]: value };
+            // Se mudou para dependente, garantir que tem tipo_dependente
+            if (field === 'tipo_beneficiario' && value === 'DEPENDENTE' && !updatedDep.tipo_dependente) {
+              updatedDep.tipo_dependente = '';
+            }
+            return updatedDep;
+          }
+          return d;
+        });
         return { ...b, dependentes: depUpdated };
       }
       return b;
@@ -586,9 +620,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       {/* Header Fixo */}
       <div className="bg-white border-b border-slate-200 fixed top-16 left-0 right-0 z-30 shadow-sm">
         <div className="px-8 py-6">
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex items-center justify-between gap-6">
             {/* Left */}
-            <div className="flex items-start gap-4">
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => {
                   if (hasChanges) {
@@ -597,7 +631,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                     onBack();
                   }
                 }}
-                className="mt-1 p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
               </button>
@@ -632,7 +666,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               <select
                 value={formData.status_kanban}
                 onChange={(e) => handleChange('status_kanban', e.target.value)}
-                className="min-w-[200px] px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-700"
+                className="min-w-[200px] px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium text-slate-700 h-10"
               >
                 {statusColumns.map(col => (
                   <option key={col.id} value={col.id}>{col.label}</option>
@@ -642,7 +676,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               <div className="relative actions-menu-container">
                 <button
                   onClick={() => setShowActionsMenu(!showActionsMenu)}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors h-10"
                 >
                   Ações
                   <MoreVertical className="w-4 h-4" />
@@ -715,7 +749,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               <button
                 onClick={handleSubmit}
                 disabled={saving || !hasChanges}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-10"
               >
                 {saving ? 'Salvando...' : 'Salvar'}
                 <Save className="w-4 h-4" />
@@ -899,8 +933,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   id: Math.random().toString(36).substr(2, 9),
                   nome: formData.nome,
                   data_nascimento: "",
-                  parentesco: "Titular",
-                  type: 'TITULAR',
+                  parentesco: "Titular", // Mantido para compatibilidade
+                  tipo_beneficiario: 'TITULAR',
+                  type: 'TITULAR', // Mantido para compatibilidade
                   cpf: formData.cpf_cnpj,
                   telefone: formData.telefone,
                   email: formData.email,
@@ -1119,6 +1154,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                 onChange={(e) => {
                   const value = e.target.value;
                   setFormData(prev => prev ? { ...prev, operadora: value, produto: '' } : null);
+                  setHasChanges(true);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
               >
@@ -1140,6 +1176,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                 onChange={(e) => {
                   const value = e.target.value;
                   setFormData(prev => prev ? { ...prev, produto: value } : null);
+                  setHasChanges(true);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
               >
@@ -1259,7 +1296,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                           >
                             {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                           </button>
-                          <span>Beneficiário {index + 1} - {ben.nome || 'Sem nome'}</span>
+                          <span>Beneficiário {index + 1} - {ben.nome || 'Sem nome'} ({getTipoBeneficiarioLabel(ben.tipo_beneficiario || 'TITULAR')})</span>
                         </div>
                         {docStatus && docStatus.total > 0 && (
                           <div className="flex items-center gap-2">
@@ -1367,11 +1404,35 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                               onChange={(v) => updateBeneficiary(ben.id, 'data_nascimento', v)} 
                               required
                             />
-                            <Input 
-                              label="Parentesco" 
-                              value={ben.parentesco} 
-                              onChange={(v) => updateBeneficiary(ben.id, 'parentesco', v)} 
+                            <Select 
+                              label="Tipo de Beneficiário" 
+                              value={ben.tipo_beneficiario || 'TITULAR'} 
+                              onChange={(v) => {
+                                const newTipo = v as 'TITULAR' | 'DEPENDENTE';
+                                updateBeneficiary(ben.id, 'tipo_beneficiario', newTipo);
+                                // Atualizar campos de compatibilidade
+                                updateBeneficiary(ben.id, 'type', newTipo);
+                                updateBeneficiary(ben.id, 'parentesco', newTipo === 'TITULAR' ? 'Titular' : 'Dependente');
+                                // Se mudou para dependente, definir tipo padrão
+                                if (newTipo === 'DEPENDENTE' && !ben.tipo_dependente) {
+                                  updateBeneficiary(ben.id, 'tipo_dependente', '');
+                                }
+                              }}
+                              options={[
+                                { value: 'TITULAR', label: 'Titular' },
+                                { value: 'DEPENDENTE', label: 'Dependente' }
+                              ]}
+                              required
                             />
+                            {(ben.tipo_beneficiario === 'DEPENDENTE' || !ben.tipo_beneficiario) && (
+                              <Select 
+                                label="Tipo de Dependente" 
+                                value={ben.tipo_dependente || ''} 
+                                onChange={(v) => updateBeneficiary(ben.id, 'tipo_dependente', v)}
+                                options={TIPOS_DEPENDENTE}
+                                required
+                              />
+                            )}
                             <Input 
                               label="Telefone" 
                               value={maskPhone(ben.telefone || '')} 
@@ -1480,11 +1541,12 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                               {ben.dependentes.map((dep, depIndex) => {
                                 const depDocStatus = beneficiariosStatus.get(dep.id);
                                 const isDepExpanded = expandedBeneficiario === dep.id;
+                                const tipoLabel = dep.tipo_dependente ? getTipoDependenteLabel(dep.tipo_dependente) : 'Dependente';
                                 return (
                                 <div key={dep.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                   <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-2">
-                                      <h5 className="text-sm font-medium text-gray-700">Dependente {depIndex + 1} - {dep.nome || 'Sem nome'}</h5>
+                                      <h5 className="text-sm font-medium text-gray-700">Dependente {depIndex + 1} - {dep.nome || 'Sem nome'} ({tipoLabel})</h5>
                                       {depDocStatus && depDocStatus.total > 0 && (
                                         <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
                                           depDocStatus.statusGeral === 'completo' ? 'bg-green-100 text-green-700' :
@@ -1554,11 +1616,12 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                                           onChange={(v) => updateBeneficiary(dep.id, 'data_nascimento', v)} 
                                           required
                                         />
-                                        <Input 
-                                          label="Parentesco" 
-                                          value={dep.parentesco} 
-                                          onChange={(v) => updateBeneficiary(dep.id, 'parentesco', v)} 
-                                          placeholder="Ex: Cônjuge, Filho(a)"
+                                        <Select 
+                                          label="Tipo de Dependente" 
+                                          value={dep.tipo_dependente || ''} 
+                                          onChange={(v) => updateBeneficiary(dep.id, 'tipo_dependente', v)}
+                                          options={TIPOS_DEPENDENTE}
+                                          required
                                         />
                                         <Input 
                                           label="Telefone" 
@@ -2321,7 +2384,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               <button
                 onClick={() => {
                   setShowUnsavedDialog(false);
-                  onBack();
+                  setHasChanges(false);
+                  window.location.reload();
                 }}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
               >

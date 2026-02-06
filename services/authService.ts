@@ -253,6 +253,29 @@ export const authService = {
     }));
   },
 
+  // Get all active users (sellers and admins) for assignment
+  getAllActiveUsers: async (): Promise<User[]> => {
+    const { data, error } = await supabase
+      .from('users_profile')
+      .select('*')
+      .in('role', ['SELLER', 'ADMIN']);
+    
+    if (error) throw error;
+    
+    return data.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      active_for_distribution: u.active_for_distribution,
+      last_lead_assigned_at: u.last_lead_assigned_at,
+      total_leads_assigned: u.total_leads_assigned,
+      last_login_at: u.last_login_at,
+      created_at: u.created_at,
+      updated_at: u.updated_at,
+    }));
+  },
+
   // Update user login timestamp
   updateLastLogin: async (userId: number): Promise<void> => {
     const { error } = await supabase
