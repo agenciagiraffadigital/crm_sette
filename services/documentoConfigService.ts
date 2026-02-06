@@ -141,7 +141,7 @@ class DocumentoConfigService {
         uploaded_at: new Date().toISOString()
       })
       .eq('id', beneficiarioDocId)
-      .select()
+      .select('*, documento_config:documento_configs(*)')
       .single();
     
     if (error) throw error;
@@ -158,7 +158,7 @@ class DocumentoConfigService {
         motivo_rejeicao: null
       })
       .eq('id', docId)
-      .select()
+      .select('*, documento_config:documento_configs(*)')
       .single();
     
     if (error) throw error;
@@ -175,7 +175,7 @@ class DocumentoConfigService {
         motivo_rejeicao: motivo
       })
       .eq('id', docId)
-      .select()
+      .select('*, documento_config:documento_configs(*)')
       .single();
     
     if (error) throw error;

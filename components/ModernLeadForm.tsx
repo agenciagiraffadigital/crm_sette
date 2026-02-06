@@ -5,7 +5,7 @@ import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
 import { documentoConfigService } from '../services/documentoConfigService';
-import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X } from 'lucide-react';
+import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask, maskRG } from '../utils/masks';
 import { maskCEP } from '../utils/cepMask';
 import { formatStatus, formatDateTime } from '../utils/formatters';
@@ -129,6 +129,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   onSave 
 }) => {
   const [formData, setFormData] = useState<Lead | null>(null);
+  const [originalData, setOriginalData] = useState<Lead | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'beneficiarios' | 'docs' | 'notas' | 'historico'>('info');
@@ -150,7 +152,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [expandedBeneficiario, setExpandedBeneficiario] = useState<string | null>(null);
+  const [collapsedBeneficiarios, setCollapsedBeneficiarios] = useState<Set<string>>(new Set());
   const [beneficiariosStatus, setBeneficiariosStatus] = useState<Map<string, any>>(new Map());
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   
   // Notes state
   const [notesDialog, setNotesDialog] = useState({ isOpen: false, loading: false });
@@ -181,6 +185,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         const data = await leadService.getLeadById(leadId);
         if (data) {
           setFormData(data);
+          setOriginalData(JSON.parse(JSON.stringify(data)));
+          setHasChanges(false);
           // Carregar status dos documentos de cada beneficiário e dependentes
           if (data.beneficiarios && data.beneficiarios.length > 0) {
             const statusMap = new Map();
@@ -239,6 +245,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     if (!formData) return;
     const cleanValue = (field === 'telefone' || field === 'cpf_cnpj') ? unmask(value) : value;
     setFormData({ ...formData, [field]: cleanValue });
+    setHasChanges(true);
     
     // Buscar CEP automaticamente
     if (field === 'cep' && cleanValue.replace(/\D/g, '').length === 8) {
@@ -274,6 +281,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         [field]: value 
       }
     });
+    setHasChanges(true);
     
     // Buscar CEP automaticamente
     if (field === 'cep' && value.replace(/\D/g, '').length === 8) {
@@ -308,6 +316,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       dependentes: []
     };
     setFormData({ ...formData, beneficiarios: [...formData.beneficiarios, newBen] });
+    setHasChanges(true);
   };
 
   const addDependente = (titularId: string) => {
@@ -328,6 +337,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       return b;
     });
     setFormData({ ...formData, beneficiarios: updated });
+    setHasChanges(true);
   };
 
   const updateBeneficiary = (id: string, field: keyof Beneficiary, value: string) => {
@@ -342,11 +352,13 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       return b;
     });
     setFormData({ ...formData, beneficiarios: updated });
+    setHasChanges(true);
   };
 
   const removeBeneficiary = (id: string) => {
     if (!formData) return;
     setFormData({ ...formData, beneficiarios: formData.beneficiarios.filter(b => b.id !== id) });
+    setHasChanges(true);
   };
 
   const removeDependente = (titularId: string, dependenteId: string) => {
@@ -358,6 +370,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       return b;
     });
     setFormData({ ...formData, beneficiarios: updated });
+    setHasChanges(true);
   };
 
   const handleOpenSellerModal = async () => {
@@ -384,6 +397,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       
       const updatedLead = await leadService.reassignLead(formData.id, selectedSellerId, currentUser);
       setFormData(updatedLead);
+      setOriginalData(JSON.parse(JSON.stringify(updatedLead)));
+      setHasChanges(false);
       setShowSellerModal(false);
       setSelectedSellerId(null);
       setSuccessMessage('Vendedor alterado com sucesso!');
@@ -525,6 +540,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       }
       
       setFormData(updated);
+      setOriginalData(JSON.parse(JSON.stringify(updated)));
+      setHasChanges(false);
       
       // Recarregar status dos documentos
       const statusMap = new Map();
@@ -566,14 +583,20 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      {/* Header Fixo */}
+      <div className="bg-white border-b border-slate-200 fixed top-16 left-0 right-0 z-30 shadow-sm">
         <div className="px-8 py-6">
           <div className="flex items-start justify-between gap-6">
             {/* Left */}
             <div className="flex items-start gap-4">
               <button
-                onClick={onBack}
+                onClick={() => {
+                  if (hasChanges) {
+                    setShowUnsavedDialog(true);
+                  } else {
+                    onBack();
+                  }
+                }}
                 className="mt-1 p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
@@ -691,8 +714,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               </div>
               <button
                 onClick={handleSubmit}
-                disabled={saving}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                disabled={saving || !hasChanges}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? 'Salvando...' : 'Salvar'}
                 <Save className="w-4 h-4" />
@@ -703,7 +726,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
       </div>
 
       {/* Content */}
-      <div className="bg-slate-50 min-h-screen">
+      <div className="bg-slate-50 min-h-screen" style={{ marginTop: '152px' }}>
         <div className="px-8 py-6">
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
@@ -1214,13 +1237,30 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               <div className="space-y-6">
                 {formData.beneficiarios.map((ben, index) => {
                   const isExpanded = expandedBeneficiario === ben.id;
+                  const isCollapsed = collapsedBeneficiarios.has(ben.id);
                   const docStatus = beneficiariosStatus.get(ben.id);
                   return (
                   <Card 
                     key={ben.id} 
                     title={
                       <div className="flex items-center justify-between w-full">
-                        <span>Beneficiário {index + 1} - {ben.nome || 'Sem nome'}</span>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => {
+                              const newCollapsed = new Set(collapsedBeneficiarios);
+                              if (isCollapsed) {
+                                newCollapsed.delete(ben.id);
+                              } else {
+                                newCollapsed.add(ben.id);
+                              }
+                              setCollapsedBeneficiarios(newCollapsed);
+                            }}
+                            className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          >
+                            {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                          </button>
+                          <span>Beneficiário {index + 1} - {ben.nome || 'Sem nome'}</span>
+                        </div>
                         {docStatus && docStatus.total > 0 && (
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-600">
@@ -1245,6 +1285,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                     }
                     icon={UserIcon}
                   >
+                    {!isCollapsed && (
                     <div className="relative">
                       <button 
                         onClick={() => removeBeneficiary(ben.id)} 
@@ -1357,10 +1398,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <Input 
                               label="CEP" 
-                              value={maskCEP(ben.cep || '')} 
+                              value={ben.cep || ''} 
                               onChange={(v) => {
-                                const cleanCep = unmask(v);
-                                updateBeneficiary(ben.id, 'cep', cleanCep);
+                                const cleanCep = v.replace(/\D/g, '');
                                 if (cleanCep.length === 8) {
                                   fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
                                     .then(res => res.json())
@@ -1369,6 +1409,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                                         const updated = formData.beneficiarios.map(b => 
                                           b.id === ben.id ? {
                                             ...b,
+                                            cep: v,
                                             logradouro: data.logradouro || '',
                                             bairro: data.bairro || '',
                                             cidade: data.localidade || '',
@@ -1379,8 +1420,10 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                                       }
                                     })
                                     .catch(console.error);
+                                } else {
+                                  updateBeneficiary(ben.id, 'cep', v);
                                 }
-                              }} 
+                              }}
                               mask={maskCEP}
                               placeholder="00000-000"
                             />
@@ -1537,10 +1580,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                                           <Input 
                                             label="CEP" 
-                                            value={maskCEP(dep.cep || '')} 
+                                            value={dep.cep || ''} 
                                             onChange={(v) => {
-                                              const cleanCep = unmask(v);
-                                              updateBeneficiary(dep.id, 'cep', cleanCep);
+                                              const cleanCep = v.replace(/\D/g, '');
                                               if (cleanCep.length === 8) {
                                                 fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
                                                   .then(res => res.json())
@@ -1553,6 +1595,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                                                             const depsUpdated = b.dependentes.map(d => 
                                                               d.id === dep.id ? {
                                                                 ...d,
+                                                                cep: v,
                                                                 logradouro: data.logradouro || '',
                                                                 bairro: data.bairro || '',
                                                                 cidade: data.localidade || '',
@@ -1568,8 +1611,10 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                                                     }
                                                   })
                                                   .catch(console.error);
+                                              } else {
+                                                updateBeneficiary(dep.id, 'cep', v);
                                               }
-                                            }} 
+                                            }}
                                             mask={maskCEP}
                                           />
                                           <div className="md:col-span-2">
@@ -1645,6 +1690,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                         </div>
                       )}
                     </div>
+                    )}
                   </Card>
                   );
                 })}
@@ -2244,6 +2290,42 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               >
                 <Edit3 className="w-4 h-4" />
                 Editar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Changes Dialog */}
+      {showUnsavedDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-yellow-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Alterações Não Salvas</h3>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-700">Você tem alterações não salvas. Deseja sair sem salvar?</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowUnsavedDialog(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setShowUnsavedDialog(false);
+                  onBack();
+                }}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+              >
+                Sair Sem Salvar
               </button>
             </div>
           </div>

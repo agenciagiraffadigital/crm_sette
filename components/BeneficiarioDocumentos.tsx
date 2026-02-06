@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { documentoConfigService, BeneficiarioDocumento } from '../services/documentoConfigService';
 import { FileText, Upload, Download, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
+import { RejectDocumentDialog } from './RejectDocumentDialog';
 
 interface BeneficiarioDocumentosProps {
   beneficiarioId: string;
@@ -27,6 +28,11 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
   const [documentos, setDocumentos] = useState<BeneficiarioDocumento[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [rejectDialog, setRejectDialog] = useState<{ visible: boolean; docId: string; docName: string }>({ 
+    visible: false, 
+    docId: '', 
+    docName: '' 
+  });
 
   useEffect(() => {
     loadDocumentos();
@@ -114,19 +120,19 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
       onStatusChange?.();
     } catch (error) {
       console.error('Erro ao aprovar:', error);
+      alert('Erro ao aprovar documento');
     }
   };
 
-  const handleRejeitar = async (docId: string) => {
-    const motivo = prompt('Motivo da rejeição:');
-    if (!motivo) return;
-    
+  const handleRejeitar = async (motivo: string) => {
     try {
-      const updated = await documentoConfigService.rejeitarDocumento(docId, currentUserId, motivo);
-      setDocumentos(prev => prev.map(d => d.id === docId ? updated : d));
+      const updated = await documentoConfigService.rejeitarDocumento(rejectDialog.docId, currentUserId, motivo);
+      setDocumentos(prev => prev.map(d => d.id === rejectDialog.docId ? updated : d));
+      setRejectDialog({ visible: false, docId: '', docName: '' });
       onStatusChange?.();
     } catch (error) {
       console.error('Erro ao rejeitar:', error);
+      alert('Erro ao rejeitar documento');
     }
   };
 
@@ -250,7 +256,11 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
                     Aprovar
                   </button>
                   <button
-                    onClick={() => handleRejeitar(doc.id)}
+                    onClick={() => setRejectDialog({ 
+                      visible: true, 
+                      docId: doc.id, 
+                      docName: doc.documento_config?.nome_documento || 'Documento' 
+                    })}
                     className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
                   >
                     Rejeitar
@@ -261,6 +271,13 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
           </div>
         </div>
       ))}
+
+      <RejectDocumentDialog
+        visible={rejectDialog.visible}
+        documentName={rejectDialog.docName}
+        onHide={() => setRejectDialog({ visible: false, docId: '', docName: '' })}
+        onConfirm={handleRejeitar}
+      />
     </div>
   );
 };
