@@ -14,8 +14,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Cliente normal para usuários
 const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: false,
-    autoRefreshToken: false,
+    persistSession: true,
+    autoRefreshToken: true,
     detectSessionInUrl: false,
     storageKey: 'crm-auth'
   }
@@ -24,11 +24,11 @@ const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
 // Cliente admin (usa service_role key para operações administrativas)
 const supabaseAdminClient = createClient(
   supabaseUrl, 
-  supabaseServiceKey || supabaseAnonKey, // Fallback para anonKey se não tiver service key
+  supabaseServiceKey || supabaseAnonKey,
   {
     auth: {
-      persistSession: false,
-      autoRefreshToken: false,
+      persistSession: true,
+      autoRefreshToken: true,
       detectSessionInUrl: false,
       storageKey: 'crm-admin-auth'
     }
