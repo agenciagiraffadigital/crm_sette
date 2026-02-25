@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lead, KanbanStatus } from '../types';
-import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, DollarSign, Trash2 } from 'lucide-react';
+import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, DollarSign, Trash2, XCircle } from 'lucide-react';
 import { KANBAN_COLUMNS } from '../constants';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
@@ -9,11 +9,12 @@ interface ProposalCardProps {
   proposal: Lead;
   onMove: (id: number, newStatus: KanbanStatus) => void;
   onClick: (proposal: Lead) => void;
+  onLost?: (proposal: Lead) => void;
   onDelete?: (id: number) => void;
   currentUser?: any;
 }
 
-export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, onClick, onDelete, currentUser }) => {
+export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, onClick, onLost, onDelete, currentUser }) => {
   
   const getNextStatus = (current: KanbanStatus): KanbanStatus | null => {
     const idx = KANBAN_COLUMNS.findIndex(c => c.id === current);
@@ -37,7 +38,6 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
       proposalId: proposal.id,
       currentStatus: proposal.status_kanban
     };
-    console.log('Drag started for proposal:', proposal.id, proposal.status_kanban);
     e.dataTransfer.setData('text/plain', JSON.stringify(data));
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -60,33 +60,28 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
 
   return (
     <div 
-      className="bg-white shadow-sm p-4 rounded-lg transition-shadow duration-200 hover:shadow-md group cursor-move relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg select-none"
+      className="bg-white shadow-sm p-4 rounded-lg transition-shadow duration-200 hover:shadow-md group cursor-pointer relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg select-none"
       draggable={true}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onClick={() => onClick(proposal)}
       title="Clique para editar ou arraste para mover"
     >
-      {/* Header with Type and ID */}
-      <div className="flex justify-between items-start mb-3">
-        <div className={`flex items-center space-x-1 text-xs font-bold px-2 py-1 rounded-full ${typeConfig.color}`}>
-          <typeConfig.icon className="w-3 h-3" />
-          <span>{proposal.tipo_cliente}</span>
-        </div>
-        <span className="text-xs text-slate-400 font-mono">#{proposal.id}</span>
-      </div>
-      
       {/* Main Info */}
-      <div onClick={() => onClick(proposal)}>
-        <h4 className="font-bold text-slate-800 mb-1 truncate text-sm cursor-pointer" title={proposal.nome}>
-          {proposal.nome}
-        </h4>
-        <p className="text-xs text-slate-500 mb-3 font-medium cursor-pointer">
+      <div>
+        <div className="flex justify-between items-start mb-1">
+          <h4 className="font-bold text-slate-800 truncate text-sm flex-1" title={proposal.nome}>
+            {proposal.nome}
+          </h4>
+          <span className="text-xs text-slate-400 font-mono ml-2">#{proposal.id}</span>
+        </div>
+        <p className="text-xs text-slate-500 mb-3 font-medium">
           {proposal.produto || 'Produto N/A'} - {proposal.operadora || 'N/A'}
         </p>
       </div>
       
       {/* Essential Information */}
-      <div className="space-y-1.5 mb-4">
+      <div className="space-y-1.5 mb-3">
         <div className="flex items-center text-xs text-slate-600">
           <Mail className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
           <span className="truncate" title={proposal.email}>{proposal.email}</span>
@@ -97,11 +92,7 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
         </div>
         <div className="flex items-center text-xs text-slate-600">
           <User className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-          <span className="truncate">Vend: {proposal.vendedor}</span>
-        </div>
-        <div className="flex items-center text-xs text-slate-600">
-          <Calendar className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-          <span>{formatDate(proposal.created_at)}</span>
+          <span className="truncate">{proposal.vendedor}</span>
         </div>
         {proposal.valor_produto && (
           <div className="flex items-center text-xs text-slate-600">
@@ -111,60 +102,7 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
         )}
       </div>
 
-      {/* Action Buttons - Always visible */}
-      <div 
-        className="pt-3 border-t border-slate-100 flex justify-between items-center" 
-        onClick={e => e.stopPropagation()}
-      >
-        {nextStatus && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              onMove(proposal.id, nextStatus); 
-            }}
-            className="text-xs font-bold uppercase text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border-blue-200 hover:border-blue-300 transition-all duration-200"
-            icon={<ArrowRight className="w-3 h-3" />}
-          >
-            Mover
-          </Button>
-        )}
-        
-        <div className="flex gap-1 ml-auto">
-          {proposal.status_kanban !== 'CANCELADA' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                onMove(proposal.id, 'CANCELADA'); 
-              }}
-              className="text-xs font-bold uppercase text-red-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
-            >
-              Cancelar
-            </Button>
-          )}
-          
-          {/* Admin only: Delete button */}
-          {currentUser?.role === 'ADMIN' && onDelete && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                onDelete(proposal.id); 
-              }}
-              className="text-xs text-red-600 hover:text-red-800 px-2 py-1"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-
       {/* Status Indicator */}
-      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
     </div>
   );
 };

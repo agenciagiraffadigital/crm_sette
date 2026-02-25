@@ -95,10 +95,12 @@ export const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({ currentUse
     value: count,
   }));
 
-  const proposalStatusData: ChartData[] = Object.entries(metrics.proposals.byStatus).map(([status, count]) => ({
-    name: status,
-    value: count,
-  }));
+  const proposalStatusData: ChartData[] = Object.entries(metrics.proposals.byStatus)
+    .filter(([status]) => ['ENVIADA', 'ANÁLISE', 'IMPLANTADA'].includes(status))
+    .map(([status, count]) => ({
+      name: status,
+      value: count,
+    }));
 
   const sellerPerformanceData: ChartData[] = metrics.sellers.performance
     .slice(0, 10) // Top 10 sellers
@@ -115,14 +117,14 @@ export const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({ currentUse
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Total de Leads"
-          value={metrics.opportunities.total}
+          value={metrics.proposals.total}
           icon={<Target className="w-6 h-6" />}
           color="bg-blue-500"
         />
         
         <MetricCard
           title="Taxa de Conversão"
-          value={`${metrics.opportunities.conversionRate.toFixed(1)}%`}
+          value={`${metrics.proposals.conversionRate.toFixed(1)}%`}
           icon={<TrendingUp className="w-6 h-6" />}
           color="bg-emerald-500"
         />
@@ -136,7 +138,7 @@ export const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({ currentUse
         
         <MetricCard
           title="Perdidos"
-          value={metrics.proposals.byStatus.CANCELADA}
+          value={metrics.proposals.byStatus.CANCELADA || 0}
           icon={<XCircle className="w-6 h-6" />}
           color="bg-red-500"
         />

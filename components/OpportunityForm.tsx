@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Opportunity, OpportunityStatus, User } from '../types';
+import { Opportunity, OpportunityStatus, User, Note } from '../types';
 import { OPPORTUNITY_COLUMNS } from '../constants';
 import { opportunityService } from '../services/opportunityService';
 import { authService } from '../services/authService';
-import { Save, ArrowLeft, Edit3 } from 'lucide-react';
+import { Save, ArrowLeft, Edit3, Plus, MessageSquare, CheckCircle } from 'lucide-react';
 import { Button } from '../src/components/ui/Button';
 import { Card } from '../src/components/ui/Card';
 import { Select as UISelect } from '../src/components/ui/Select';
+import { maskPhone, unmask } from '../utils/masks';
+import { SystemModal } from './SystemModal';
+import { NotesDialog } from './NotesDialog';
 
 interface OpportunityFormProps {
   opportunityId: number;
@@ -23,7 +26,8 @@ const ValidatedInput = ({
   placeholder = "", 
   type = "text", 
   className = "",
-  required = false
+  required = false,
+  mask
 }: {
   label?: string;
   value: string;
@@ -32,6 +36,7 @@ const ValidatedInput = ({
   type?: string;
   className?: string;
   required?: boolean;
+  mask?: (value: string) => string;
 }) => {
   const id = label ? `input-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined;
   
@@ -47,7 +52,10 @@ const ValidatedInput = ({
         id={id}
         type={type} 
         value={value || ''} 
-        onChange={e => onChange(e.target.value)}
+        onChange={e => {
+          const newValue = mask ? mask(e.target.value) : e.target.value;
+          onChange(newValue);
+        }}
         placeholder={placeholder || (label ? `${label}...` : '')}
         className="bg-white border border-slate-400 rounded p-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-200 transition-all w-full"
       />
@@ -193,18 +201,35 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [activeTab, setActiveTab] = useState<'info' | 'notas'>('info');
+  
+  // Notes state
+  const [notesDialog, setNotesDialog] = useState({ isOpen: false, loading: false });
+  const [notes, setNotes] = useState<Note[]>([]);
   
   // Seller reassignment modal state
   const [reassignmentModal, setReassignmentModal] = useState({
     isOpen: false,
     loading: false
   });
+  
+  const [systemModal, setSystemModal] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({ isOpen: false, type: 'alert', title: '', message: '' });
 
   useEffect(() => {
     const loadOpportunity = async () => {
       try {
         const data = await opportunityService.getOpportunityById(opportunityId);
-        if (data) setFormData(data);
+        if (data) {
+          setFormData(data);
+          // Load notes
+          const notesData = await opportunityService.getNotes(opportunityId);
+          setNotes(notesData);
+        }
       } catch (error) {
         console.error('Erro ao carregar oportunidade:', error);
       } finally {
@@ -216,8 +241,38 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
 
   const handleChange = useCallback((field: keyof Opportunity, value: any) => {
     if (!formData) return;
-    setFormData({ ...formData, [field]: value });
+    const cleanValue = (field === 'telefone') ? unmask(value) : value;
+    setFormData({ ...formData, [field]: cleanValue });
   }, [formData]);
+
+  // Notes handlers
+  const handleAddNote = async (noteData: Omit<Note, 'id' | 'user_id' | 'user_name' | 'created_at' | 'updated_at'>) => {
+    if (!formData) return;
+    
+    setNotesDialog(prev => ({ ...prev, loading: true }));
+    
+    try {
+      const newNote = await opportunityService.addNote(formData.id, {
+        ...noteData,
+        user_id: currentUser.id,
+        user_name: currentUser.name
+      });
+      
+      setNotes(prev => [newNote, ...prev]);
+      setNotesDialog({ isOpen: false, loading: false });
+      
+    } catch (error) {
+      console.error('Erro ao adicionar nota:', error);
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro',
+        message: 'Erro ao adicionar nota'
+      });
+    } finally {
+      setNotesDialog(prev => ({ ...prev, loading: false }));
+    }
+  };
 
   const handleSubmit = async () => {
     if (!formData) return;
@@ -227,10 +282,20 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
       const updated = await opportunityService.updateOpportunity(formData.id, formData);
       setLastSaved(new Date());
       onSave(updated);
-      alert('Oportunidade salva com sucesso!');
+      setSystemModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Sucesso',
+        message: 'Oportunidade salva com sucesso!'
+      });
     } catch (e) {
       console.error(e);
-      alert("Erro ao salvar oportunidade");
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro ao Salvar',
+        message: 'Erro ao salvar oportunidade'
+      });
     } finally {
       setSaving(false);
     }
@@ -256,10 +321,20 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
       setLastSaved(new Date());
       onSave(updatedOpportunity);
       handleCloseReassignmentModal();
-      alert('Oportunidade reatribuída com sucesso!');
+      setSystemModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Sucesso',
+        message: 'Oportunidade reatribuída com sucesso!'
+      });
     } catch (error: any) {
       console.error('Erro ao reatribuir oportunidade:', error);
-      alert(`Erro ao reatribuir oportunidade: ${error.message}`);
+      setSystemModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Erro ao Reatribuir',
+        message: `Erro ao reatribuir oportunidade: ${error.message}`
+      });
     } finally {
       setReassignmentModal(prev => ({ ...prev, loading: false }));
     }
@@ -341,102 +416,197 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-8 overflow-y-auto bg-slate-50">
-        <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-          
-          <h3 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-6">
-            Dados da Oportunidade
-          </h3>
+      <div className="flex-1 overflow-y-auto bg-slate-50">
+        {/* Tabs */}
+        <div className="flex border-b border-slate-200 px-8 bg-white">
+          {[
+            { id: 'info', label: 'Dados da Oportunidade' },
+            { id: 'notas', label: `Notas (${notes.length})` }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === tab.id 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-          <div className="space-y-6">
-            {/* Contact Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ValidatedInput 
-                label="Nome Completo" 
-                value={formData.nome} 
-                onChange={(v: string) => handleChange('nome', v)}
-                required
-              />
-              <ValidatedInput 
-                label="E-mail" 
-                value={formData.email} 
-                onChange={(v: string) => handleChange('email', v)} 
-                type="email"
-                required
-              />
-              <ValidatedInput 
-                label="Telefone" 
-                value={formData.telefone} 
-                onChange={(v: string) => handleChange('telefone', v)}
-                required
-              />
-              <Select 
-                label="Origem" 
-                value={formData.origem} 
-                options={['SITE', 'FACEBOOK', 'GOOGLE', 'INSTAGRAM', 'WHATSAPP', 'LINKEDIN', 'EMAIL', 'INDICAÇÃO', 'OUTROS']}
-                onChange={(v: string) => handleChange('origem', v)} 
-              />
-            </div>
+        <div className="p-8">
+          <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+            
+            {/* TAB: INFO */}
+            {activeTab === 'info' && (
+              <>
+                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-6">
+                  Dados da Oportunidade
+                </h3>
 
-            {/* Opportunity Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <ValidatedInput 
-                label="Valor Cotado (R$)" 
-                type="number" 
-                step="0.01"
-                value={formData.quoted_value?.toString() || ''} 
-                onChange={(v: string) => handleChange('quoted_value', v ? parseFloat(v) : null)} 
-              />
-              <ValidatedInput 
-                label="Data de Contato" 
-                type="date" 
-                value={formData.contact_date || ''} 
-                onChange={(v: string) => handleChange('contact_date', v)} 
-              />
-              <ValidatedInput 
-                label="Próximo Follow-up" 
-                type="date" 
-                value={formData.next_followup || ''} 
-                onChange={(v: string) => handleChange('next_followup', v)} 
-              />
-            </div>
+                <div className="space-y-6">
+                  {/* Contact Information */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <ValidatedInput 
+                      label="Nome Completo" 
+                      value={formData.nome} 
+                      onChange={(v: string) => handleChange('nome', v)}
+                      required
+                    />
+                    <ValidatedInput 
+                      label="E-mail" 
+                      value={formData.email} 
+                      onChange={(v: string) => handleChange('email', v)} 
+                      type="email"
+                      required
+                    />
+                    <ValidatedInput 
+                      label="Telefone" 
+                      value={maskPhone(formData.telefone)} 
+                      onChange={(v: string) => handleChange('telefone', v)}
+                      mask={maskPhone}
+                      required
+                    />
+                    <Select 
+                      label="Origem" 
+                      value={formData.origem} 
+                      options={['SITE', 'FACEBOOK', 'GOOGLE', 'INSTAGRAM', 'WHATSAPP', 'LINKEDIN', 'EMAIL', 'INDICAÇÃO', 'OUTROS']}
+                      onChange={(v: string) => handleChange('origem', v)} 
+                    />
+                  </div>
 
-            {/* Notes */}
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase block mb-2">
-                Observações
-              </label>
-              <textarea 
-                value={formData.notes || ''} 
-                onChange={(e) => handleChange('notes', e.target.value)}
-                placeholder="Adicione observações sobre esta oportunidade..."
-                rows={4}
-                className="w-full bg-white border border-slate-400 rounded p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-200 transition-all resize-vertical"
-              />
-            </div>
+                  {/* Opportunity Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <ValidatedInput 
+                      label="Valor Cotado (R$)" 
+                      type="number" 
+                      step="0.01"
+                      value={formData.quoted_value?.toString() || ''} 
+                      onChange={(v: string) => handleChange('quoted_value', v ? parseFloat(v) : null)} 
+                    />
+                    <ValidatedInput 
+                      label="Data de Contato" 
+                      type="date" 
+                      value={formData.contact_date || ''} 
+                      onChange={(v: string) => handleChange('contact_date', v)} 
+                    />
+                    <ValidatedInput 
+                      label="Próximo Follow-up" 
+                      type="date" 
+                      value={formData.next_followup || ''} 
+                      onChange={(v: string) => handleChange('next_followup', v)} 
+                    />
+                  </div>
 
-            {/* Timestamps */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
-                  Criado em
-                </label>
-                <p className="text-sm text-slate-600">
-                  {new Date(formData.created_at).toLocaleString('pt-BR')}
-                </p>
+                  {/* Notes */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase block mb-2">
+                      Observações
+                    </label>
+                    <textarea 
+                      value={formData.notes || ''} 
+                      onChange={(e) => handleChange('notes', e.target.value)}
+                      placeholder="Adicione observações sobre esta oportunidade..."
+                      rows={4}
+                      className="w-full bg-white border border-slate-400 rounded p-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-200 transition-all resize-vertical"
+                    />
+                  </div>
+
+                  {/* Timestamps */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+                        Criado em
+                      </label>
+                      <p className="text-sm text-slate-600">
+                        {new Date(formData.created_at).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
+                        Última atualização
+                      </label>
+                      <p className="text-sm text-slate-600">
+                        {new Date(formData.updated_at).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* TAB: NOTAS */}
+            {activeTab === 'notas' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    Notas e Atividades
+                  </h3>
+                  <button 
+                    onClick={() => setNotesDialog({ isOpen: true, loading: false })} 
+                    className="flex items-center text-sm bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-200 transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Nota
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {notes.length === 0 && (
+                    <p className="text-slate-500 text-center py-8 bg-slate-50 rounded border border-dashed border-slate-300">
+                      Nenhuma nota cadastrada.
+                    </p>
+                  )}
+                  {notes.map((note) => (
+                    <div key={note.id} className="border border-slate-200 rounded-lg p-4 bg-white hover:shadow-sm transition-shadow">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4 text-blue-500" />
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${
+                            note.atividade === 'Apresentação' ? 'bg-purple-100 text-purple-700' :
+                            note.atividade === 'Ligação' ? 'bg-green-100 text-green-700' :
+                            note.atividade === 'Proposta' ? 'bg-blue-100 text-blue-700' :
+                            note.atividade === 'Reunião' ? 'bg-orange-100 text-orange-700' :
+                            'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {note.atividade}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(note.data + 'T' + note.horario).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                          {note.duracao && (
+                            <span className="text-xs text-slate-400">• {note.duracao}</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-slate-500">{note.user_name}</span>
+                      </div>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{note.anotacoes}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">
-                  Última atualização
-                </label>
-                <p className="text-sm text-slate-600">
-                  {new Date(formData.updated_at).toLocaleString('pt-BR')}
-                </p>
-              </div>
-            </div>
+            )}
+
           </div>
         </div>
       </div>
+
+      {/* Notes Dialog */}
+      <NotesDialog
+        isOpen={notesDialog.isOpen}
+        onClose={() => setNotesDialog({ isOpen: false, loading: false })}
+        onSave={handleAddNote}
+        loading={notesDialog.loading}
+      />
 
       {/* Seller Reassignment Modal */}
       <SellerReassignmentModal
@@ -446,6 +616,16 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
         opportunityName={formData?.nome || ''}
         currentSeller={formData?.vendedor || ''}
         loading={reassignmentModal.loading}
+      />
+
+      {/* System Modal */}
+      <SystemModal
+        isOpen={systemModal.isOpen}
+        type={systemModal.type}
+        title={systemModal.title}
+        message={systemModal.message}
+        onConfirm={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+        onCancel={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
       />
     </div>
   );

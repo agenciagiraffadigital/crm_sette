@@ -1,9 +1,19 @@
-# Configuração Nginx para dois ambientes
+# Configuração Nginx para dois ambientes com SSL
 # Arquivo: /etc/nginx/sites-available/crm_sette
 
+# Produção
 server {
     listen 80;
     server_name sistema.settesaude.com.br;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name sistema.settesaude.com.br;
+    
+    ssl_certificate /etc/letsencrypt/live/sistema.settesaude.com.br/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/sistema.settesaude.com.br/privkey.pem;
     
     location / {
         proxy_pass http://localhost:3000;
@@ -14,9 +24,19 @@ server {
     }
 }
 
+# Desenvolvimento
 server {
     listen 80;
     server_name dev.settesaude.com.br;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name dev.settesaude.com.br;
+    
+    ssl_certificate /etc/letsencrypt/live/dev.settesaude.com.br/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dev.settesaude.com.br/privkey.pem;
     
     location / {
         proxy_pass http://localhost:3001;

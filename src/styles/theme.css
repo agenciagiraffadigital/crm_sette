@@ -1,5 +1,7 @@
 /* Modern CSS Variables for Theme System */
 :root {
+  /* Force Inter font for PrimeReact components */
+  --font-family: 'Inter', sans-serif;
   /* Colors */
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
@@ -204,4 +206,39 @@
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--color-slate-400);
+}
+
+/* Override PrimeReact font family */
+.p-component {
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Remove background cinza da seta do select */
+select {
+  background-color: white !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+  background-position: right 0.5rem center !important;
+  background-repeat: no-repeat !important;
+  background-size: 1.5em 1.5em !important;
+  padding-right: 2.5rem !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+/* Remove borda preta padrão do navegador em inputs e selects */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+}
+
+/* Toast progress bar animation */
+@keyframes shrink {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
 }

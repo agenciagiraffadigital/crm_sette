@@ -1,4 +1,4 @@
-import { Opportunity, OpportunityStatus, User, LossReason, ActivityLog, AssignmentHistory } from '../types';
+import { Opportunity, OpportunityStatus, User, LossReason, ActivityLog, AssignmentHistory, Note } from '../types';
 import { supabase } from './supabaseClient';
 
 export const opportunityService = {
@@ -63,12 +63,64 @@ export const opportunityService = {
       updated_at: data.updated_at,
       first_contact_date: data.first_contact_date,
       quoted_value: data.valor_produto,
+      contact_date: data.contact_date,
+      next_followup: data.next_followup,
       vendedor: data.vendedor,
       vendedor_email: data.vendedor_email,
       vendedor_id: data.vendedor_id,
       origem: data.origem,
       raw_json: data.raw_json,
       produto: data.produto,
+      notes: data.raw_json?.notes
+    };
+  },
+
+  // Create new opportunity manually (Admin creates in leads table)
+  createOpportunityManually: async (opportunityData: {
+    nome: string;
+    email: string;
+    telefone: string;
+    origem: string;
+    vendedor_id: number;
+    vendedor: string;
+    vendedor_email: string;
+    status: OpportunityStatus;
+    notes?: string;
+  }): Promise<Opportunity> => {
+    const { data, error } = await supabase
+      .from('leads')
+      .insert({
+        nome: opportunityData.nome,
+        email: opportunityData.email,
+        telefone: opportunityData.telefone,
+        status_kanban: opportunityData.status,
+        vendedor: opportunityData.vendedor,
+        vendedor_email: opportunityData.vendedor_email,
+        vendedor_id: opportunityData.vendedor_id,
+        origem: opportunityData.origem,
+        tipo_cliente: 'PF',
+        cpf_cnpj: '',
+        operadora: '',
+        produto: ''
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      id: data.id,
+      nome: data.nome,
+      email: data.email,
+      telefone: data.telefone,
+      status: data.status_kanban,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      vendedor: data.vendedor,
+      vendedor_email: data.vendedor_email,
+      vendedor_id: data.vendedor_id,
+      origem: data.origem,
+      notes: opportunityData.notes
     };
   },
 
@@ -134,21 +186,79 @@ export const opportunityService = {
     };
   },
 
+  // Update opportunity (actually updates lead)
+  updateOpportunity: async (id: number, opportunityData: Partial<Opportunity>): Promise<Opportunity> => {
+    const updateData: any = {};
+    
+    if (opportunityData.nome !== undefined) updateData.nome = opportunityData.nome;
+    if (opportunityData.email !== undefined) updateData.email = opportunityData.email;
+    if (opportunityData.telefone !== undefined) updateData.telefone = opportunityData.telefone;
+    if (opportunityData.origem !== undefined) updateData.origem = opportunityData.origem;
+    if (opportunityData.status !== undefined) updateData.status_kanban = opportunityData.status;
+    if (opportunityData.quoted_value !== undefined) updateData.valor_produto = opportunityData.quoted_value;
+    if (opportunityData.contact_date !== undefined) updateData.contact_date = opportunityData.contact_date;
+    if (opportunityData.next_followup !== undefined) updateData.next_followup = opportunityData.next_followup;
+    if (opportunityData.notes !== undefined) {
+      // Update raw_json to include notes
+      const { data: currentData } = await supabase
+        .from('leads')
+        .select('raw_json')
+        .eq('id', id)
+        .single();
+      
+      const currentRawJson = currentData?.raw_json || {};
+      updateData.raw_json = { ...currentRawJson, notes: opportunityData.notes };
+    }
+
+    const { data, error } = await supabase
+      .from('leads')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      id: data.id,
+      nome: data.nome,
+      email: data.email,
+      telefone: data.telefone,
+      status: data.status_kanban,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      first_contact_date: data.first_contact_date,
+      quoted_value: data.valor_produto,
+      contact_date: data.contact_date,
+      next_followup: data.next_followup,
+      vendedor: data.vendedor,
+      vendedor_email: data.vendedor_email,
+      vendedor_id: data.vendedor_id,
+      origem: data.origem,
+      raw_json: data.raw_json,
+      notes: data.raw_json?.notes
+    };
+  },
+
   // Update opportunity status (actually updates lead status_kanban)
   updateOpportunityStatus: async (id: number, status: OpportunityStatus, currentUser: User, additionalData?: {
     quoted_value?: number;
-    first_contact_date?: string;
   }): Promise<Opportunity> => {
+    // Buscar status anterior
+    const { data: currentData } = await supabase
+      .from('leads')
+      .select('status_kanban')
+      .eq('id', id)
+      .single();
+    
+    const oldStatus = currentData?.status_kanban;
+    
     const updateData: any = {
       status_kanban: status,
     };
 
     if (additionalData?.quoted_value) {
       updateData.valor_produto = additionalData.quoted_value;
-    }
-
-    if (status === 'EM_CONTATO' && !additionalData?.first_contact_date) {
-      updateData.first_contact_date = new Date().toISOString();
     }
 
     const { data, error } = await supabase
@@ -162,6 +272,20 @@ export const opportunityService = {
       throw new Error(`Erro ao atualizar: ${error.message}`);
     }
 
+    // Registrar log de mudança de status
+    if (oldStatus && oldStatus !== status) {
+      const { leadService } = await import('./leadService');
+      const { formatStatus } = await import('../utils/formatters');
+      
+      await leadService.addActivityLog(id, {
+        tipo: 'MUDANCA_STATUS',
+        descricao: `Status alterado de ${formatStatus(oldStatus)} para ${formatStatus(status)}`,
+        usuario_id: currentUser.id,
+        usuario_nome: currentUser.name,
+        metadata: { status_anterior: oldStatus, status_novo: status }
+      });
+    }
+
     return {
       id: data.id,
       nome: data.nome,
@@ -170,7 +294,6 @@ export const opportunityService = {
       status: data.status_kanban,
       created_at: data.created_at,
       updated_at: data.updated_at,
-      first_contact_date: data.first_contact_date,
       quoted_value: data.valor_produto,
       vendedor: data.vendedor,
       vendedor_email: data.vendedor_email,
@@ -466,5 +589,38 @@ export const opportunityService = {
       .eq('id', opportunityId);
 
     if (error) throw error;
+  },
+
+  // Adicionar nota
+  addNote: async (opportunityId: number, note: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .insert({
+        lead_id: opportunityId,
+        atividade: note.atividade,
+        data: note.data,
+        horario: note.horario,
+        duracao: note.duracao,
+        anotacoes: note.anotacoes,
+        user_id: note.user_id,
+        user_name: note.user_name
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Buscar notas
+  getNotes: async (opportunityId: number): Promise<Note[]> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('lead_id', opportunityId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   },
 };

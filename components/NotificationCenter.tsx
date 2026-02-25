@@ -160,8 +160,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
             {/* Notifications List */}
             <div className="max-h-80 overflow-y-auto">
               {loading ? (
-                <div className="p-4 text-center text-gray-500">
-                  Carregando notificações...
+                <div className="p-4 flex justify-center">
+                  <img src="/loading.gif" alt="Carregando..." className="w-8 h-8" />
                 </div>
               ) : notifications.length === 0 ? (
                 <div className="p-4 text-center text-gray-500">

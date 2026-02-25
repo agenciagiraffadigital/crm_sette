@@ -19,7 +19,7 @@ export const ErrorToast: React.FC<ErrorToastProps> = ({ message, isVisible, onCl
   if (!isVisible) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md">
+    <div className="fixed top-4 right-4 z-[9999] bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md">
       <div className="flex justify-between items-center">
         <span>{message}</span>
         <button 

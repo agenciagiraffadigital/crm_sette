@@ -6,13 +6,20 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "build:prod": "vite build --mode production",
     "webhook:dev": "node server/index.cjs",
     "preview": "vite preview",
     "start": "node server/index.cjs",
     "deploy": "npm run build && pm2 restart crm-webhook",
+    "deploy:dev": "npm run build:dev && pm2 restart crm-webhook",
+    "check:env": "node scripts/check-env.js",
+    "check:env:dev": "node scripts/check-env.js development",
+    "check:env:prod": "node scripts/check-env.js production",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:env": "node scripts/test-environment.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",
@@ -20,6 +27,8 @@
     "dotenv": "^17.2.3",
     "express": "^4.18.2",
     "lucide-react": "^0.556.0",
+    "primeicons": "^7.0.0",
+    "primereact": "^10.9.7",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "recharts": "^3.5.1"

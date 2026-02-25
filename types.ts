@@ -1,12 +1,27 @@
 export type ClientType = 'PF' | 'PJ' | 'ADESAO';
 
-export type KanbanStatus = 'ENVIADA' | 'ANÁLISE' | 'IMPLANTADA' | 'CANCELADA';
+export type KanbanStatus = 'ENVIADA' | 'ANÁLISE' | 'IMPLANTADA' | 'CANCELADA' | 'PROPOSTA';
 
 export type OpportunityStatus = 'OPORTUNIDADES' | 'EM_CONTATO' | 'NEGOCIACAO';
 
 export type Role = 'ADMIN' | 'SELLER';
 
 export type CoparticipationType = 'NÃO' | 'PARCIAL' | 'COMPLETA';
+
+export type TipoDependente = 'CONJUGE' | 'FILHO_FILHA' | 'PAI_MAE' | 'IRMAOS' | 'PADRASTO_MADRASTA' | 'TIOS' | 'SOGROS' | 'SOBRINHOS' | 'CUNHADOS' | 'GENRO_NORA';
+
+export const TIPOS_DEPENDENTE: { value: TipoDependente; label: string }[] = [
+  { value: 'CONJUGE', label: 'Cônjuge' },
+  { value: 'FILHO_FILHA', label: 'Filho/Filha' },
+  { value: 'PAI_MAE', label: 'Pai e/ou Mãe' },
+  { value: 'IRMAOS', label: 'Irmãos' },
+  { value: 'PADRASTO_MADRASTA', label: 'Padrasto e/ou Madrasta' },
+  { value: 'TIOS', label: 'Tios' },
+  { value: 'SOGROS', label: 'Sogros' },
+  { value: 'SOBRINHOS', label: 'Sobrinhos' },
+  { value: 'CUNHADOS', label: 'Cunhados' },
+  { value: 'GENRO_NORA', label: 'Genro/Nora' }
+];
 
 export interface User {
   id: number;
@@ -36,15 +51,76 @@ export interface Address {
   uf: string;
 }
 
+export interface ResponsavelFinanceiro {
+  id: string;
+  lead_id: number;
+  nome: string;
+  cpf: string;
+  rg?: string;
+  data_nascimento?: string;
+  telefone?: string;
+  email?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Beneficiary {
   id: string;
   nome: string;
   cpf?: string;
+  rg?: string;
   email?: string;
   telefone?: string;
   data_nascimento: string;
-  parentesco: string; // Titular, Conjugue, Filho, etc.
-  type: 'TITULAR' | 'DEPENDENTE';
+  parentesco: string; // Mantido para compatibilidade
+  tipo_beneficiario: 'TITULAR' | 'DEPENDENTE';
+  tipo_dependente?: 'CONJUGE' | 'FILHO_FILHA' | 'PAI_MAE' | 'IRMAOS' | 'PADRASTO_MADRASTA' | 'TIOS' | 'SOGROS' | 'SOBRINHOS' | 'CUNHADOS' | 'GENRO_NORA';
+  type: 'TITULAR' | 'DEPENDENTE'; // Mantido para compatibilidade
+  titular_id?: string; // ID do titular (se for dependente)
+  // Endereço
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  // Documentos
+  documentos?: BeneficiarioDocumento[];
+  // Dependentes
+  dependentes?: Beneficiary[];
+}
+
+export interface DocumentoConfig {
+  id: string;
+  operadora_id: number;
+  produto_id: number;
+  tipo_cliente: ClientType;
+  nome_documento: string;
+  ordem: number;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BeneficiarioDocumento {
+  id: string;
+  beneficiario_id: string;
+  documento_config_id: string;
+  arquivo_nome?: string;
+  arquivo_url?: string;
+  status: 'PENDENTE' | 'ENVIADO' | 'APROVADO' | 'REJEITADO';
+  uploaded_at?: string;
+  approved_by?: number;
+  approved_at?: string;
+  motivo_rejeicao?: string;
+  documento_config?: DocumentoConfig;
 }
 
 export interface LeadMessage {
@@ -90,6 +166,13 @@ export interface Lead {
   };
   havera_remissao?: boolean;
 
+  // Responsável Financeiro
+  titular_eh_responsavel_financeiro?: boolean;
+  responsavel_financeiro?: ResponsavelFinanceiro;
+
+  // Beneficiários
+  possui_dependentes?: boolean;
+
   // Common Product Info
   operadora: string;
   produto: string;
@@ -116,9 +199,22 @@ export interface Lead {
   // Enhanced tracking
   last_activity_at?: string;
   activity_log?: ActivityLog[];
+  notes?: Note[];
   
   // Reassignment tracking
   assignment_history?: AssignmentHistory[];
+  
+  // Win/Loss tracking (JSONB)
+  dados_proposta?: {
+    motivo_ganho?: string;
+    motivo_ganho_outro?: string;
+    data_ganho?: string;
+  };
+  dados_perda?: {
+    motivo?: string;
+    detalhes?: string;
+    data_perda?: string;
+  };
 }
 
 export interface DashboardStats {
@@ -164,6 +260,7 @@ export interface Opportunity {
   
   // Notes
   notes?: string;
+  note_list?: Note[];
   
   // Loss Tracking
   lost_at?: string;
@@ -197,4 +294,18 @@ export interface ActivityLog {
   user_name: string;
   created_at: string;
   metadata?: any;
+}
+
+export interface Note {
+  id: string;
+  lead_id: number;
+  atividade: 'Apresentação' | 'Ligação' | 'Proposta' | 'Reunião' | 'Whatsapp';
+  data: string;
+  horario: string;
+  duracao?: string;
+  anotacoes: string;
+  user_id: number;
+  user_name: string;
+  created_at: string;
+  updated_at: string;
 }

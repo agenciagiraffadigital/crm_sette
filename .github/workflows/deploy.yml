@@ -22,9 +22,6 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Build frontend
-      run: npm run build
-      
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -42,9 +39,8 @@ jobs:
             git reset --hard HEAD
             git clean -fd
             git pull origin master
-            rm -rf node_modules package-lock.json
-            npm install
-            npm run build
+            npm ci --production
+            npm run build:prod
             pm2 restart crm-webhook
             echo "=== PRODUÇÃO DEPLOYED ==="
           else
@@ -53,10 +49,10 @@ jobs:
             git reset --hard HEAD
             git clean -fd
             git pull origin develop
-            rm -rf node_modules package-lock.json
-            npm install
-            npm run build
-            pm2 restart crm-webhook-dev
+            npm ci
+            npm run build:dev
+            pm2 restart crm-dev-frontend || pm2 serve /var/www/crm_sette_dev/dist 3001 --name "crm-dev-frontend" --spa
+            pm2 save
             echo "=== DESENVOLVIMENTO DEPLOYED ==="
           fi
           

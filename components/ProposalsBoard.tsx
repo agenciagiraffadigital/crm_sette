@@ -3,6 +3,7 @@ import { Lead, KanbanStatus, User } from '../types';
 import { ProposalCard } from './ProposalCard';
 import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { SystemModal } from './SystemModal';
 import { Button } from '../src/components/ui/Button';
 import { KANBAN_COLUMNS } from '../constants';
 import { leadService } from '../services/leadService';
@@ -11,13 +12,15 @@ interface ProposalsBoardProps {
   proposals: Lead[];
   onMoveProposal: (id: number, newStatus: KanbanStatus) => void;
   onProposalClick: (proposal: Lead) => void;
+  onProposalLost?: (proposal: Lead) => void;
   user: User;
 }
 
 export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({ 
   proposals, 
   onMoveProposal, 
-  onProposalClick, 
+  onProposalClick,
+  onProposalLost,
   user 
 }) => {
   const [filters, setFilters] = useState<FilterState>({
@@ -50,6 +53,13 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     proposalId: null,
     proposalName: ''
   });
+  
+  const [systemModal, setSystemModal] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({ isOpen: false, type: 'alert', title: '', message: '' });
 
   const { sellers, operators, statusOptions, sourceOptions } = useMemo(() => {
     const allSellers = new Set<string>();
@@ -161,18 +171,13 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
 
   const handleDrop = (e: React.DragEvent, targetStatus: KanbanStatus) => {
     e.preventDefault();
-    console.log('Drop event triggered for status:', targetStatus);
     
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      console.log('Dropped data:', data);
       const { proposalId, currentStatus } = data;
       
       if (currentStatus !== targetStatus) {
-        console.log('Moving from', currentStatus, 'to', targetStatus);
         handleMoveProposal(proposalId, targetStatus);
-      } else {
-        console.log('Same status, no move needed');
       }
     } catch (error) {
       console.error('Error handling drop:', error);
@@ -201,16 +206,32 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
         setDeleteModalState({ isOpen: false, proposalId: null, proposalName: '' });
         window.location.reload();
       } catch (error) {
-        alert('Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+        setSystemModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Erro ao Excluir',
+          message: 'Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido')
+        });
       }
     }
   };
 
   return (
+    <>
     <div className="h-full flex flex-col space-y-4">
-      {/* Header with Search and Filters */}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">
+            {user.role === 'ADMIN' ? 'Quadro Geral de Propostas' : 'Minhas Propostas'}
+          </h1>
+          <p className="text-slate-600 mt-1">Gerencie suas propostas e acompanhe o progresso</p>
+        </div>
+      </div>
+
+      {/* Filters Section */}
       <SearchAndFilters
-        title={user.role === 'ADMIN' ? 'Quadro Geral de Propostas' : 'Minhas Propostas'}
+        title=""
         filters={filters}
         onFiltersChange={handleFiltersChange}
         sellers={sellers}
@@ -225,66 +246,69 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
       />
 
       {/* Board Columns */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="flex h-full gap-4 min-w-[1200px] pb-4">
-          {KANBAN_COLUMNS.map((column) => {
-            const columnProposals = filteredProposals.filter(p => p.status_kanban === column.id).slice(0, limits[column.id]);
-            return (
-              <div 
-                key={column.id} 
-                className="flex-1 flex flex-col min-w-[280px] bg-slate-50 rounded-xl border-2 border-slate-200 transition-colors duration-200"
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, column.id as KanbanStatus)}
-              >
-                {/* Column Header */}
-                <div className={`p-3 border-b border-slate-200 rounded-t-xl flex justify-between items-center ${column.color.split(' ')[0]}`}>
-                  <h3 className={`font-semibold text-sm ${column.color.split(' ')[1]}`}>{column.label}</h3>
-                  <span className={`text-xs font-bold px-2 py-0.5 bg-white bg-opacity-50 rounded-full ${column.color.split(' ')[1]}`}>
+      <div className="flex flex-col md:flex-row gap-4 pb-4">
+        {KANBAN_COLUMNS.map((column) => {
+          const columnProposals = filteredProposals.filter(p => p.status_kanban === column.id).slice(0, limits[column.id]);
+          return (
+            <div 
+              key={column.id} 
+              className="flex flex-col w-full md:flex-1 md:min-w-[300px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, column.id as KanbanStatus)}
+            >
+              {/* Column Header */}
+              <div className={`px-4 py-3 ${column.color.split(' ')[0]} border-b border-white/20`}>
+                <div className="flex justify-between items-center">
+                  <h3 className={`font-bold text-sm ${column.color.split(' ')[1]}`}>{column.label}</h3>
+                  <span className={`text-xs font-bold px-2.5 py-1 bg-white/30 backdrop-blur-sm rounded-full ${column.color.split(' ')[1]}`}>
                     {statusCounts[column.id] || 0}
                   </span>
                 </div>
-                
-                {/* Column Body with Virtualization for Performance */}
-                <div 
-                  className="p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar"
-                  onScroll={(e) => {
-                    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-                    if (scrollHeight - scrollTop <= clientHeight + 100) {
-                      // Trigger load more when near bottom
-                      console.log('Load more proposals for column:', column.id);
-                    }
-                  }}
-                >
-                  {columnProposals.map(proposal => (
-                    <ProposalCard 
-                      key={proposal.id} 
-                      proposal={proposal} 
-                      onMove={handleMoveProposal} 
-                      onClick={onProposalClick}
-                      onDelete={user.role === 'ADMIN' ? () => handleDeleteProposal(proposal.id) : undefined}
-                      currentUser={user}
-                    />
-                  ))}
-                  {columnProposals.length === 0 && (
-                    <div className="h-32 flex items-center justify-center drop-zone-empty rounded-lg m-2">
-                      <p className="text-xs text-slate-400 font-medium">Arraste propostas aqui</p>
-                    </div>
-                  )}
-                </div>
               </div>
-            );
-          })}
-        </div>
+              
+              {/* Column Body */}
+              <div className="p-3 space-y-3 bg-slate-50/50 flex-1 max-h-[400px] md:max-h-none overflow-y-auto md:overflow-y-visible">
+                {columnProposals.map(proposal => (
+                  <ProposalCard 
+                    key={proposal.id} 
+                    proposal={proposal} 
+                    onMove={handleMoveProposal} 
+                    onClick={onProposalClick}
+                    onLost={onProposalLost}
+                    onDelete={user.role === 'ADMIN' ? () => handleDeleteProposal(proposal.id) : undefined}
+                    currentUser={user}
+                  />
+                ))}
+                {columnProposals.length === 0 && (
+                  <div className="h-32 flex items-center justify-center rounded-lg border-2 border-dashed border-slate-200">
+                    <p className="text-xs text-slate-400 font-medium">Arraste propostas aqui</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
-
-      <DeleteConfirmationModal
-        isOpen={deleteModalState.isOpen}
-        onClose={() => setDeleteModalState({ isOpen: false, proposalId: null, proposalName: '' })}
-        onConfirm={handleConfirmDelete}
-        itemName={deleteModalState.proposalName}
-        itemType="lead"
-      />
     </div>
+
+    <DeleteConfirmationModal
+      isOpen={deleteModalState.isOpen}
+      onClose={() => setDeleteModalState({ isOpen: false, proposalId: null, proposalName: '' })}
+      onConfirm={handleConfirmDelete}
+      itemName={deleteModalState.proposalName}
+      itemType="lead"
+    />
+
+    {/* System Modal */}
+    <SystemModal
+      isOpen={systemModal.isOpen}
+      type={systemModal.type}
+      title={systemModal.title}
+      message={systemModal.message}
+      onConfirm={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+      onCancel={() => setSystemModal({ isOpen: false, type: 'alert', title: '', message: '' })}
+    />
+    </>
   );
 };

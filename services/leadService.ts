@@ -1,4 +1,4 @@
-import { Lead, KanbanStatus, User } from '../types';
+import { Lead, KanbanStatus, User, Note } from '../types';
 import { supabase } from './supabaseClient';
 import { authService } from './authService';
 
@@ -7,7 +7,6 @@ export const leadService = {
     let query = supabase
       .from('leads')
       .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at')
-      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA'])
       .order('created_at', { ascending: false });
     
     if (currentUser.role !== 'ADMIN') {
@@ -65,6 +64,7 @@ export const leadService = {
     return leads;
   },
 
+  // Get lead by ID with responsavel financeiro
   getLeadById: async (id: number): Promise<Lead> => {
     const { data, error } = await supabase
       .from('leads')
@@ -72,6 +72,74 @@ export const leadService = {
       .eq('id', id)
       .single();
     if (error || !data) throw new Error("Lead not found");
+    
+    // Buscar responsável financeiro se existir
+    let responsavel_financeiro = undefined;
+    if (!data.titular_eh_responsavel_financeiro) {
+      const { data: respData, error: respError } = await supabase
+        .from('responsaveis_financeiros')
+        .select('*')
+        .eq('lead_id', id)
+        .maybeSingle();
+      
+      if (!respError && respData) {
+        responsavel_financeiro = respData;
+      }
+    }
+
+    // Buscar beneficiários
+    const { data: benData, error: benError } = await supabase
+      .from('beneficiarios')
+      .select('*')
+      .eq('lead_id', id);
+    
+    let beneficiarios = [];
+    if (!benError && benData) {
+      // Agrupar titulares e dependentes
+      const titulares = benData.filter(b => b.tipo === 'TITULAR');
+      beneficiarios = titulares.map(titular => ({
+        id: titular.id,
+        nome: titular.nome,
+        cpf: titular.cpf,
+        rg: titular.rg,
+        email: titular.email,
+        telefone: titular.telefone,
+        data_nascimento: titular.data_nascimento,
+        parentesco: titular.parentesco,
+        tipo_beneficiario: titular.tipo_beneficiario || 'TITULAR',
+        tipo_dependente: titular.tipo_dependente,
+        type: 'TITULAR' as const,
+        cep: titular.cep,
+        logradouro: titular.logradouro,
+        numero: titular.numero,
+        complemento: titular.complemento,
+        bairro: titular.bairro,
+        cidade: titular.cidade,
+        estado: titular.estado,
+        dependentes: benData.filter(b => b.tipo === 'DEPENDENTE' && b.titular_id === titular.id).map(dep => ({
+          id: dep.id,
+          nome: dep.nome,
+          cpf: dep.cpf,
+          rg: dep.rg,
+          email: dep.email,
+          telefone: dep.telefone,
+          data_nascimento: dep.data_nascimento,
+          parentesco: dep.parentesco,
+          tipo_beneficiario: dep.tipo_beneficiario || 'DEPENDENTE',
+          tipo_dependente: dep.tipo_dependente,
+          type: 'DEPENDENTE' as const,
+          titular_id: dep.titular_id,
+          cep: dep.cep,
+          logradouro: dep.logradouro,
+          numero: dep.numero,
+          complemento: dep.complemento,
+          bairro: dep.bairro,
+          cidade: dep.cidade,
+          estado: dep.estado
+        }))
+      }));
+    }
+    
     return {
       id: data.id,
       nome: data.nome,
@@ -83,14 +151,25 @@ export const leadService = {
       data_nascimento_abertura: data.data_nascimento_abertura,
       dados_responsavel: data.dados_responsavel,
       havera_remissao: data.havera_remissao,
+      titular_eh_responsavel_financeiro: data.titular_eh_responsavel_financeiro ?? true,
+      responsavel_financeiro,
+      possui_dependentes: data.possui_dependentes ?? false,
       operadora: data.operadora,
       produto: data.produto,
       valor_produto: data.valor_produto,
       reducao_carencia: data.reducao_carencia,
       coparticipacao: data.coparticipacao,
       vigencia: data.vigencia,
+      // Campos de endereço diretos
+      cep: data.cep,
+      logradouro: data.logradouro,
+      numero: data.numero,
+      complemento: data.complemento,
+      bairro: data.bairro,
+      cidade: data.cidade,
+      estado: data.estado,
       endereco: data.endereco,
-      beneficiarios: data.beneficiarios,
+      beneficiarios,
       mensagens: data.mensagens,
       documentos: data.documentos,
       origem: data.origem,
@@ -104,7 +183,7 @@ export const leadService = {
     };
   },
 
-  saveLead: async (lead: Lead): Promise<Lead> => {
+  saveLead: async (lead: Lead, currentUser?: User): Promise<Lead> => {
     const { error } = await supabase
       .from('leads')
       .update({
@@ -117,20 +196,21 @@ export const leadService = {
         data_nascimento_abertura: lead.data_nascimento_abertura,
         dados_responsavel: lead.dados_responsavel,
         havera_remissao: lead.havera_remissao,
+        titular_eh_responsavel_financeiro: lead.titular_eh_responsavel_financeiro ?? true,
+        possui_dependentes: lead.possui_dependentes ?? false,
         operadora: lead.operadora,
         produto: lead.produto,
-        valor_produto: lead.valor_produto,
+        valor_produto: lead.valor_produto || null,
         reducao_carencia: lead.reducao_carencia,
         coparticipacao: lead.coparticipacao,
         vigencia: lead.vigencia,
-        // Campos separados de endereço
-        cep: lead.endereco?.cep || '',
-        logradouro: lead.endereco?.logradouro || '',
-        numero: lead.endereco?.numero || '',
-        complemento: lead.endereco?.complemento || '',
-        bairro: lead.endereco?.bairro || '',
-        cidade: lead.endereco?.cidade || '',
-        estado: lead.endereco?.uf || '',
+        cep: lead.cep || lead.endereco?.cep || '',
+        logradouro: lead.logradouro || lead.endereco?.logradouro || '',
+        numero: lead.numero || lead.endereco?.numero || '',
+        complemento: lead.complemento || lead.endereco?.complemento || '',
+        bairro: lead.bairro || lead.endereco?.bairro || '',
+        cidade: lead.cidade || lead.endereco?.cidade || '',
+        estado: lead.estado || lead.endereco?.uf || '',
         beneficiarios: lead.beneficiarios,
         mensagens: lead.mensagens,
         documentos: lead.documentos,
@@ -141,17 +221,260 @@ export const leadService = {
         vendedor_email: lead.vendedor_email,
         vendedor_id: lead.vendedor_id,
         status_kanban: lead.status_kanban,
+        dados_proposta: lead.dados_proposta || null,
+        dados_perda: lead.dados_perda || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', lead.id);
     if (error) throw error;
-    return lead;
+    
+    // Gerenciar responsável financeiro
+    if (!lead.titular_eh_responsavel_financeiro && lead.responsavel_financeiro) {
+      const respData = lead.responsavel_financeiro;
+      
+      // Verificar se já existe
+      const { data: existing } = await supabase
+        .from('responsaveis_financeiros')
+        .select('id')
+        .eq('lead_id', lead.id)
+        .maybeSingle();
+      
+      if (existing) {
+        // Atualizar
+        await supabase
+          .from('responsaveis_financeiros')
+          .update({
+            nome: respData.nome,
+            cpf: respData.cpf,
+            rg: respData.rg,
+            data_nascimento: respData.data_nascimento,
+            telefone: respData.telefone,
+            email: respData.email,
+            cep: respData.cep,
+            logradouro: respData.logradouro,
+            numero: respData.numero,
+            complemento: respData.complemento,
+            bairro: respData.bairro,
+            cidade: respData.cidade,
+            estado: respData.estado,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id);
+      } else {
+        // Criar
+        await supabase
+          .from('responsaveis_financeiros')
+          .insert({
+            lead_id: lead.id,
+            nome: respData.nome,
+            cpf: respData.cpf,
+            rg: respData.rg,
+            data_nascimento: respData.data_nascimento,
+            telefone: respData.telefone,
+            email: respData.email,
+            cep: respData.cep,
+            logradouro: respData.logradouro,
+            numero: respData.numero,
+            complemento: respData.complemento,
+            bairro: respData.bairro,
+            cidade: respData.cidade,
+            estado: respData.estado,
+          });
+      }
+    } else if (lead.titular_eh_responsavel_financeiro) {
+      // Deletar responsável financeiro se titular passou a ser o responsável
+      await supabase
+        .from('responsaveis_financeiros')
+        .delete()
+        .eq('lead_id', lead.id);
+    }
+
+    // Gerenciar beneficiários - sempre salvar se houver
+    if (lead.beneficiarios && lead.beneficiarios.length > 0) {
+      // Deletar todos os beneficiários existentes
+      await supabase.from('beneficiarios').delete().eq('lead_id', lead.id);
+      
+      // Inserir titulares e dependentes
+      const allBeneficiarios: any[] = [];
+      
+      lead.beneficiarios.forEach(titular => {
+        allBeneficiarios.push({
+          lead_id: lead.id,
+          nome: titular.nome,
+          cpf: titular.cpf || null,
+          rg: titular.rg || null,
+          data_nascimento: titular.data_nascimento || null,
+          telefone: titular.telefone || null,
+          email: titular.email || null,
+          cep: titular.cep || null,
+          logradouro: titular.logradouro || null,
+          numero: titular.numero || null,
+          complemento: titular.complemento || null,
+          bairro: titular.bairro || null,
+          cidade: titular.cidade || null,
+          estado: titular.estado || null,
+          parentesco: titular.parentesco || 'Titular',
+          tipo_beneficiario: titular.tipo_beneficiario || 'TITULAR',
+          tipo_dependente: titular.tipo_dependente || null,
+          tipo: 'TITULAR'
+        });
+        
+        if (titular.dependentes) {
+          titular.dependentes.forEach(dep => {
+            allBeneficiarios.push({
+              lead_id: lead.id,
+              nome: dep.nome,
+              cpf: dep.cpf || null,
+              rg: dep.rg || null,
+              data_nascimento: dep.data_nascimento || null,
+              telefone: dep.telefone || null,
+              email: dep.email || null,
+              cep: dep.cep || null,
+              logradouro: dep.logradouro || null,
+              numero: dep.numero || null,
+              complemento: dep.complemento || null,
+              bairro: dep.bairro || null,
+              cidade: dep.cidade || null,
+              estado: dep.estado || null,
+              parentesco: dep.parentesco || 'Dependente',
+              tipo_beneficiario: dep.tipo_beneficiario || 'DEPENDENTE',
+              tipo_dependente: dep.tipo_dependente || 'CONJUGE',
+              tipo: 'DEPENDENTE'
+            });
+          });
+        }
+      });
+      
+      if (allBeneficiarios.length > 0) {
+        const { data: insertedBens, error: insertError } = await supabase
+          .from('beneficiarios')
+          .insert(allBeneficiarios)
+          .select();
+        
+        if (insertError) throw insertError;
+        
+        // Criar documentos obrigatórios para cada beneficiário
+        if (insertedBens && lead.operadora && lead.produto && lead.tipo_cliente) {
+          const { data: operadora } = await supabase
+            .from('operadoras')
+            .select('id')
+            .eq('nome', lead.operadora)
+            .single();
+          
+          const { data: produto } = await supabase
+            .from('produtos')
+            .select('id')
+            .eq('nome', lead.produto)
+            .single();
+          
+          if (operadora && produto) {
+            const { data: configs } = await supabase
+              .from('documento_configs')
+              .select('id')
+              .eq('operadora_id', operadora.id)
+              .eq('produto_id', produto.id)
+              .eq('tipo_cliente', lead.tipo_cliente)
+              .eq('ativo', true);
+            
+            if (configs && configs.length > 0) {
+              const docsToCreate = [];
+              for (const ben of insertedBens) {
+                for (const config of configs) {
+                  docsToCreate.push({
+                    beneficiario_id: ben.id,
+                    documento_config_id: config.id,
+                    status: 'PENDENTE'
+                  });
+                }
+              }
+              
+              if (docsToCreate.length > 0) {
+                await supabase.from('beneficiario_documentos').insert(docsToCreate);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      await supabase.from('beneficiarios').delete().eq('lead_id', lead.id);
+    }
+    
+    if (currentUser) {
+      await leadService.addActivityLog(lead.id, {
+        tipo: 'ATUALIZACAO',
+        descricao: `Lead atualizado por ${currentUser.name}`,
+        usuario_id: currentUser.id,
+        usuario_nome: currentUser.name
+      });
+    }
+    
+    return await leadService.getLeadById(lead.id);
   },
 
-  updateLeadStatus: async function(id: number, status: KanbanStatus): Promise<Lead> {
+  updateLeadStatus: async function(id: number, status: KanbanStatus, currentUser?: User): Promise<Lead> {
+    // Buscar status anterior ANTES de atualizar
+    const { data: currentLead } = await supabase
+      .from('leads')
+      .select('status_kanban')
+      .eq('id', id)
+      .single();
+    
+    const oldStatus = currentLead?.status_kanban;
+    
     const lead = await leadService.getLeadById(id);
     const updatedLead = { ...lead, status_kanban: status, updated_at: new Date().toISOString() };
-    return await leadService.saveLead(updatedLead);
+    
+    await supabase
+      .from('leads')
+      .update({ status_kanban: status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    
+    if (currentUser && oldStatus) {
+      const { formatStatus } = await import('../utils/formatters');
+      
+      // Log especial para CANCELADA (perdida)
+      if (status === 'CANCELADA') {
+        await leadService.addActivityLog(id, {
+          tipo: 'LEAD_PERDIDO',
+          descricao: `Lead movido para Perdidas`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name,
+          metadata: { status_anterior: oldStatus, status_novo: status }
+        });
+      }
+      // Log especial para IMPLANTADA (ganhou)
+      else if (status === 'IMPLANTADA') {
+        await leadService.addActivityLog(id, {
+          tipo: 'LEAD_GANHO',
+          descricao: `Proposta ganha! Lead movido para Implantada`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name,
+          metadata: { status_anterior: oldStatus, status_novo: status }
+        });
+      }
+      // Log especial quando sai de CANCELADA
+      else if (oldStatus === 'CANCELADA') {
+        await leadService.addActivityLog(id, {
+          tipo: 'LEAD_RECUPERADO',
+          descricao: `Lead recuperado de Perdidas para ${formatStatus(status)}`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name,
+          metadata: { status_anterior: oldStatus, status_novo: status }
+        });
+      }
+      // Log normal de mudança de status
+      else {
+        await leadService.addActivityLog(id, {
+          tipo: 'MUDANCA_STATUS',
+          descricao: `Status alterado de ${formatStatus(oldStatus)} para ${formatStatus(status)}`,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.name,
+          metadata: { status_anterior: oldStatus, status_novo: status }
+        });
+      }
+    }
+    
+    return updatedLead;
   },
 
   // Mock API to fetch CNPJ data
@@ -253,6 +576,14 @@ export const leadService = {
       .single();
 
     if (error) throw error;
+
+    // Registrar log de criação
+    await leadService.addActivityLog(data.id, {
+      tipo: 'CRIACAO',
+      descricao: `Lead criado via webhook - Origem: ${newLead.origem}`,
+      usuario_id: nextSeller.id,
+      usuario_nome: nextSeller.name
+    });
 
     return {
       id: data.id,
@@ -428,5 +759,164 @@ export const leadService = {
       .eq('id', leadId);
 
     if (error) throw error;
+  },
+
+  // Marcar lead como perdido
+  markAsLost: async (leadId: number, data: {
+    motivo: string;
+    detalhes?: string;
+    followup: boolean;
+    followupData?: string;
+    followupStatus?: string;
+  }, currentUser: User): Promise<void> => {
+    
+    const { error } = await supabase
+      .from('leads')
+      .update({
+        status_kanban: 'CANCELADA',
+        motivo_perda: data.motivo,
+        motivo_perda_detalhes: data.detalhes || null,
+        data_perda: new Date().toISOString(),
+        followup_ativo: data.followup,
+        followup_data: data.followup ? data.followupData : null,
+        followup_status: data.followup ? data.followupStatus : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', leadId);
+
+    if (error) throw error;
+
+    // Registrar log
+    await leadService.addActivityLog(leadId, {
+      tipo: 'LEAD_PERDIDO',
+      descricao: `Lead marcado como perdido: ${data.motivo}${data.detalhes ? ' - ' + data.detalhes : ''}`,
+      usuario_id: currentUser.id,
+      usuario_nome: currentUser.name
+    });
+
+    if (data.followup) {
+      await leadService.addActivityLog(leadId, {
+        tipo: 'FOLLOWUP_AGENDADO',
+        descricao: `Follow-up agendado para ${new Date(data.followupData!).toLocaleDateString('pt-BR')} - Retornar como ${data.followupStatus}`,
+        usuario_id: currentUser.id,
+        usuario_nome: currentUser.name
+      });
+    }
+  },
+
+  // Adicionar log de atividade
+  addActivityLog: async (leadId: number, data: {
+    tipo: string;
+    descricao: string;
+    usuario_id: number;
+    usuario_nome: string;
+    metadata?: any;
+  }): Promise<void> => {
+
+    const { error } = await supabase
+      .from('activity_logs')
+      .insert({
+        lead_id: leadId,
+        type: data.tipo,
+        description: data.descricao,
+        user_id: data.usuario_id,
+        user_name: data.usuario_nome,
+        metadata: data.metadata || null,
+        created_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('Erro ao registrar log:', error);
+      throw error; // Lançar erro ao invés de só logar
+    }
+  },
+
+  // Buscar logs de atividade
+  getActivityLogs: async (leadId: number): Promise<any[]> => {
+
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar logs:', error);
+      return [];
+    }
+
+    // Mapear campos do banco para o formato esperado
+    return (data || []).map(log => ({
+      id: log.id,
+      tipo: log.type,
+      descricao: log.description,
+      usuario_id: log.user_id,
+      usuario_nome: log.user_name,
+      created_at: log.created_at,
+      metadata: log.metadata
+    }));
+  },
+
+  // Adicionar nota
+  addNote: async (leadId: number, note: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .insert({
+        lead_id: leadId,
+        atividade: note.atividade,
+        data: note.data,
+        horario: note.horario,
+        duracao: note.duracao,
+        anotacoes: note.anotacoes,
+        user_id: note.user_id,
+        user_name: note.user_name
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Atualizar nota
+  updateNote: async (noteId: string, note: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .update({
+        atividade: note.atividade,
+        data: note.data,
+        horario: note.horario,
+        duracao: note.duracao,
+        anotacoes: note.anotacoes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', noteId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Excluir nota
+  deleteNote: async (noteId: string): Promise<void> => {
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', noteId);
+
+    if (error) throw error;
+  },
+
+  // Buscar notas
+  getNotes: async (leadId: number): Promise<Note[]> => {
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   },
 };

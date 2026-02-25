@@ -262,8 +262,8 @@ serve(async (req) => {
         // Log the activity
         await supabase.from('activity_logs').insert({
           lead_id: opportunity.id,
-          type: 'STATUS_CHANGE',
-          description: `Lead criado via webhook e atribuído a ${selectedSeller.name}`,
+          type: 'CRIACAO',
+          description: `Lead criado via webhook - Origem: WEBHOOK`,
           user_id: selectedSeller.id,
           user_name: selectedSeller.name,
           metadata: { 

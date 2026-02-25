@@ -8,13 +8,37 @@ interface KanbanBoardProps {
   leads: Lead[];
   onMoveLead: (id: number, newStatus: KanbanStatus) => void;
   onLeadClick: (lead: Lead) => void;
+  onLeadLost?: (lead: Lead) => void;
   user: User;
 }
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onLeadClick, user }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onLeadClick, onLeadLost, user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sellerFilter, setSellerFilter] = useState<'all' | string>('all');
   const [operatorFilter, setOperatorFilter] = useState<string>('all');
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStatus: KanbanStatus) => {
+    e.preventDefault();
+    console.log('Drop event:', targetStatus);
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      console.log('Drop data:', data);
+      const { leadId, currentStatus } = data;
+      
+      if (currentStatus !== targetStatus) {
+        console.log('Moving lead:', leadId, 'from', currentStatus, 'to', targetStatus);
+        onMoveLead(leadId, targetStatus);
+      }
+    } catch (error) {
+      console.error('Error handling drop:', error);
+    }
+  };
 
   const { sellers, operators } = useMemo(() => {
     const allSellers = new Set<string>();
@@ -105,7 +129,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onL
           {KANBAN_COLUMNS.map((column) => {
             const columnLeads = filteredLeads.filter(l => l.status_kanban === column.id);
             return (
-              <div key={column.id} className="flex-1 flex flex-col min-w-[280px] bg-slate-50 rounded-xl border border-slate-200">
+              <div 
+                key={column.id} 
+                className="flex-1 flex flex-col min-w-[280px] bg-slate-50 rounded-xl border border-slate-200"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, column.id as KanbanStatus)}
+              >
                 {/* Column Header */}
                 <div className={`p-3 border-b border-slate-200 rounded-t-xl flex justify-between items-center ${column.color.split(' ')[0]}`}>
                   <h3 className={`font-semibold text-sm ${column.color.split(' ')[1]}`}>{column.label}</h3>
@@ -117,7 +146,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ leads, onMoveLead, onL
                 {/* Column Body */}
                 <div className="p-2 flex-1 overflow-y-auto space-y-2 custom-scrollbar">
                   {columnLeads.map(lead => (
-                    <LeadCard key={lead.id} lead={lead} onMove={onMoveLead} onClick={onLeadClick} />
+                    <LeadCard key={lead.id} lead={lead} onMove={onMoveLead} onClick={onLeadClick} onLost={onLeadLost} />
                   ))}
                   {columnLeads.length === 0 && (
                     <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg m-2">

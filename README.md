@@ -1,5 +1,9 @@
 # CRM Sette SAS
 
+## 📚 Documentação
+
+**[DEPLOY.md](DEPLOY.md)** - Guia de deploy e troubleshooting
+
 ## Ambientes
 
 ### 🚀 Produção
@@ -25,7 +29,28 @@
 1. Instale as dependências: `npm install`
 2. Configure o `.env.local` com as chaves do Supabase.
 3. Execute o SQL de migração no painel do Supabase: `migration.sql`
-4. Execute o script de inicialização: `node scripts/init.js`
+4. **NOVO:** Execute a migração para ambiente de desenvolvimento: `migration-leads-dev.sql`
+5. Execute o script de inicialização: `node scripts/init.js`
+
+## Ambientes de Dados
+
+### 🔄 Separação Automática de Tabelas
+O sistema agora detecta automaticamente o ambiente e usa a tabela apropriada:
+
+- **Desenvolvimento/Local:** `leads_dev` (dados de teste)
+- **Produção:** `leads` (dados reais)
+
+### ✅ Detecção Automática
+O ambiente é detectado por:
+- `localhost` ou `127.0.0.1`
+- `dev.settesaude.com.br`
+- `import.meta.env.DEV === true`
+- `import.meta.env.MODE === 'development'`
+
+### 🧪 Testando o Ambiente
+```bash
+node scripts/test-environment.js
+```
 
 ## Migração para Supabase Auth
 
@@ -65,28 +90,33 @@ Para testar webhooks do Make:
 
 ## Deploy
 
-### Configuração do Servidor (uma vez só)
-
-1. **Clonar projeto para desenvolvimento:**
-```bash
-cd /var/www
-git clone https://github.com/agenciagiraffadigital/crm_sette.git crm_sette_dev
-cd crm_sette_dev
-git checkout -b develop
-```
-
-2. **Executar script de setup:**
-```bash
-chmod +x setup-dev.sh
-./setup-dev.sh
-```
-
-3. **Configurar Nginx:**
-```bash
-sudo cp nginx-config.txt /etc/nginx/sites-available/crm_sette
-sudo systemctl reload nginx
-```
+### Deploy Manual
+Veja **[DEPLOY.md](DEPLOY.md)** para instruções completas.
 
 ### Deploy Automático
-- **Push para `develop`** → deploy para dev.settesaude.com.br
-- **Push para `master`** → deploy para sistema.settesaude.com.br
+
+### Deploy Manual no Servidor
+```bash
+# DEV
+ssh usuario@dev.settesaude.com.br
+cd /var/www/crm_sette
+bash deploy/deploy-dev.sh
+
+# PROD
+ssh usuario@sistema.settesaude.com.br
+cd /var/www/crm_sette
+bash deploy/deploy-prod.sh
+```
+
+### Deploy Manual no Servidor
+```bash
+# DEV
+ssh usuario@dev.settesaude.com.br
+cd /var/www/crm_sette
+bash deploy/deploy-dev.sh
+
+# PROD
+ssh usuario@sistema.settesaude.com.br
+cd /var/www/crm_sette
+bash deploy/deploy-prod.sh
+```

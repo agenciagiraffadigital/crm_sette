@@ -57,20 +57,23 @@ export type TimeRange = '7d' | '30d' | '90d' | '1y' | 'custom';
 export const dashboardService = {
   // Get comprehensive dashboard metrics
   getDashboardMetrics: async (currentUser: User, timeRange: TimeRange = '30d'): Promise<DashboardMetrics> => {
-    const [opportunities, leads] = await Promise.all([
+    const [opportunities, leads, canceledLeads] = await Promise.all([
       opportunityService.getOpportunities(currentUser),
       leadService.getLeads(currentUser),
+      dashboardService.getCanceledLeads(currentUser),
     ]);
+
+    const allLeads = [...leads, ...canceledLeads];
 
     // Filter data by time range
     const filteredOpportunities = dashboardService.filterByTimeRange(opportunities, timeRange);
-    const filteredLeads = dashboardService.filterByTimeRange(leads, timeRange);
+    const filteredLeads = dashboardService.filterByTimeRange(allLeads, timeRange);
 
     return {
       opportunities: dashboardService.calculateOpportunityMetrics(filteredOpportunities),
       proposals: dashboardService.calculateProposalMetrics(filteredLeads),
       sellers: dashboardService.calculateSellerMetrics(filteredOpportunities, filteredLeads),
-      trends: dashboardService.calculateTrends(opportunities, leads, timeRange),
+      trends: dashboardService.calculateTrends(opportunities, allLeads, timeRange),
     };
   },
 
@@ -148,7 +151,7 @@ export const dashboardService = {
 
   // Calculate proposal metrics
   calculateProposalMetrics: (leads: Lead[]) => {
-    const total = leads.length;
+    const total = leads.length; // Count ALL leads regardless of status
     const byStatus = leads.reduce((acc, lead) => {
       acc[lead.status_kanban] = (acc[lead.status_kanban] || 0) + 1;
       return acc;
@@ -160,11 +163,15 @@ export const dashboardService = {
       'ANÁLISE': byStatus['ANÁLISE'] || 0,
       'IMPLANTADA': byStatus['IMPLANTADA'] || 0,
       'CANCELADA': byStatus['CANCELADA'] || 0,
+      'PROPOSTA': byStatus['PROPOSTA'] || 0,
+      'OPORTUNIDADES': byStatus['OPORTUNIDADES'] || 0,
+      'EM_CONTATO': byStatus['EM_CONTATO'] || 0,
+      'NEGOCIACAO': byStatus['NEGOCIACAO'] || 0,
     };
 
-    // Conversion rate based on IMPLANTADA status only
-    const implanted = byStatus['IMPLANTADA'] || 0;
-    const conversionRate = total > 0 ? (implanted / total) * 100 : 0;
+    // Conversion rate: ENVIADA, ANÁLISE, IMPLANTADA / total de TODOS os leads
+    const converted = (byStatus['ENVIADA'] || 0) + (byStatus['ANÁLISE'] || 0) + (byStatus['IMPLANTADA'] || 0);
+    const conversionRate = total > 0 ? (converted / total) * 100 : 0;
 
     // Calculate average proposal value
     const proposalsWithValue = leads.filter(lead => lead.valor_produto && lead.valor_produto > 0);
@@ -362,5 +369,25 @@ export const dashboardService = {
     if (typeof window !== 'undefined') {
       window.location.href = '/opportunities';
     }
+  },
+
+  // Get canceled leads
+  getCanceledLeads: async (currentUser: User): Promise<Lead[]> => {
+    const { supabase } = await import('./supabaseClient');
+
+    let query = supabase
+      .from('leads')
+      .select('*')
+      .eq('status_kanban', 'CANCELADA')
+      .order('created_at', { ascending: false });
+    
+    if (currentUser.role !== 'ADMIN') {
+      query = query.eq('vendedor_id', currentUser.id);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    return data || [];
   },
 };

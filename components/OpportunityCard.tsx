@@ -11,6 +11,7 @@ interface OpportunityCardProps {
   onClick: (opportunity: Opportunity) => void;
   onMarkAsLost: (id: number) => void;
   onConvertToProposal: (id: number) => void;
+  onLost?: (opportunity: Opportunity) => void;
   onDelete?: (id: number) => void;
   currentUser: any;
   'data-testid'?: string;
@@ -22,6 +23,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   onClick, 
   onMarkAsLost,
   onConvertToProposal,
+  onLost,
   onDelete,
   currentUser,
   'data-testid': testId 
@@ -74,7 +76,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent) => {
-    console.log('Drag started for opportunity:', opportunity.id, opportunity.status);
+    console.log('Opportunity drag started:', opportunity.id, opportunity.status);
     const data = {
       opportunityId: opportunity.id,
       currentStatus: opportunity.status
@@ -97,25 +99,19 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
       data-testid={testId}
       title="Clique para editar ou arraste para mover"
     >
-      {/* Header with Status and ID */}
-      <div className="flex justify-between items-start mb-3">
-        <div className={`flex items-center space-x-1 text-xs font-bold px-2 py-1 rounded-full ${statusConfig.color}`}>
-          <StatusIcon className="w-3 h-3" />
-          <span>{opportunity.status.replace('_', ' ')}</span>
-        </div>
-        <span className="text-xs text-slate-400 font-mono">#{opportunity.id}</span>
+      {/* Header with Title and ID */}
+      <div className="flex justify-between items-start mb-1">
+        <h4 className="font-bold text-slate-800 truncate text-sm flex-1" title={opportunity.nome}>
+          {opportunity.nome}
+        </h4>
+        <span className="text-xs text-slate-400 font-mono ml-2">#{opportunity.id}</span>
       </div>
-      
-      {/* Main Info */}
-      <h4 className="font-bold text-slate-800 mb-1 truncate text-sm" title={opportunity.nome}>
-        {opportunity.nome}
-      </h4>
       <p className="text-xs text-slate-500 mb-3 font-medium">
         {opportunity.origem || 'Origem N/A'}
       </p>
       
       {/* Essential Information */}
-      <div className="space-y-1.5 mb-4">
+      <div className="space-y-1.5 mb-3">
         <div className="flex items-center text-xs text-slate-600">
           <Mail className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
           <span className="truncate" title={opportunity.email}>{opportunity.email}</span>
@@ -126,27 +122,9 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         </div>
         <div className="flex items-center text-xs text-slate-600">
           <User className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-          <span className="truncate">Vend: {opportunity.vendedor}</span>
+          <span className="truncate">{opportunity.vendedor}</span>
         </div>
-        {opportunity.produto && opportunity.produto !== '0' && (
-          <div className="flex items-center text-xs text-slate-600">
-            <Target className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-            <span className="truncate">{opportunity.produto}</span>
-          </div>
-        )}
-        <div className="flex items-center text-xs text-slate-600">
-          <Calendar className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-          <span>{formatDate(opportunity.created_at)}</span>
-        </div>
-
-        {!!opportunity.first_contact_date && (
-          <div className="flex items-center text-xs text-slate-600">
-            <Clock className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-            <span>Contato: {getTimeAgo(opportunity.first_contact_date)}</span>
-          </div>
-        )}
-
-        {!!opportunity.quoted_value && opportunity.quoted_value > 0 && (
+        {opportunity.status === 'NEGOCIACAO' && opportunity.quoted_value && opportunity.quoted_value > 0 && (
           <div className="flex items-center text-xs text-slate-600">
             <DollarSign className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
             <span className="font-semibold text-green-600">{formatCurrency(opportunity.quoted_value)}</span>
@@ -154,91 +132,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div 
-        className="pt-3 border-t border-slate-100 flex justify-between items-center" 
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Status-specific action buttons */}
-        {opportunity.status === 'OPORTUNIDADES' && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              onMove(opportunity.id, 'EM_CONTATO'); 
-            }}
-            className="text-xs font-bold uppercase text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border-blue-200 hover:border-blue-300 transition-all duration-200"
-            icon={<ArrowRight className="w-3 h-3" />}
-          >
-            Contatar
-          </Button>
-        )}
-        
-        {opportunity.status === 'EM_CONTATO' && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              onMove(opportunity.id, 'NEGOCIACAO'); 
-            }}
-            className="text-xs font-bold uppercase text-amber-600 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-200 hover:border-amber-300 transition-all duration-200"
-            icon={<DollarSign className="w-3 h-3" />}
-          >
-            Cotar
-          </Button>
-        )}
-        
-        {opportunity.status === 'NEGOCIACAO' && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              onConvertToProposal(opportunity.id); 
-            }}
-            className="text-xs font-bold uppercase text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 border-green-200 hover:border-green-300 transition-all duration-200"
-            icon={<CheckCircle className="w-3 h-3" />}
-          >
-            Converter
-          </Button>
-        )}
-
-        <div className="flex gap-1 ml-auto">
-          {/* Always show Mark as Lost */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              onMarkAsLost(opportunity.id); 
-            }}
-            className="text-xs font-bold uppercase text-red-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
-            icon={<XCircle className="w-3 h-3" />}
-          >
-            Perdida
-          </Button>
-
-          {/* Admin only: Delete button */}
-          {currentUser.role === 'ADMIN' && onDelete && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                onDelete(opportunity.id); 
-              }}
-              className="text-xs text-red-600 hover:text-red-800 px-2 py-1"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-
       {/* Status Indicator */}
-      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
     </div>
   );
 };

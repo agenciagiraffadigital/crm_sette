@@ -1,15 +1,32 @@
 import React from 'react';
 import { Lead, KanbanStatus } from '../types';
-import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding } from 'lucide-react';
+import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, XCircle } from 'lucide-react';
 import { KANBAN_COLUMNS } from '../constants';
 
 interface LeadCardProps {
   lead: Lead;
   onMove: (id: number, newStatus: KanbanStatus) => void;
   onClick: (lead: Lead) => void;
+  onLost?: (lead: Lead) => void;
 }
 
-export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick }) => {
+export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick, onLost }) => {
+  
+  const handleDragStart = (e: React.DragEvent) => {
+    e.stopPropagation();
+    console.log('Drag started:', lead.id, lead.status_kanban);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      leadId: lead.id,
+      currentStatus: lead.status_kanban
+    }));
+  };
+  
+  const handleClick = (e: React.MouseEvent) => {
+    // Não abrir se estiver arrastando
+    if ((e.target as HTMLElement).draggable) return;
+    onClick(lead);
+  };
   
   const getNextStatus = (current: KanbanStatus): KanbanStatus | null => {
     const idx = KANBAN_COLUMNS.findIndex(c => c.id === current);
@@ -31,8 +48,10 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick }) => 
 
   return (
     <div 
-      onClick={() => onClick(lead)}
-      className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 group cursor-pointer relative transform hover:scale-[1.02]"
+      draggable
+      onDragStart={handleDragStart}
+      onClick={handleClick}
+      className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 group cursor-move relative"
     >
       <div className="flex justify-between items-start mb-3">
         <div className={`flex items-center space-x-1 text-xs font-bold px-2 py-1 rounded-full ${typeConfig.color}`}>
@@ -73,14 +92,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick }) => 
            >
              Avançar <ArrowRight className="w-3 h-3 ml-1" />
            </button>
-         )}
-         {lead.status_kanban !== 'CANCELADA' && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); onMove(lead.id, 'CANCELADA'); }}
-              className="text-xs font-bold uppercase text-red-400 hover:text-red-600 ml-auto hover:bg-red-50 px-3 py-1.5 rounded transition-colors"
-            >
-              Cancelar
-            </button>
          )}
       </div>
     </div>
