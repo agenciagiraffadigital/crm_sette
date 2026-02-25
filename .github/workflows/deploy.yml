@@ -39,7 +39,7 @@ jobs:
             git reset --hard HEAD
             git clean -fd
             git pull origin master
-            npm ci --production
+            npm ci
             npm run build:prod
             pm2 restart crm-webhook
             echo "=== PRODUÇÃO DEPLOYED ==="
