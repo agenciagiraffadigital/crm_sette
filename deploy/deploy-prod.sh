@@ -43,7 +43,7 @@ git pull
 
 # Instalar dependências
 echo -e "${YELLOW}📦 Instalando dependências...${NC}"
-npm ci --production
+npm ci
 
 # Build para produção
 echo -e "${YELLOW}🔨 Fazendo build (modo production)...${NC}"
