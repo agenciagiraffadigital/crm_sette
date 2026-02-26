@@ -199,7 +199,47 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   const [searchFilters, setSearchFilters] = useState<FilterState>(defaultFilters);
   
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
-  
+
+  const PAGE_SIZE = 30;
+  const [columnData, setColumnData] = useState<Record<OpportunityStatus, Opportunity[]>>({
+    'OPORTUNIDADES': [],
+    'EM_CONTATO': [],
+    'NEGOCIACAO': []
+  });
+  const [columnCounts, setColumnCounts] = useState<Record<OpportunityStatus, number>>({
+    'OPORTUNIDADES': 0,
+    'EM_CONTATO': 0,
+    'NEGOCIACAO': 0
+  });
+  const [columnPages, setColumnPages] = useState<Record<OpportunityStatus, number>>({
+    'OPORTUNIDADES': 0,
+    'EM_CONTATO': 0,
+    'NEGOCIACAO': 0
+  });
+  const [columnLoading, setColumnLoading] = useState<Record<OpportunityStatus, boolean>>({
+    'OPORTUNIDADES': false,
+    'EM_CONTATO': false,
+    'NEGOCIACAO': false
+  });
+
+  const loadColumn = React.useCallback(async (status: OpportunityStatus, page: number) => {
+    setColumnLoading(prev => ({ ...prev, [status]: true }));
+    try {
+      const from = page * PAGE_SIZE;
+      const { data, count } = await opportunityService.getOpportunitiesByStatus(currentUser, status, from, from + PAGE_SIZE - 1);
+      setColumnData(prev => ({ ...prev, [status]: page === 0 ? data : [...prev[status], ...data] }));
+      setColumnCounts(prev => ({ ...prev, [status]: count }));
+      setColumnPages(prev => ({ ...prev, [status]: page }));
+    } finally {
+      setColumnLoading(prev => ({ ...prev, [status]: false }));
+    }
+  }, [currentUser]);
+
+  React.useEffect(() => {
+    const statuses: OpportunityStatus[] = ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'];
+    statuses.forEach(s => loadColumn(s, 0));
+  }, [loadColumn]);
+
   const [limits, setLimits] = useState<Record<OpportunityStatus, number>>({
     'OPORTUNIDADES': 30,
     'EM_CONTATO': 30,
@@ -312,9 +352,16 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     };
   }, [opportunities]);
 
+  // Merge columnData into flat list for filtering
+  const allColumnOpportunities = useMemo(() => [
+    ...columnData['OPORTUNIDADES'],
+    ...columnData['EM_CONTATO'],
+    ...columnData['NEGOCIACAO']
+  ], [columnData]);
+
   // Filter opportunities based on search filters
   const filteredOpportunities = useMemo(() => {
-    const filtered = opportunities.filter(opportunity => {
+    const filtered = allColumnOpportunities.filter(opportunity => {
       // Search term filter
       const matchesSearch = !searchFilters.searchTerm || 
         opportunity.nome.toLowerCase().includes(searchFilters.searchTerm.toLowerCase()) || 
@@ -375,15 +422,18 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       });
     }
 
-    // Calculate status counts
+    // Use server-side counts when no filters active, otherwise count filtered
+    const hasActiveFilters = searchFilters.searchTerm || searchFilters.sellers.length || searchFilters.status.length || searchFilters.source.length || searchFilters.operators.length || searchFilters.dateRange.start || searchFilters.dateRange.end;
     const counts: Record<OpportunityStatus, number> = {} as Record<OpportunityStatus, number>;
     OPPORTUNITY_COLUMNS.forEach(column => {
-      counts[column.id as OpportunityStatus] = sorted.filter(o => o.status === column.id).length;
+      counts[column.id as OpportunityStatus] = hasActiveFilters
+        ? sorted.filter(o => o.status === column.id).length
+        : columnCounts[column.id as OpportunityStatus];
     });
     setStatusCounts(counts);
 
     return sorted;
-  }, [opportunities, searchFilters, currentUser.role]);
+  }, [allColumnOpportunities, searchFilters, currentUser.role, columnCounts]);
 
   // Group opportunities by status
   const opportunitiesByStatus = useMemo(() => {
@@ -399,13 +449,14 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       }
     });
 
-    // Limit each status to current limit
-    Object.keys(groups).forEach(status => {
-      groups[status as OpportunityStatus] = groups[status as OpportunityStatus].slice(0, limits[status as OpportunityStatus]);
-    });
-
     return groups;
-  }, [filteredOpportunities, limits]);
+  }, [filteredOpportunities]);
+
+  const reloadAllColumns = React.useCallback(() => {
+    const statuses: OpportunityStatus[] = ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'];
+    statuses.forEach(s => loadColumn(s, 0));
+    onDataChange?.();
+  }, [loadColumn, onDataChange]);
 
   const handleFiltersChange = useCallback((newFilters: FilterState) => {
     setSearchFilters(newFilters);
@@ -430,21 +481,17 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   }, []);
 
   const handleMoveOpportunity = async (opportunityId: number, targetStatus: OpportunityStatus) => {
-    const opportunity = opportunities.find(o => o.id === opportunityId);
+    const opportunity = [...columnData['OPORTUNIDADES'], ...columnData['EM_CONTATO'], ...columnData['NEGOCIACAO']].find(o => o.id === opportunityId);
     if (!opportunity) return;
 
-    // Validation: require quoted value when moving to NEGOCIACAO
     if (targetStatus === 'NEGOCIACAO' && !opportunity.quoted_value) {
-      setValueModalState({
-        isOpen: true,
-        opportunityId,
-        opportunityName: opportunity.nome
-      });
+      setValueModalState({ isOpen: true, opportunityId, opportunityName: opportunity.nome });
       return;
     }
 
     try {
       await onMoveOpportunity(opportunityId, targetStatus);
+      reloadAllColumns();
     } catch (error) {
       console.error('Error moving opportunity:', error);
     }
@@ -452,7 +499,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
 
   const handleValueSubmit = (value: number) => {
     if (valueModalState.opportunityId) {
-      onMoveOpportunity(valueModalState.opportunityId, 'NEGOCIACAO', { quoted_value: value });
+      onMoveOpportunity(valueModalState.opportunityId, 'NEGOCIACAO', { quoted_value: value })
+        .then(() => reloadAllColumns());
     }
   };
 
@@ -475,7 +523,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
           lossReason,
           currentUser
         );
-        onDataChange?.();
+        reloadAllColumns();
       } catch (error) {
         setErrorDialogMessage('Erro ao marcar como perdida: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
         setShowErrorDialog(true);
@@ -486,7 +534,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   const handleConvertToProposal = async (opportunityId: number) => {
     try {
       await opportunityService.convertOpportunityToProposal(opportunityId, currentUser);
-      onDataChange?.();
+      reloadAllColumns();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       setErrorDialogMessage('Erro na conversão: ' + errorMessage);
@@ -510,7 +558,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       try {
         await opportunityService.deleteOpportunity(deleteModalState.opportunityId, currentUser);
         setDeleteModalState({ isOpen: false, opportunityId: null, opportunityName: '' });
-        onDataChange?.();
+        reloadAllColumns();
       } catch (error) {
         setErrorDialogMessage('Erro ao excluir: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
         setShowErrorDialog(true);
@@ -544,7 +592,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       setShowSuccess(true);
       setTimeout(() => {
         onShowNewOpportunityForm?.(false);
-        onDataChange?.();
+        reloadAllColumns();
       }, 2000);
     } catch (error) {
       console.error('Erro completo:', error);
@@ -669,7 +717,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     });
     
     setTimeout(() => {
-      onDataChange?.();
+      reloadAllColumns();
     }, 2000);
   };
 
@@ -797,16 +845,14 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                     <p className="text-xs text-slate-400 font-medium">Arraste oportunidades aqui</p>
                   </div>
                 )}
-                {columnOpportunities && columnOpportunities.length >= limits[column.id as OpportunityStatus] && (
+                {columnData[column.id as OpportunityStatus].length < columnCounts[column.id as OpportunityStatus] && (
                   <div className="text-center py-2">
                     <button
-                      onClick={() => setLimits(prev => ({
-                        ...prev,
-                        [column.id]: prev[column.id as OpportunityStatus] + 30
-                      }))}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      onClick={() => loadColumn(column.id as OpportunityStatus, columnPages[column.id as OpportunityStatus] + 1)}
+                      disabled={columnLoading[column.id as OpportunityStatus]}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
                     >
-                      Carregar mais +30
+                      {columnLoading[column.id as OpportunityStatus] ? 'Carregando...' : `Carregar mais +${PAGE_SIZE}`}
                     </button>
                   </div>
                 )}

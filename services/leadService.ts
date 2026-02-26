@@ -3,11 +3,49 @@ import { supabase } from './supabaseClient';
 import { authService } from './authService';
 
 export const leadService = {
+  getLeadsByStatus: async (currentUser: User, status: KanbanStatus, from: number, to: number): Promise<{ data: Lead[], count: number }> => {
+    let query = supabase
+      .from('leads')
+      .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at', { count: 'exact' })
+      .eq('status_kanban', status)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (currentUser.role !== 'ADMIN') {
+      query = query.eq('vendedor_id', currentUser.id);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    return {
+      data: (data || []).map(row => ({
+        id: row.id, nome: row.nome, email: row.email, telefone: row.telefone,
+        tipo_cliente: row.tipo_cliente, cpf_cnpj: '', rg_ie: '', data_nascimento_abertura: '',
+        dados_responsavel: null, havera_remissao: false, operadora: row.operadora,
+        produto: row.produto, valor_produto: row.valor_produto, reducao_carencia: false,
+        coparticipacao: 'NÃO' as const, vigencia: '', endereco: { cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '' },
+        beneficiarios: [], mensagens: [], documentos: [], origem: '', canal_venda: '', raw_json: null,
+        vendedor: row.vendedor, vendedor_email: '', vendedor_id: row.vendedor_id,
+        status_kanban: row.status_kanban, created_at: row.created_at, updated_at: row.created_at,
+      })),
+      count: count || 0
+    };
+  },
+
   getLeads: async (currentUser: User): Promise<Lead[]> => {
+    const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA', 'PROPOSTA'];
+    const results = await Promise.all(statuses.map(s => leadService.getLeadsByStatus(currentUser, s, 0, 29)));
+    return results.flatMap(r => r.data);
+  },
+
+  _getLeads_unused: async (currentUser: User): Promise<Lead[]> => {
     let query = supabase
       .from('leads')
       .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at')
-      .order('created_at', { ascending: false });
+      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA', 'PROPOSTA'])
+      .order('created_at', { ascending: false })
+      .range(0, 999);
     
     if (currentUser.role !== 'ADMIN') {
       query = query.eq('vendedor_id', currentUser.id);
@@ -200,7 +238,7 @@ export const leadService = {
         possui_dependentes: lead.possui_dependentes ?? false,
         operadora: lead.operadora,
         produto: lead.produto,
-        valor_produto: lead.valor_produto || null,
+        valor_produto: lead.valor_produto != null ? Number(lead.valor_produto) : null,
         reducao_carencia: lead.reducao_carencia,
         coparticipacao: lead.coparticipacao,
         vigencia: lead.vigencia,

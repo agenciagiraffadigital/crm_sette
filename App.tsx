@@ -129,19 +129,11 @@ function App() {
 
   const handleMoveLead = useCallback(async (id: number, newStatus: KanbanStatus) => {
     if (!user) return;
-    
-    // Optimistic UI Update
-    setLeads(current => 
-      current.map(l => l.id === id ? { ...l, status_kanban: newStatus } : l)
-    );
-
     try {
       await leadService.updateLeadStatus(id, newStatus, user);
-      // Reload data to ensure dashboard metrics are updated
-      await loadLeads();
     } catch (error) {
       console.error("Failed to update status", error);
-      // Reload anyway to sync with server state
+    } finally {
       await loadLeads();
     }
   }, [user, loadLeads]);
@@ -266,10 +258,9 @@ function App() {
       )}
       
       {activeTab === 'kanban' && (
-        <ProposalsBoard 
-            proposals={leads} 
-            onMoveProposal={handleMoveLead} 
-            user={user} 
+        <ProposalsBoard
+            onMoveProposal={handleMoveLead}
+            user={user}
             onProposalClick={(l) => setSelectedLeadId(l.id)}
             onProposalLost={handleLeadLost}
         />
