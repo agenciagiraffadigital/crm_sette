@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import 'primereact/resources/themes/lara-light-cyan/theme.css';
+import 'primeicons/primeicons.css';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
