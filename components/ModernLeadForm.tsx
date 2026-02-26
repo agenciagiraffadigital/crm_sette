@@ -1190,8 +1190,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
             </div>
             <Input
               label="Valor (R$)"
-              value={formData.valor_produto}
-              onChange={(value) => handleChange('valor_produto', value)}
+              value={formData.valor_produto != null ? String(formData.valor_produto) : ''}
+              onChange={(value) => handleChange('valor_produto', value ? parseFloat(value) : null)}
               type="number"
               icon={DollarSign}
             />

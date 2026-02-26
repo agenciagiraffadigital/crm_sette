@@ -2,45 +2,51 @@ import { Opportunity, OpportunityStatus, User, LossReason, ActivityLog, Assignme
 import { supabase } from './supabaseClient';
 
 export const opportunityService = {
-  // Get all opportunities (leads in opportunity phase)
-  getOpportunities: async (currentUser: User): Promise<Opportunity[]> => {
+  // Get opportunities by status with pagination
+  getOpportunitiesByStatus: async (currentUser: User, status: OpportunityStatus, from: number, to: number): Promise<{ data: Opportunity[], count: number }> => {
     let query = supabase
       .from('leads')
-      .select('id, nome, email, telefone, status_kanban, created_at, valor_produto, vendedor, vendedor_id, origem, produto')
-      .in('status_kanban', ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'])
-      .order('created_at', { ascending: false });
-    
+      .select('id, nome, email, telefone, status_kanban, created_at, valor_produto, vendedor, vendedor_id, origem, produto', { count: 'exact' })
+      .eq('status_kanban', status)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
     if (currentUser.role !== 'ADMIN') {
       query = query.eq('vendedor_id', currentUser.id);
     }
-    
-    const { data, error } = await query;
-    
-    if (error) throw error;
-    
-    let opportunities: Opportunity[] = data.map(row => ({
-      id: row.id,
-      nome: row.nome,
-      email: row.email,
-      telefone: row.telefone,
-      status: row.status_kanban,
-      created_at: row.created_at,
-      updated_at: row.created_at,
-      first_contact_date: undefined,
-      quoted_value: row.valor_produto,
-      vendedor: row.vendedor,
-      vendedor_email: '',
-      vendedor_id: row.vendedor_id,
-      origem: row.origem,
-      raw_json: null,
-      produto: row.produto,
-    }));
 
-    if (currentUser.role !== 'ADMIN') {
-      opportunities = opportunities.filter(o => o.vendedor_id === currentUser.id);
-    }
-    
-    return opportunities;
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    return {
+      data: (data || []).map(row => ({
+        id: row.id,
+        nome: row.nome,
+        email: row.email,
+        telefone: row.telefone,
+        status: row.status_kanban,
+        created_at: row.created_at,
+        updated_at: row.created_at,
+        first_contact_date: undefined,
+        quoted_value: row.valor_produto,
+        vendedor: row.vendedor,
+        vendedor_email: '',
+        vendedor_id: row.vendedor_id,
+        origem: row.origem,
+        raw_json: null,
+        produto: row.produto,
+      })),
+      count: count || 0
+    };
+  },
+
+  // Get all opportunities (leads in opportunity phase)
+  getOpportunities: async (currentUser: User): Promise<Opportunity[]> => {
+    const statuses: OpportunityStatus[] = ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'];
+    const results = await Promise.all(
+      statuses.map(s => opportunityService.getOpportunitiesByStatus(currentUser, s, 0, 29))
+    );
+    return results.flatMap(r => r.data);
   },
 
   // Get opportunity by ID (actually a lead)
