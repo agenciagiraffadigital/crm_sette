@@ -9,6 +9,7 @@ import { Plus, Edit, Trash2, Save, X, Key, Shield, Users, Activity, TrendingUp, 
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { SpeedDial } from 'primereact/speeddial';
+import { Dropdown } from 'primereact/dropdown';
 
 
 export const UserManagement: React.FC = () => {
@@ -323,40 +324,51 @@ export const UserManagement: React.FC = () => {
       const mode = reassignmentData.targetUserId;
 
       if (mode === -1) {
-        const includeAdmins = (reassignmentData as any).includeAdmins || false;
+        const includeAdminsAuto = (reassignmentData as any).includeAdminsAuto || false;
         const activeSellers = users.filter(u =>
           u.id !== selectedUser.id &&
-          (u.role === 'SELLER' ? u.active_for_distribution : includeAdmins)
+          (u.role === 'SELLER' ? u.active_for_distribution : includeAdminsAuto)
         );
         if (!activeSellers.length) throw new Error('Nenhum usuário ativo para distribuição');
         await leadService.distributeLeadsRoundRobin(leadIds, activeSellers.map(u => u.id), currentUser);
-      } else if (mode === -2) {
+      } else if (mode === -2 || mode === -3) {
+        // Process manualMap first
+        const manualMap = (reassignmentData as any).manualMap || {};
+        const manualGrouped: Record<number, number[]> = {};
+        const manualAllocatedIds = new Set<number>();
+        for (const [leadId, sellerId] of Object.entries(manualMap)) {
+          if (!(sellerId as number)) continue;
+          const lid = parseInt(leadId);
+          manualAllocatedIds.add(lid);
+          if (!manualGrouped[sellerId as number]) manualGrouped[sellerId as number] = [];
+          manualGrouped[sellerId as number].push(lid);
+        }
+        if (Object.keys(manualGrouped).length) {
+          await Promise.all(Object.entries(manualGrouped).map(([sellerId, ids]) =>
+            leadService.bulkReassignLeads(ids, parseInt(sellerId), currentUser)
+          ));
+        }
+        // Process qtyMap on remaining leads
         const qtyMap = (reassignmentData as any).qtyMap || {};
+        const remainingIds = leadIds.filter(id => !manualAllocatedIds.has(id));
         const entries = Object.entries(qtyMap)
           .map(([id, q]) => ({ id: parseInt(id), qty: Number(q) }))
           .filter(e => e.qty > 0);
         let idx = 0;
         for (const { id: sellerId, qty } of entries) {
-          const chunk = leadIds.slice(idx, idx + qty);
+          const chunk = remainingIds.slice(idx, idx + qty);
           if (chunk.length) await leadService.bulkReassignLeads(chunk, sellerId, currentUser);
           idx += qty;
         }
-      } else if (mode === -3) {
-        const manualMap = (reassignmentData as any).manualMap || {};
-        const grouped: Record<number, number[]> = {};
-        for (const [leadId, sellerId] of Object.entries(manualMap)) {
-          if (!(sellerId as number)) continue;
-          if (!grouped[sellerId as number]) grouped[sellerId as number] = [];
-          grouped[sellerId as number].push(parseInt(leadId));
-        }
-        await Promise.all(Object.entries(grouped).map(([sellerId, ids]) =>
-          leadService.bulkReassignLeads(ids, parseInt(sellerId), currentUser)
-        ));
       } else {
         await leadService.bulkReassignLeads(leadIds, mode, currentUser);
       }
 
-      setModal({ isOpen: true, type: 'success', title: 'Sucesso', message: `${leads.length} leads transferidos com sucesso!` });
+      const transferredCount = (mode === -2 || mode === -3)
+        ? Object.values((reassignmentData as any).manualMap || {}).filter(Boolean).length +
+          Object.values((reassignmentData as any).qtyMap || {}).reduce((a: number, b: any) => a + Number(b), 0)
+        : leads.length;
+      setModal({ isOpen: true, type: 'success', title: 'Sucesso', message: `${transferredCount} leads transferidos com sucesso!` });
       setShowReassignModal(false);
       loadUsers();
     } catch (error: any) {
@@ -690,27 +702,32 @@ export const UserManagement: React.FC = () => {
       )}
 
       {/* Reassignment Modal */}
-      {showReassignModal && selectedUser && (() => {
+      {selectedUser && (() => {
         const mode = reassignmentData.targetUserId;
-        const includeAdmins = (reassignmentData as any).includeAdmins || false;
-        const sellers = users.filter(u => u.id !== selectedUser.id && (u.role === 'SELLER' || (includeAdmins && u.role === 'ADMIN')));
+        const includeAdminsAuto = (reassignmentData as any).includeAdminsAuto || false;
+        const includeAdminsQty = (reassignmentData as any).includeAdminsQty || false;
+        const includeAdminsManual = (reassignmentData as any).includeAdminsManual || false;
+        const sellers = users.filter(u => u.id !== selectedUser.id && (u.role === 'SELLER' || u.role === 'ADMIN'));
+        const manualMap = (reassignmentData as any).manualMap || {};
+        const manuallyAllocatedIds = new Set(Object.entries(manualMap).filter(([,v]) => v).map(([k]) => parseInt(k)));
+        const qtyMap = (reassignmentData as any).qtyMap || {};
+        const qtyAllocated = Object.values(qtyMap).reduce((a: number, b: any) => a + Number(b), 0);
+        const availableForQty = reassignmentData.items.length - manuallyAllocatedIds.size;
         const tabs = [
           { value: -1, label: 'Automático', icon: <Activity className="w-4 h-4" /> },
           { value: -2, label: 'Por quantidade', icon: <TrendingUp className="w-4 h-4" /> },
           { value: -3, label: 'Manual', icon: <Users className="w-4 h-4" /> },
         ];
         return (
-          <div className="fixed inset-0 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto" style={{maxWidth:'560px'}}>
-              <div className="p-5 border-b border-slate-200 flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">Transferir Leads</h3>
-                  <p className="text-sm text-slate-500">{reassignmentData.items.length} leads de {selectedUser.name}</p>
-                </div>
-                <button onClick={() => setShowReassignModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-              </div>
-
-              <div className="p-5 space-y-5">
+          <Dialog
+            visible={showReassignModal}
+            onHide={() => setShowReassignModal(false)}
+            header={<div><div className="text-lg font-bold text-slate-800">Transferir Leads</div><div className="text-sm text-slate-500 font-normal">{reassignmentData.items.length} leads de {selectedUser.name}</div></div>}
+            style={{ width: '560px' }}
+            modal
+            appendTo={document.body}
+          >
+          <div className="space-y-5">
                 {/* Tabs */}
                 <div className="flex border border-slate-200 rounded-lg overflow-hidden">
                   {tabs.map((tab, i) => (
@@ -730,70 +747,116 @@ export const UserManagement: React.FC = () => {
 
                 {/* Automático */}
                 {mode === -1 && (
-                  <div className="space-y-3">
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 space-y-1">
-                      <p className="font-semibold text-slate-800">Distribuição automática igualitária</p>
-                      <p>Os {reassignmentData.items.length} leads serão divididos um por um entre os vendedores ativos, na ordem, até acabar a lista.</p>
-                    </div>
+                  <div className="space-y-3" style={{height:'260px'}}>
                     <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
                       <span className="text-sm text-slate-700">Incluir administradores na distribuição</span>
                       <InputSwitch
-                        checked={includeAdmins}
-                        onChange={() => setReassignmentData(prev => ({...prev, includeAdmins: !includeAdmins} as any))}
+                        checked={includeAdminsAuto}
+                        onChange={() => setReassignmentData(prev => ({...prev, includeAdminsAuto: !(prev as any).includeAdminsAuto} as any))}
                       />
+                    </div>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 space-y-1">
+                      <p className="font-semibold text-slate-800">Distribuição automática igualitária</p>
+                      <p>Os {reassignmentData.items.length} leads serão divididos um por um entre os vendedores ativos, na ordem, até acabar a lista.</p>
                     </div>
                   </div>
                 )}
 
                 {/* Por quantidade */}
                 {mode === -2 && (
-                  <div className="space-y-2">
-                    {sellers.map(u => (
-                      <div key={u.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg">
-                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                          {u.name.substring(0,2).toUpperCase()}
+                  <div className="space-y-2" style={{height:'260px'}}>
+                    <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
+                      <span className="text-sm text-slate-700">Incluir administradores na distribuição</span>
+                      <InputSwitch
+                        checked={includeAdminsQty}
+                        onChange={() => setReassignmentData(prev => ({...prev, includeAdminsQty: !(prev as any).includeAdminsQty} as any))}
+                      />
+                    </div>
+                    {manuallyAllocatedIds.size > 0 && (
+                      <p className="text-xs text-amber-600 px-1">{manuallyAllocatedIds.size} lead(s) já alocado(s) manualmente — disponíveis: {availableForQty}</p>
+                    )}
+                    <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                      {sellers.filter(u => includeAdminsQty || u.role === 'SELLER').map(u => {
+                        const thisQty = Number((qtyMap as any)[u.id] || 0);
+                        const otherQty = qtyAllocated - thisQty;
+                        const maxForThis = availableForQty - otherQty;
+                        return (
+                        <div key={u.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg">
+                          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                            {u.name.substring(0,2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 text-sm font-medium text-slate-700">{u.name}</div>
+                          <input
+                            type="number" min={0} max={maxForThis} value={thisQty}
+                            onChange={e => {
+                              const raw = parseInt(e.target.value) || 0;
+                              const qty = Math.min(raw, maxForThis);
+                              setReassignmentData(prev => ({...prev, qtyMap: {...(prev as any).qtyMap, [u.id]: qty}} as any));
+                            }}
+                            className="w-20 p-1.5 border border-slate-300 rounded text-center text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                          <span className="text-xs text-slate-400 w-8">leads</span>
                         </div>
-                        <div className="flex-1 text-sm font-medium text-slate-700">{u.name}</div>
-                        <input
-                          type="number" min={0} max={reassignmentData.items.length} defaultValue={0}
-                          onChange={e => {
-                            const qty = parseInt(e.target.value) || 0;
-                            setReassignmentData(prev => ({...prev, qtyMap: {...(prev as any).qtyMap, [u.id]: qty}} as any));
-                          }}
-                          className="w-20 p-1.5 border border-slate-300 rounded text-center text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                        <span className="text-xs text-slate-400 w-8">leads</span>
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
                     <div className="flex justify-end text-xs text-slate-500 pt-1">
-                      Total alocado: <span className="font-bold ml-1 text-slate-800">{Object.values((reassignmentData as any).qtyMap || {}).reduce((a:any,b:any)=>a+b,0)}</span>
-                      <span className="mx-1">/</span>{reassignmentData.items.length}
+                      Total alocado: <span className="font-bold ml-1 text-slate-800">{qtyAllocated}</span>
+                      <span className="mx-1">/</span>{availableForQty}
                     </div>
                   </div>
                 )}
 
                 {/* Manual */}
                 {mode === -3 && (
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                    {reassignmentData.items.map((lead, i) => (
-                      <div key={(lead as Lead).id || i} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg">
+                  <div className="space-y-2" style={{height:'260px'}}>
+                    <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
+                      <span className="text-sm text-slate-700">Incluir administradores na lista</span>
+                      <InputSwitch
+                        checked={includeAdminsManual}
+                        onChange={() => setReassignmentData(prev => ({...prev, includeAdminsManual: !(prev as any).includeAdminsManual} as any))}
+                      />
+                    </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                    {reassignmentData.items.map((lead, i) => {
+                      const leadId = (lead as Lead).id || i;
+                      const allocatedQty = Object.values(qtyMap).reduce((a: number, b: any) => a + Number(b), 0);
+                      const qtyLeadIds = (reassignmentData.items as Lead[])
+                        .filter(l => !manuallyAllocatedIds.has(l.id))
+                        .slice(0, allocatedQty)
+                        .map(l => l.id);
+                      const reservedByQty = qtyLeadIds.includes(leadId as number);
+                      return (
+                      <div key={leadId} className={`flex items-center gap-3 p-3 border rounded-lg ${
+                        reservedByQty ? 'border-amber-200 bg-amber-50 opacity-60' : 'border-slate-200'
+                      }`}>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-800 truncate">{lead.nome}</p>
                           <p className="text-xs text-slate-400 truncate">{(lead as Lead).email}</p>
                         </div>
-                        <select
-                          defaultValue={0}
-                          onChange={e => {
-                            const sellerId = parseInt(e.target.value);
-                            setReassignmentData(prev => ({...prev, manualMap: {...(prev as any).manualMap, [(lead as Lead).id || i]: sellerId}} as any));
-                          }}
-                          className="w-36 p-1.5 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                        >
-                          <option value={0}>Selecionar</option>
-                          {sellers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                        </select>
+                        {reservedByQty ? (
+                          <span className="text-xs text-amber-600 w-36 text-right">alocado por quantidade</span>
+                        ) : (
+                          <Dropdown
+                            value={(manualMap as any)[leadId] || 0}
+                            onChange={e => setReassignmentData(prev => ({...prev, manualMap: {...(prev as any).manualMap, [leadId]: e.value}} as any))}
+                            options={[
+                              { label: 'Selecionar', value: 0 },
+                              ...sellers.filter(u => includeAdminsManual || u.role === 'SELLER').map(u => ({ label: u.name, value: u.id }))
+                            ]}
+                            className="w-36 text-xs"
+                            pt={{
+                              root: { className: 'border border-slate-300 rounded shadow-sm' },
+                              input: { className: 'text-xs py-1.5 px-2' },
+                              item: { className: 'text-xs py-1.5 px-2' },
+                              trigger: { className: 'w-6' },
+                            }}
+                          />
+                        )}
                       </div>
-                    ))}
+                    );
+                    })}
+                  </div>
                   </div>
                 )}
 
@@ -807,9 +870,8 @@ export const UserManagement: React.FC = () => {
                     {loading ? 'Transferindo...' : 'Confirmar transferência'}
                   </button>
                 </div>
-              </div>
-            </div>
           </div>
+          </Dialog>
         );
       })()}
 
