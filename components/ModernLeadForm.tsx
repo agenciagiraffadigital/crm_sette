@@ -192,7 +192,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   // Determine which status columns to use
   const isOpportunity = formData && ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'].includes(formData.status_kanban);
   const statusColumns = isOpportunity ? OPPORTUNITY_COLUMNS : KANBAN_COLUMNS;
-  const canChangeSeller = isOpportunity; // Só pode trocar vendedor em oportunidades
+  const canChangeSeller = currentUser.role === 'ADMIN';
 
   useEffect(() => {
     const loadLead = async () => {

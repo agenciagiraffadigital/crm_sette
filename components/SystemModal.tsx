@@ -38,7 +38,7 @@ export const SystemModal: React.FC<SystemModalProps> = ({
 
   const footer = (
     <div className="flex justify-end gap-2">
-      {type === 'confirm' && onCancel && (
+      {onCancel && (
         <button
           onClick={onCancel}
           className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
@@ -74,8 +74,9 @@ export const SystemModal: React.FC<SystemModalProps> = ({
         </div>
       }
       footer={footer}
-      style={{ width: '450px' }}
-      modal
+      style={{ width: '450px', zIndex: 9999 }}
+      modal={false}
+      appendTo={document.body}
     >
       <p className="text-slate-600 text-sm">{message}</p>
     </Dialog>

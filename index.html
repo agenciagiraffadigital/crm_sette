@@ -7,8 +7,8 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/primereact.css">
     <link rel="stylesheet" href="/src/styles/theme.css">
+    <link rel="stylesheet" href="https://unpkg.com/primeicons/primeicons.css">
     <style>
       body {
         font-family: 'Inter', sans-serif;
@@ -47,6 +47,27 @@
       }
       .animate-fade-in {
         animation: fadeInUp 0.5s ease-out forwards;
+      }
+
+      .p-speeddial {
+        position: static !important;
+      }
+      .p-speeddial-button {
+        width: 2rem !important;
+        height: 2rem !important;
+      }
+      .p-speeddial-list {
+        position: fixed !important;
+        z-index: 9999 !important;
+        margin-top: -18px;
+        margin-right: -50px;
+      }
+      .p-speeddial-list .p-speeddial-item a {
+        background-color: #2563eb !important;
+        color: white !important;
+      }
+      .p-speeddial-list .p-speeddial-item:first-child a {
+        background-color: #dc2626 !important;
       }
     </style>
   <script type="importmap">

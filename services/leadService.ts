@@ -731,6 +731,42 @@ export const leadService = {
     };
   },
 
+  // Admin Only: Bulk reassign leads to different seller
+  bulkReassignLeads: async (leadIds: number[], newSellerId: number, currentUser: User): Promise<void> => {
+    if (currentUser.role !== 'ADMIN') {
+      throw new Error('Apenas administradores podem reatribuir leads');
+    }
+
+    const { data: sellerData, error: sellerError } = await supabase
+      .from('users_profile')
+      .select('id, name, email')
+      .eq('id', newSellerId)
+      .single();
+
+    if (sellerError || !sellerData) throw new Error('Vendedor não encontrado');
+
+    const { error } = await supabase
+      .from('leads')
+      .update({
+        vendedor: sellerData.name,
+        vendedor_email: sellerData.email,
+        vendedor_id: sellerData.id,
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', leadIds);
+
+    if (error) throw error;
+
+    await Promise.all(leadIds.map(leadId =>
+      leadService.addActivityLog(leadId, {
+        tipo: 'REASSIGNMENT',
+        descricao: `Lead transferido para ${sellerData.name} por ${currentUser.name}`,
+        usuario_id: currentUser.id,
+        usuario_nome: currentUser.name,
+      })
+    ));
+  },
+
   // Get leads by user (seller)
   getLeadsByUser: async (userId: number): Promise<Lead[]> => {
     const { data, error } = await supabase
