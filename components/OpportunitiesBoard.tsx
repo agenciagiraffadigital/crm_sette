@@ -803,7 +803,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       />
 
       {/* Board Columns */}
-      <div className="flex flex-col md:flex-row gap-4 pb-4">
+      <div className="flex flex-col md:flex-row gap-4 pb-4 items-start">
         {OPPORTUNITY_COLUMNS.map((column) => {
           const columnOpportunities = opportunitiesByStatus[column.id as OpportunityStatus];
           return (
@@ -825,7 +825,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
               </div>
               
               {/* Column Body */}
-              <div className="p-3 space-y-3 bg-slate-50/50 flex-1 max-h-[400px] md:max-h-none overflow-y-auto md:overflow-y-visible">
+              <div className="p-3 space-y-3 bg-slate-50/50">
                 {columnOpportunities?.map(opportunity => (
                   <OpportunityCard
                     key={opportunity.id}

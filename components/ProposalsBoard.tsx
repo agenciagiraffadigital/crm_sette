@@ -166,7 +166,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
         onDeleteFilter={(id) => setSavedFilters(prev => prev.filter(f => f.id !== id))}
       />
 
-      <div className="flex flex-col md:flex-row gap-4 pb-4">
+      <div className="flex flex-col md:flex-row gap-4 pb-4 items-start">
         {KANBAN_COLUMNS.map((column) => {
           const columnProposals = filteredProposals.filter(p => p.status_kanban === column.id);
           return (
@@ -180,7 +180,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
                   </span>
                 </div>
               </div>
-              <div className="p-3 space-y-3 bg-slate-50/50 flex-1 max-h-[400px] md:max-h-none overflow-y-auto md:overflow-y-visible">
+              <div className="p-3 space-y-3 bg-slate-50/50">
                 {columnProposals.map(proposal => (
                   <ProposalCard key={proposal.id} proposal={proposal} onMove={handleMoveProposal}
                     onClick={onProposalClick} onLost={onProposalLost}
