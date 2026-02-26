@@ -731,6 +731,30 @@ export const leadService = {
     };
   },
 
+  // Admin Only: Distribute leads round-robin among active sellers
+  distributeLeadsRoundRobin: async (leadIds: number[], sellerIds: number[], currentUser: User): Promise<void> => {
+    if (currentUser.role !== 'ADMIN') throw new Error('Apenas administradores podem redistribuir leads');
+
+    const { data: sellers, error } = await supabase
+      .from('users_profile')
+      .select('id, name, email')
+      .in('id', sellerIds);
+
+    if (error || !sellers?.length) throw new Error('Vendedores não encontrados');
+
+    const updates = leadIds.map((leadId, i) => {
+      const seller = sellers[i % sellers.length];
+      return supabase.from('leads').update({
+        vendedor: seller.name,
+        vendedor_email: seller.email,
+        vendedor_id: seller.id,
+        updated_at: new Date().toISOString(),
+      }).eq('id', leadId);
+    });
+
+    await Promise.all(updates);
+  },
+
   // Admin Only: Bulk reassign leads to different seller
   bulkReassignLeads: async (leadIds: number[], newSellerId: number, currentUser: User): Promise<void> => {
     if (currentUser.role !== 'ADMIN') {

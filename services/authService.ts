@@ -93,7 +93,7 @@ export const authService = {
 
   // Admin Only: Get all users
   getAllUsers: async (): Promise<User[]> => {
-    const { data, error } = await supabase.from('users_profile').select('*');
+    const { data, error } = await supabase.from('users_profile').select('*').order('id', { ascending: true });
     if (error) throw error;
     return data.map(u => ({
       id: u.id,
