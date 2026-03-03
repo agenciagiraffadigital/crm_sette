@@ -59,10 +59,11 @@ serve(async (req) => {
       )
     }
 
-    // Round-robin: find next seller
+    // Round-robin: find next seller based on this origin only
     const { data: lastLead } = await supabase
       .from('leads')
       .select('vendedor_id')
+      .eq('origem', 'Leads MedSênior')
       .not('vendedor_id', 'is', null)
       .order('created_at', { ascending: false })
       .limit(1)
