@@ -11,7 +11,7 @@ import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { Select } from '../src/components/ui/Select';
 import { Card } from '../src/components/ui/Card';
-import { opportunityService } from '../services/opportunityService';
+import { opportunityService, OpportunityQueryFilters } from '../services/opportunityService';
 import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
@@ -222,11 +222,11 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     'NEGOCIACAO': false
   });
 
-  const loadColumn = React.useCallback(async (status: OpportunityStatus, page: number) => {
+  const loadColumn = React.useCallback(async (status: OpportunityStatus, page: number, filtersOverride?: OpportunityQueryFilters) => {
     setColumnLoading(prev => ({ ...prev, [status]: true }));
     try {
       const from = page * PAGE_SIZE;
-      const { data, count } = await opportunityService.getOpportunitiesByStatus(currentUser, status, from, from + PAGE_SIZE - 1);
+      const { data, count } = await opportunityService.getOpportunitiesByStatus(currentUser, status, from, from + PAGE_SIZE - 1, filtersOverride);
       setColumnData(prev => ({ ...prev, [status]: page === 0 ? data : [...prev[status], ...data] }));
       setColumnCounts(prev => ({ ...prev, [status]: count }));
       setColumnPages(prev => ({ ...prev, [status]: page }));
@@ -234,6 +234,32 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
       setColumnLoading(prev => ({ ...prev, [status]: false }));
     }
   }, [currentUser]);
+
+  // Convert searchFilters to server query filters
+  const buildQueryFilters = React.useCallback((): OpportunityQueryFilters | undefined => {
+    const hasActive = searchFilters.searchTerm || searchFilters.sellers.length || searchFilters.operators.length || (searchFilters.products?.length) || searchFilters.source.length || searchFilters.dateRange.start || searchFilters.dateRange.end || (searchFilters.sortBy && searchFilters.sortBy !== 'date-desc');
+    if (!hasActive) return undefined;
+    return {
+      searchTerm: searchFilters.searchTerm || undefined,
+      sellers: searchFilters.sellers.length ? searchFilters.sellers : undefined,
+      operators: searchFilters.operators.length ? searchFilters.operators : undefined,
+      products: searchFilters.products?.length ? searchFilters.products : undefined,
+      sources: searchFilters.source.length ? searchFilters.source : undefined,
+      dateRange: (searchFilters.dateRange.start || searchFilters.dateRange.end) ? searchFilters.dateRange : undefined,
+      sortBy: searchFilters.sortBy || undefined,
+    };
+  }, [searchFilters]);
+
+  // Reload all columns when filters change
+  const filtersRef = React.useRef(searchFilters);
+  React.useEffect(() => {
+    // Skip initial render (handled by loadColumn effect below)
+    if (filtersRef.current === searchFilters) return;
+    filtersRef.current = searchFilters;
+    const qf = buildQueryFilters();
+    const statuses: OpportunityStatus[] = ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'];
+    statuses.forEach(s => loadColumn(s, 0, qf));
+  }, [searchFilters, buildQueryFilters, loadColumn]);
 
   React.useEffect(() => {
     const statuses: OpportunityStatus[] = ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'];
@@ -352,111 +378,30 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     };
   }, [opportunities]);
 
-  // Merge columnData into flat list for filtering
-  const allColumnOpportunities = useMemo(() => [
-    ...columnData['OPORTUNIDADES'],
-    ...columnData['EM_CONTATO'],
-    ...columnData['NEGOCIACAO']
-  ], [columnData]);
+  // Group opportunities by status directly from server-filtered data
+  const opportunitiesByStatus = useMemo(() => {
+    return {
+      'OPORTUNIDADES': columnData['OPORTUNIDADES'],
+      'EM_CONTATO': columnData['EM_CONTATO'],
+      'NEGOCIACAO': columnData['NEGOCIACAO']
+    };
+  }, [columnData]);
 
-  // Filter opportunities based on search filters
-  const filteredOpportunities = useMemo(() => {
-    const filtered = allColumnOpportunities.filter(opportunity => {
-      // Search term filter
-      const matchesSearch = !searchFilters.searchTerm || 
-        opportunity.nome.toLowerCase().includes(searchFilters.searchTerm.toLowerCase()) || 
-        opportunity.email.toLowerCase().includes(searchFilters.searchTerm.toLowerCase()) ||
-        opportunity.telefone.includes(searchFilters.searchTerm) ||
-        opportunity.id.toString().includes(searchFilters.searchTerm);
-      
-      // Seller filter
-      const matchesSeller = currentUser.role === 'ADMIN'
-        ? (searchFilters.sellers.length === 0 || searchFilters.sellers.includes(opportunity.vendedor))
-        : true;
-      
-      // Status filter
-      const matchesStatus = searchFilters.status.length === 0 || searchFilters.status.includes(opportunity.status);
-      
-      // Source filter
-      const matchesSource = searchFilters.source.length === 0 || searchFilters.source.includes(opportunity.origem);
-      
-      // Operator filter
-      const matchesOperator = searchFilters.operators.length === 0 || 
-        (opportunity.operadora && searchFilters.operators.includes(opportunity.operadora));
-      
-      // Product filter
-      const matchesProduct = searchFilters.products.length === 0 || 
-        (opportunity.produto && searchFilters.products.includes(opportunity.produto));
-      
-      // Date range filter
-      const matchesDateRange = (() => {
-        if (!searchFilters.dateRange.start && !searchFilters.dateRange.end) return true;
-        const opportunityDate = new Date(opportunity.created_at);
-        const startDate = searchFilters.dateRange.start ? new Date(searchFilters.dateRange.start) : null;
-        const endDate = searchFilters.dateRange.end ? new Date(searchFilters.dateRange.end) : null;
-        
-        if (startDate && opportunityDate < startDate) return false;
-        if (endDate && opportunityDate > endDate) return false;
-        return true;
-      })();
-        
-      return matchesSearch && matchesSeller && matchesStatus && matchesSource && matchesOperator && matchesProduct && matchesDateRange;
-    });
-
-    // Apply sorting
-    const sorted = [...filtered];
-    if (searchFilters.sortBy) {
-      sorted.sort((a, b) => {
-        switch (searchFilters.sortBy) {
-          case 'name-asc':
-            return a.nome.localeCompare(b.nome);
-          case 'name-desc':
-            return b.nome.localeCompare(a.nome);
-          case 'date-desc':
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-          case 'date-asc':
-            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-          default:
-            return 0;
-        }
-      });
-    }
-
-    // Use server-side counts when no filters active, otherwise count filtered
-    const hasActiveFilters = searchFilters.searchTerm || searchFilters.sellers.length || searchFilters.status.length || searchFilters.source.length || searchFilters.operators.length || searchFilters.dateRange.start || searchFilters.dateRange.end;
+  // Use server counts directly (already filtered)
+  React.useEffect(() => {
     const counts: Record<OpportunityStatus, number> = {} as Record<OpportunityStatus, number>;
     OPPORTUNITY_COLUMNS.forEach(column => {
-      counts[column.id as OpportunityStatus] = hasActiveFilters
-        ? sorted.filter(o => o.status === column.id).length
-        : columnCounts[column.id as OpportunityStatus];
+      counts[column.id as OpportunityStatus] = columnCounts[column.id as OpportunityStatus] || 0;
     });
     setStatusCounts(counts);
-
-    return sorted;
-  }, [allColumnOpportunities, searchFilters, currentUser.role, columnCounts]);
-
-  // Group opportunities by status
-  const opportunitiesByStatus = useMemo(() => {
-    const groups: Record<OpportunityStatus, Opportunity[]> = {
-      'OPORTUNIDADES': [],
-      'EM_CONTATO': [],
-      'NEGOCIACAO': []
-    };
-
-    filteredOpportunities.forEach(opportunity => {
-      if (groups[opportunity.status]) {
-        groups[opportunity.status].push(opportunity);
-      }
-    });
-
-    return groups;
-  }, [filteredOpportunities]);
+  }, [columnCounts]);
 
   const reloadAllColumns = React.useCallback(() => {
+    const qf = buildQueryFilters();
     const statuses: OpportunityStatus[] = ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'];
-    statuses.forEach(s => loadColumn(s, 0));
+    statuses.forEach(s => loadColumn(s, 0, qf));
     onDataChange?.();
-  }, [loadColumn, onDataChange]);
+  }, [loadColumn, onDataChange, buildQueryFilters]);
 
   const handleFiltersChange = useCallback((newFilters: FilterState) => {
     setSearchFilters(newFilters);
@@ -848,7 +793,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
                 {columnData[column.id as OpportunityStatus].length < columnCounts[column.id as OpportunityStatus] && (
                   <div className="text-center py-2">
                     <button
-                      onClick={() => loadColumn(column.id as OpportunityStatus, columnPages[column.id as OpportunityStatus] + 1)}
+                      onClick={() => loadColumn(column.id as OpportunityStatus, columnPages[column.id as OpportunityStatus] + 1, buildQueryFilters())}
                       disabled={columnLoading[column.id as OpportunityStatus]}
                       className="text-xs text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
                     >
