@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LayoutDashboard, KanbanSquare, Menu, X, Activity, LogOut, Users, Target, ChevronDown, XCircle, Building2 } from 'lucide-react';
+import { Tooltip } from './Tooltip';
 import { User } from '../types';
 
 interface LayoutProps {
@@ -133,13 +134,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 )}
               </div>
 
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-300"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+              <Tooltip text={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'} position="bottom">
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-300"
+                >
+                  {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                </button>
+              </Tooltip>
             </div>
           </div>
 

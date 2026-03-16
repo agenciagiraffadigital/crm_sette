@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
 import { Plus, Trash2, Building2, ArrowLeft, Package, Edit, FileText } from 'lucide-react';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
+import { Menu } from 'primereact/menu';
 import { SystemModal } from './SystemModal';
 import { DocumentoConfigPanel } from './DocumentoConfigPanel';
 
@@ -184,6 +185,46 @@ export const OperadorasManagement: React.FC = () => {
     loadProdutos(op.id);
   };
 
+  const OperadoraMenuButton: React.FC<{ op: Operadora }> = ({ op }) => {
+    const menuRef = useRef<Menu>(null);
+    const items = [
+      { label: 'Ver Produtos', icon: 'pi pi-pencil', command: () => handleSelectOperadora(op) },
+      { separator: true },
+      { label: 'Excluir', icon: 'pi pi-trash', command: () => handleDeleteOperadora(op.id) },
+    ];
+    return (
+      <>
+        <Menu model={items} popup ref={menuRef} appendTo={document.body} />
+        <button
+          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
+          onClick={(e) => { e.stopPropagation(); menuRef.current?.toggle(e); }}
+        >
+          <i className="pi pi-cog text-sm" />
+        </button>
+      </>
+    );
+  };
+
+  const ProdutoMenuButton: React.FC<{ prod: Produto }> = ({ prod }) => {
+    const menuRef = useRef<Menu>(null);
+    const items = [
+      { label: 'Configurar Documentos', icon: 'pi pi-file', command: () => setSelectedProduto(prod) },
+      { separator: true },
+      { label: 'Excluir', icon: 'pi pi-trash', command: () => handleDeleteProduto(prod.id) },
+    ];
+    return (
+      <>
+        <Menu model={items} popup ref={menuRef} appendTo={document.body} />
+        <button
+          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
+          onClick={(e) => menuRef.current?.toggle(e)}
+        >
+          <i className="pi pi-cog text-sm" />
+        </button>
+      </>
+    );
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
       <img src="/loading.gif" alt="Carregando..." className="w-16 h-16" />
@@ -222,49 +263,30 @@ export const OperadorasManagement: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Operadora</th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase w-24">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase w-32">Ações</th>
+            <thead>
+              <tr className="bg-slate-900">
+                <th className="px-4 py-5 text-xs font-bold text-slate-300 uppercase tracking-wider text-left">Operadora</th>
+                <th className="px-4 py-5 text-xs font-bold text-slate-300 uppercase tracking-wider text-center w-32">Status</th>
+                <th className="px-4 py-5 text-xs font-bold text-slate-300 uppercase tracking-wider text-center w-28">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-slate-100">
               {operadoras.map((op) => (
-                <tr key={op.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => handleSelectOperadora(op)}>
-                  <td className="px-6 py-4">
+                <tr key={op.id} className="hover:bg-blue-50 transition-colors cursor-pointer" onClick={() => handleSelectOperadora(op)}>
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <Building2 className="w-5 h-5 text-blue-600" />
-                      <span className="font-medium text-slate-800">{op.nome}</span>
+                      <Building2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      <span className="font-semibold text-slate-800">{op.nome}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <InputSwitch
-                        checked={op.ativa}
-                        onChange={() => handleToggleOperadora(op.id, op.ativa)}
-                      />
-                    </div>
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <InputSwitch
+                      checked={op.ativa}
+                      onChange={() => handleToggleOperadora(op.id, op.ativa)}
+                    />
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectOperadora(op);
-                      }}
-                      className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-2 rounded transition-colors"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteOperadora(op.id);
-                      }}
-                      className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-2 rounded transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <OperadoraMenuButton op={op} />
                   </td>
                 </tr>
               ))}
@@ -458,35 +480,23 @@ export const OperadorasManagement: React.FC = () => {
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Produto</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Ações</th>
+          <thead>
+            <tr className="bg-slate-900">
+              <th className="px-4 py-5 text-xs font-bold text-slate-300 uppercase tracking-wider text-left">Produto</th>
+              <th className="px-4 py-5 text-xs font-bold text-slate-300 uppercase tracking-wider text-center w-28">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-slate-100">
             {produtos.map((prod) => (
-              <tr key={prod.id} className="hover:bg-slate-50">
-                <td className="px-6 py-4">
+              <tr key={prod.id} className="hover:bg-blue-50 transition-colors">
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <Package className="w-5 h-5 text-green-600" />
-                    <span className="text-slate-800">{prod.nome}</span>
+                    <Package className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <span className="font-semibold text-slate-800">{prod.nome}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <button
-                    onClick={() => setSelectedProduto(prod)}
-                    className="text-blue-500 hover:text-blue-700 p-2 rounded hover:bg-blue-50"
-                    title="Configurar documentos"
-                  >
-                    <FileText className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteProduto(prod.id)}
-                    className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <td className="px-4 py-3 text-center">
+                  <ProdutoMenuButton prod={prod} />
                 </td>
               </tr>
             ))}

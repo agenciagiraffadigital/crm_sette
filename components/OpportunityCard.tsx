@@ -132,7 +132,11 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         )}
       </div>
 
-      {/* Status Indicator */}
+      {/* Entry date */}
+      <div className="flex items-center text-xs text-slate-400 mt-2 pt-2 border-t border-slate-100">
+        <Calendar className="w-3 h-3 mr-1.5 flex-shrink-0" />
+        <span>{new Date(opportunity.created_at).toLocaleDateString('pt-BR')} às {new Date(opportunity.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
     </div>
   );
 };

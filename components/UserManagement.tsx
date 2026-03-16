@@ -6,9 +6,11 @@ import { opportunityService } from '../services/opportunityService';
 import { notificationService } from '../services/notificationService';
 import { SystemModal } from './SystemModal';
 import { Plus, Edit, Trash2, Save, X, Key, Shield, Users, Activity, TrendingUp, AlertCircle, CheckCircle, Clock, Settings } from 'lucide-react';
+import { Tooltip as AppTooltip } from './Tooltip';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { SpeedDial } from 'primereact/speeddial';
+import { Tooltip } from 'primereact/tooltip';
 import { Dropdown } from 'primereact/dropdown';
 
 
@@ -510,12 +512,13 @@ export const UserManagement: React.FC = () => {
                     )}
                   </td>
                   <td className="py-3 text-center">
+                    <Tooltip target=".speeddial-action" />
                     <SpeedDial
                       model={[
-                        { label: 'Excluir', icon: 'pi pi-trash', command: () => handleDelete(user.id), tooltipOptions: { position: 'top' } },
-                        { label: 'Transferir Leads', icon: 'pi pi-arrow-right-arrow-left', command: () => handleReassignItems(user), tooltipOptions: { position: 'top' } },
-                        { label: 'Resetar Senha', icon: 'pi pi-key', command: () => handleResetPassword(user.id), tooltipOptions: { position: 'top' } },
-                        { label: 'Editar', icon: 'pi pi-pencil', command: () => handleEdit(user), tooltipOptions: { position: 'top' } },
+                        { label: 'Excluir', icon: 'pi pi-trash', command: () => handleDelete(user.id), className: 'speeddial-action', tooltipOptions: { position: 'top' } },
+                        { label: 'Transferir Leads', icon: 'pi pi-arrow-right-arrow-left', command: () => handleReassignItems(user), className: 'speeddial-action', tooltipOptions: { position: 'top' } },
+                        { label: 'Resetar Senha', icon: 'pi pi-key', command: () => handleResetPassword(user.id), className: 'speeddial-action', tooltipOptions: { position: 'top' } },
+                        { label: 'Editar', icon: 'pi pi-pencil', command: () => handleEdit(user), className: 'speeddial-action', tooltipOptions: { position: 'top' } },
                       ]}
                       direction="left"
                       type="semi-circle"
@@ -574,9 +577,11 @@ export const UserManagement: React.FC = () => {
                                 <button onClick={() => handleReassignItems(user)} className="flex-1 px-2 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors flex items-center justify-center gap-1">
                     <Users className="w-3.5 h-3.5" /><span>Transferir</span>
                   </button>
-                <button onClick={() => handleDelete(user.id)} className="px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <AppTooltip text="Excluir usuário" position="top">
+                  <button onClick={() => handleDelete(user.id)} className="px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </AppTooltip>
               </div>
             </div>
           ))}

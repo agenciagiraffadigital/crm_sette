@@ -56,12 +56,26 @@
         width: 2rem !important;
         height: 2rem !important;
       }
+
+      /* Semi-circle usuarios - fixed com offset */
       .p-speeddial-list {
         position: fixed !important;
         z-index: 9999 !important;
         margin-top: -18px;
         margin-right: -50px;
       }
+
+      /* SpeedDial operadoras - appendTo=self, relativo ao wrapper */
+      .sd-operadoras-wrap .p-speeddial {
+        position: relative !important;
+      }
+      .sd-operadoras-wrap .p-speeddial-list {
+        position: absolute !important;
+        margin-top: 0 !important;
+        margin-right: 0 !important;
+        z-index: 9999 !important;
+      }
+
       .p-speeddial-list .p-speeddial-item a {
         background-color: #2563eb !important;
         color: white !important;
