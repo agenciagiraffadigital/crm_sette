@@ -1,19 +1,65 @@
 import { Opportunity, OpportunityStatus, User, LossReason, ActivityLog, AssignmentHistory, Note } from '../types';
 import { supabase } from './supabaseClient';
 
+export interface OpportunityQueryFilters {
+  searchTerm?: string;
+  sellers?: string[];
+  operators?: string[];
+  products?: string[];
+  sources?: string[];
+  dateRange?: { start?: string; end?: string };
+  sortBy?: string;
+}
+
 export const opportunityService = {
   // Get opportunities by status with pagination
-  getOpportunitiesByStatus: async (currentUser: User, status: OpportunityStatus, from: number, to: number): Promise<{ data: Opportunity[], count: number }> => {
+  getOpportunitiesByStatus: async (currentUser: User, status: OpportunityStatus, from: number, to: number, filters?: OpportunityQueryFilters): Promise<{ data: Opportunity[], count: number }> => {
     let query = supabase
       .from('leads')
-      .select('id, nome, email, telefone, status_kanban, created_at, valor_produto, vendedor, vendedor_id, origem, produto', { count: 'exact' })
-      .eq('status_kanban', status)
-      .order('created_at', { ascending: false })
-      .range(from, to);
+      .select('id, nome, email, telefone, status_kanban, created_at, valor_produto, vendedor, vendedor_id, origem, produto, operadora', { count: 'exact' })
+      .eq('status_kanban', status);
 
     if (currentUser.role !== 'ADMIN') {
       query = query.eq('vendedor_id', currentUser.id);
     }
+
+    // Apply optional filters
+    if (filters?.searchTerm) {
+      const term = filters.searchTerm;
+      query = query.or(`nome.ilike.%${term}%,email.ilike.%${term}%,telefone.ilike.%${term}%`);
+    }
+    if (filters?.sellers?.length) {
+      query = query.in('vendedor', filters.sellers);
+    }
+    if (filters?.operators?.length) {
+      query = query.in('operadora', filters.operators);
+    }
+    if (filters?.products?.length) {
+      query = query.in('produto', filters.products);
+    }
+    if (filters?.sources?.length) {
+      query = query.in('origem', filters.sources);
+    }
+    if (filters?.dateRange?.start) {
+      query = query.gte('created_at', filters.dateRange.start);
+    }
+    if (filters?.dateRange?.end) {
+      query = query.lte('created_at', filters.dateRange.end + 'T23:59:59');
+    }
+
+    // Apply ordering
+    if (filters?.sortBy === 'name-asc') {
+      query = query.order('nome', { ascending: true });
+    } else if (filters?.sortBy === 'name-desc') {
+      query = query.order('nome', { ascending: false });
+    } else if (filters?.sortBy === 'date-asc') {
+      query = query.order('created_at', { ascending: true });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    // Apply pagination last
+    query = query.range(from, to);
 
     const { data, error, count } = await query;
     if (error) throw error;
@@ -35,6 +81,7 @@ export const opportunityService = {
         origem: row.origem,
         raw_json: null,
         produto: row.produto,
+        operadora: row.operadora,
       })),
       count: count || 0
     };
