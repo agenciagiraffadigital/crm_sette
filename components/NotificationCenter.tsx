@@ -4,6 +4,7 @@ import { notificationService, Notification } from '../services/notificationServi
 import { User } from '../types';
 import { Button } from '../src/components/ui/Button';
 import { Card } from '../src/components/ui/Card';
+import { Tooltip } from './Tooltip';
 
 interface NotificationCenterProps {
   currentUser: User;
@@ -147,13 +148,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
                     Marcar todas
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <Tooltip text="Fechar" position="bottom">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
               </div>
             </div>
 
@@ -194,14 +197,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
                               </p>
                             </div>
                             {!notification.read && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleMarkAsRead(notification.id)}
-                                className="ml-2 p-1"
-                              >
-                                <Check className="h-3 w-3" />
-                              </Button>
+                              <Tooltip text="Marcar como lida" position="left">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleMarkAsRead(notification.id)}
+                                  className="ml-2 p-1"
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                              </Tooltip>
                             )}
                           </div>
                         </div>

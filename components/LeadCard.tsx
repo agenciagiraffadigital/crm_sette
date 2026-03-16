@@ -77,9 +77,9 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick, onLos
           <User className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
           <span className="truncate">Vend: {lead.vendedor}</span>
         </div>
-        <div className="flex items-center text-xs text-slate-600">
-          <Calendar className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-          <span>{new Date(lead.created_at).toLocaleDateString('pt-BR')}</span>
+        <div className="flex items-center text-xs text-slate-400">
+          <Calendar className="w-3 h-3 mr-1.5 flex-shrink-0" />
+          <span>{new Date(lead.created_at).toLocaleDateString('pt-BR')} às {new Date(lead.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </div>
 
