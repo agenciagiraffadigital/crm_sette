@@ -2,18 +2,68 @@ import { Lead, KanbanStatus, User, Note } from '../types';
 import { supabase } from './supabaseClient';
 import { authService } from './authService';
 
+export interface LeadQueryFilters {
+  searchTerm?: string;
+  sellers?: string[];
+  operators?: string[];
+  products?: string[];
+  sources?: string[];
+  dateRange?: { start?: string; end?: string };
+  valueRange?: { min?: number; max?: number };
+  sortBy?: string;
+}
+
 export const leadService = {
-  getLeadsByStatus: async (currentUser: User, status: KanbanStatus, from: number, to: number): Promise<{ data: Lead[], count: number }> => {
+  getLeadsByStatus: async (currentUser: User, status: KanbanStatus, from: number, to: number, filters?: LeadQueryFilters): Promise<{ data: Lead[], count: number }> => {
     let query = supabase
       .from('leads')
-      .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at', { count: 'exact' })
-      .eq('status_kanban', status)
-      .order('created_at', { ascending: false })
-      .range(from, to);
+      .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at, origem, updated_at', { count: 'exact' })
+      .eq('status_kanban', status);
 
     if (currentUser.role !== 'ADMIN') {
       query = query.eq('vendedor_id', currentUser.id);
     }
+
+    if (filters?.searchTerm) {
+      const term = filters.searchTerm;
+      query = query.or(`nome.ilike.%${term}%,email.ilike.%${term}%,telefone.ilike.%${term}%`);
+    }
+    if (filters?.sellers?.length) {
+      query = query.in('vendedor', filters.sellers);
+    }
+    if (filters?.operators?.length) {
+      query = query.in('operadora', filters.operators);
+    }
+    if (filters?.products?.length) {
+      query = query.in('produto', filters.products);
+    }
+    if (filters?.sources?.length) {
+      query = query.in('origem', filters.sources);
+    }
+    if (filters?.dateRange?.start) {
+      query = query.gte('created_at', filters.dateRange.start);
+    }
+    if (filters?.dateRange?.end) {
+      query = query.lte('created_at', filters.dateRange.end + 'T23:59:59');
+    }
+    if (filters?.valueRange?.min !== undefined) {
+      query = query.gte('valor_produto', filters.valueRange.min);
+    }
+    if (filters?.valueRange?.max !== undefined) {
+      query = query.lte('valor_produto', filters.valueRange.max);
+    }
+
+    if (filters?.sortBy === 'name-asc') {
+      query = query.order('nome', { ascending: true });
+    } else if (filters?.sortBy === 'name-desc') {
+      query = query.order('nome', { ascending: false });
+    } else if (filters?.sortBy === 'date-asc') {
+      query = query.order('created_at', { ascending: true });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    query = query.range(from, to);
 
     const { data, error, count } = await query;
     if (error) throw error;
@@ -27,7 +77,8 @@ export const leadService = {
         coparticipacao: 'NÃO' as const, vigencia: '', endereco: { cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '' },
         beneficiarios: [], mensagens: [], documentos: [], origem: '', canal_venda: '', raw_json: null,
         vendedor: row.vendedor, vendedor_email: '', vendedor_id: row.vendedor_id,
-        status_kanban: row.status_kanban, created_at: row.created_at, updated_at: row.created_at,
+        status_kanban: row.status_kanban, created_at: row.created_at, updated_at: row.updated_at || row.created_at,
+        origem: row.origem || '',
       })),
       count: count || 0
     };

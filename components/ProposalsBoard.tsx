@@ -5,7 +5,7 @@ import { SearchAndFilters, FilterState, SavedFilter } from './SearchAndFilters';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { SystemModal } from './SystemModal';
 import { KANBAN_COLUMNS } from '../constants';
-import { leadService } from '../services/leadService';
+import { leadService, LeadQueryFilters } from '../services/leadService';
 
 interface ProposalsBoardProps {
   proposals?: Lead[];
@@ -27,11 +27,11 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
   const [columnPages, setColumnPages] = useState<Record<string, number>>({});
   const [columnLoading, setColumnLoading] = useState<Record<string, boolean>>({});
 
-  const loadColumn = React.useCallback(async (status: KanbanStatus, page: number) => {
+  const loadColumn = React.useCallback(async (status: KanbanStatus, page: number, filtersOverride?: LeadQueryFilters) => {
     setColumnLoading(prev => ({ ...prev, [status]: true }));
     try {
       const from = page * PAGE_SIZE;
-      const { data, count } = await leadService.getLeadsByStatus(user, status, from, from + PAGE_SIZE - 1);
+      const { data, count } = await leadService.getLeadsByStatus(user, status, from, from + PAGE_SIZE - 1, filtersOverride);
       setColumnData(prev => ({ ...prev, [status]: page === 0 ? data : [...(prev[status] || []), ...data] }));
       setColumnCounts(prev => ({ ...prev, [status]: count }));
       setColumnPages(prev => ({ ...prev, [status]: page }));
@@ -40,13 +40,32 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     }
   }, [user]);
 
+  // Convert filters to server query format
+  const buildQueryFilters = React.useCallback((): LeadQueryFilters | undefined => {
+    const hasActive = filters.searchTerm || filters.sellers.length || filters.operators.length || (filters.products?.length) || filters.source.length || filters.dateRange.start || filters.dateRange.end || (filters.valueRange?.min !== undefined) || (filters.valueRange?.max !== undefined) || (filters.sortBy && filters.sortBy !== 'date-desc');
+    if (!hasActive) return undefined;
+    return {
+      searchTerm: filters.searchTerm || undefined,
+      sellers: filters.sellers.length ? filters.sellers : undefined,
+      operators: filters.operators.length ? filters.operators : undefined,
+      products: filters.products?.length ? filters.products : undefined,
+      sources: filters.source.length ? filters.source : undefined,
+      dateRange: (filters.dateRange.start || filters.dateRange.end) ? filters.dateRange : undefined,
+      valueRange: (filters.valueRange?.min !== undefined || filters.valueRange?.max !== undefined) ? filters.valueRange : undefined,
+      sortBy: filters.sortBy || undefined,
+    };
+  }, [filters]);
+
+  // Single effect: reload on mount AND whenever filters change
   React.useEffect(() => {
-    KANBAN_COLUMNS.forEach(col => loadColumn(col.id as KanbanStatus, 0));
-  }, [loadColumn]);
+    const qf = buildQueryFilters();
+    KANBAN_COLUMNS.forEach(col => loadColumn(col.id as KanbanStatus, 0, qf));
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reloadAllColumns = React.useCallback(() => {
-    KANBAN_COLUMNS.forEach(col => loadColumn(col.id as KanbanStatus, 0));
-  }, [loadColumn]);
+    const qf = buildQueryFilters();
+    KANBAN_COLUMNS.forEach(col => loadColumn(col.id as KanbanStatus, 0, qf));
+  }, [loadColumn, buildQueryFilters]);
 
   const [filters, setFilters] = useState<FilterState>({
     searchTerm: '', sellers: [], operators: [], dateRange: {}, status: [], source: [], valueRange: {}
@@ -74,38 +93,12 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     return { sellers: Array.from(allSellers), operators: Array.from(allOperators), sourceOptions: Array.from(allSources) };
   }, [allProposals]);
 
-  const filteredProposals = useMemo(() => {
-    const filtered = allProposals.filter(proposal => {
-      const matchesSearch = !filters.searchTerm ||
-        proposal.nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        proposal.email.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        proposal.id.toString().includes(filters.searchTerm);
-      const matchesSeller = user.role === 'ADMIN' ? (filters.sellers.length === 0 || filters.sellers.includes(proposal.vendedor)) : true;
-      const matchesOperator = filters.operators.length === 0 || filters.operators.includes(proposal.operadora);
-      const matchesStatus = filters.status.length === 0 || filters.status.includes(proposal.status_kanban);
-      const matchesSource = filters.source.length === 0 || filters.source.includes(proposal.origem);
-      const matchesDateRange = (() => {
-        if (!filters.dateRange.start && !filters.dateRange.end) return true;
-        const d = new Date(proposal.created_at);
-        if (filters.dateRange.start && d < new Date(filters.dateRange.start)) return false;
-        if (filters.dateRange.end && d > new Date(filters.dateRange.end)) return false;
-        return true;
-      })();
-      const matchesValueRange = (() => {
-        if (filters.valueRange.min === undefined && filters.valueRange.max === undefined) return true;
-        const v = proposal.valor_produto || 0;
-        if (filters.valueRange.min !== undefined && v < filters.valueRange.min) return false;
-        if (filters.valueRange.max !== undefined && v > filters.valueRange.max) return false;
-        return true;
-      })();
-      return matchesSearch && matchesSeller && matchesOperator && matchesStatus && matchesSource && matchesDateRange && matchesValueRange;
-    });
-
+  // Use server counts directly
+  React.useEffect(() => {
     const counts: Record<string, number> = {};
-    KANBAN_COLUMNS.forEach(col => { counts[col.id] = filtered.filter(p => p.status_kanban === col.id).length; });
+    KANBAN_COLUMNS.forEach(col => { counts[col.id] = columnCounts[col.id] || 0; });
     setStatusCounts(counts);
-    return filtered;
-  }, [allProposals, filters, user.role]);
+  }, [columnCounts]);
 
   const handleMoveProposal = useCallback(async (id: number, newStatus: KanbanStatus) => {
     await onMoveProposal(id, newStatus);
@@ -168,7 +161,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
 
       <div className="flex flex-col md:flex-row gap-4 pb-4 items-start">
         {KANBAN_COLUMNS.map((column) => {
-          const columnProposals = filteredProposals.filter(p => p.status_kanban === column.id);
+          const columnProposals = columnData[column.id] || [];
           return (
             <div key={column.id} className="flex flex-col w-full md:flex-1 md:min-w-[300px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
               onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, column.id as KanbanStatus)}>
@@ -195,7 +188,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
                 {(columnData[column.id]?.length || 0) < (columnCounts[column.id] || 0) && (
                   <div className="text-center py-2">
                     <button
-                      onClick={() => loadColumn(column.id as KanbanStatus, (columnPages[column.id] || 0) + 1)}
+                      onClick={() => loadColumn(column.id as KanbanStatus, (columnPages[column.id] || 0) + 1, buildQueryFilters())}
                       disabled={columnLoading[column.id]}
                       className="text-xs text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
                     >

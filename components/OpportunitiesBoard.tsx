@@ -250,21 +250,12 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     };
   }, [searchFilters]);
 
-  // Reload all columns when filters change
-  const filtersRef = React.useRef(searchFilters);
+  // Single effect: reload all columns on mount AND whenever filters change
   React.useEffect(() => {
-    // Skip initial render (handled by loadColumn effect below)
-    if (filtersRef.current === searchFilters) return;
-    filtersRef.current = searchFilters;
     const qf = buildQueryFilters();
     const statuses: OpportunityStatus[] = ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'];
     statuses.forEach(s => loadColumn(s, 0, qf));
-  }, [searchFilters, buildQueryFilters, loadColumn]);
-
-  React.useEffect(() => {
-    const statuses: OpportunityStatus[] = ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'];
-    statuses.forEach(s => loadColumn(s, 0));
-  }, [loadColumn]);
+  }, [searchFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [limits, setLimits] = useState<Record<OpportunityStatus, number>>({
     'OPORTUNIDADES': 30,
