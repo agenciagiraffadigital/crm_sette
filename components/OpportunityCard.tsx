@@ -1,6 +1,7 @@
 import React from 'react';
 import { Opportunity, OpportunityStatus } from '../types';
 import { Phone, Mail, User, Calendar, ArrowRight, Target, Clock, DollarSign, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { maskPhone } from '../utils/masks';
 import { OPPORTUNITY_COLUMNS } from '../constants';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
@@ -118,7 +119,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         </div>
         <div className="flex items-center text-xs text-slate-600">
           <Phone className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-          <span>{opportunity.telefone}</span>
+          <span>{maskPhone(opportunity.telefone)}</span>
         </div>
         <div className="flex items-center text-xs text-slate-600">
           <User className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
