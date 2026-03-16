@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lead, KanbanStatus } from '../types';
 import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, DollarSign, Trash2, XCircle } from 'lucide-react';
+import { maskPhone } from '../utils/masks';
 import { KANBAN_COLUMNS } from '../constants';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
@@ -88,7 +89,7 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
         </div>
         <div className="flex items-center text-xs text-slate-600">
           <Phone className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
-          <span>{proposal.telefone}</span>
+          <span>{maskPhone(proposal.telefone)}</span>
         </div>
         <div className="flex items-center text-xs text-slate-600">
           <User className="w-3 h-3 mr-2 text-slate-400 flex-shrink-0" />
