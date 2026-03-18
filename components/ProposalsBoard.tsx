@@ -40,6 +40,18 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     }
   }, [user]);
 
+  const [filters, setFilters] = useState<FilterState>({
+    searchTerm: '', sellers: [], operators: [], dateRange: {}, status: [], source: [], valueRange: {}
+  });
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+  const [deleteModalState, setDeleteModalState] = useState<{ isOpen: boolean; proposalId: number | null; proposalName: string }>({
+    isOpen: false, proposalId: null, proposalName: ''
+  });
+  const [systemModal, setSystemModal] = useState<{ isOpen: boolean; type: 'alert'|'confirm'|'success'|'error'; title: string; message: string }>(
+    { isOpen: false, type: 'alert', title: '', message: '' }
+  );
+
   // Convert filters to server query format
   const buildQueryFilters = React.useCallback((): LeadQueryFilters | undefined => {
     const hasActive = filters.searchTerm || filters.sellers.length || filters.operators.length || (filters.products?.length) || filters.source.length || filters.dateRange.start || filters.dateRange.end || (filters.valueRange?.min !== undefined) || (filters.valueRange?.max !== undefined) || (filters.sortBy && filters.sortBy !== 'date-desc');
@@ -66,18 +78,6 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     const qf = buildQueryFilters();
     KANBAN_COLUMNS.forEach(col => loadColumn(col.id as KanbanStatus, 0, qf));
   }, [loadColumn, buildQueryFilters]);
-
-  const [filters, setFilters] = useState<FilterState>({
-    searchTerm: '', sellers: [], operators: [], dateRange: {}, status: [], source: [], valueRange: {}
-  });
-  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
-  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
-  const [deleteModalState, setDeleteModalState] = useState<{ isOpen: boolean; proposalId: number | null; proposalName: string }>({
-    isOpen: false, proposalId: null, proposalName: ''
-  });
-  const [systemModal, setSystemModal] = useState<{ isOpen: boolean; type: 'alert'|'confirm'|'success'|'error'; title: string; message: string }>(
-    { isOpen: false, type: 'alert', title: '', message: '' }
-  );
 
   const allProposals = useMemo(() => KANBAN_COLUMNS.flatMap(col => columnData[col.id] || []), [columnData]);
 
