@@ -2,6 +2,7 @@ import React from 'react';
 import { Opportunity, OpportunityStatus } from '../types';
 import { Phone, Mail, User, Calendar, ArrowRight, Target, Clock, DollarSign, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { maskPhone } from '../utils/masks';
+import { formatDateTimeCard, getTimeAgo } from '../utils/formatters';
 import { OPPORTUNITY_COLUMNS } from '../constants';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
@@ -46,25 +47,6 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
       style: 'currency',
       currency: 'BRL'
     }).format(value);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
-
-  const getTimeAgo = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffInMs = now.getTime() - date.getTime();
-    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Há poucos minutos';
-    if (diffInHours < 24) return `Há ${diffInHours} hora${diffInHours > 1 ? 's' : ''}`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `Há ${diffInDays} dia${diffInDays > 1 ? 's' : ''}`;
-    
-    return formatDate(dateString);
   };
 
   const statusConfig = {
@@ -136,7 +118,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
       {/* Entry date */}
       <div className="flex items-center text-xs text-slate-400 mt-2 pt-2 border-t border-slate-100">
         <Calendar className="w-3 h-3 mr-1.5 flex-shrink-0" />
-        <span>{new Date(opportunity.created_at).toLocaleDateString('pt-BR')} às {new Date(opportunity.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+        <span>{formatDateTimeCard(opportunity.created_at)}</span>
       </div>
     </div>
   );

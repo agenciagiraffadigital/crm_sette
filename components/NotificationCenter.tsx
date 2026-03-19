@@ -108,7 +108,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays}d atrás`;
     
-    return date.toLocaleDateString('pt-BR');
+    return date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   };
 
   return (

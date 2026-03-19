@@ -134,16 +134,7 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
 
   // Clear all filters
   const clearAllFilters = useCallback(() => {
-    onFiltersChange({
-      searchTerm: '',
-      sellers: [],
-      operators: [],
-      products: [],
-      dateRange: {},
-      status: [],
-      source: [],
-      valueRange: {}
-    });
+    onFiltersChange({ ...defaultFilters });
   }, [onFiltersChange]);
 
   // Save filter
@@ -270,6 +261,18 @@ export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
                 </span>
               )}
             </button>
+
+            {/* Clear Filters Button - visible when filters are active */}
+            {activeFiltersCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="h-10 px-3 py-2 border border-red-300 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-1.5 w-full sm:w-auto"
+                title="Limpar todos os filtros"
+              >
+                <X className="w-4 h-4" />
+                Limpar
+              </button>
+            )}
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { Lead, KanbanStatus } from '../types';
 import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, XCircle } from 'lucide-react';
 import { KANBAN_COLUMNS } from '../constants';
+import { formatDateTimeCard } from '../utils/formatters';
 
 interface LeadCardProps {
   lead: Lead;
@@ -79,7 +80,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onMove, onClick, onLos
         </div>
         <div className="flex items-center text-xs text-slate-400">
           <Calendar className="w-3 h-3 mr-1.5 flex-shrink-0" />
-          <span>{new Date(lead.created_at).toLocaleDateString('pt-BR')} às {new Date(lead.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+          <span>{formatDateTimeCard(lead.created_at)}</span>
         </div>
       </div>
 

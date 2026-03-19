@@ -13,13 +13,17 @@ interface ProposalsBoardProps {
   onProposalClick: (proposal: Lead) => void;
   onProposalLost?: (proposal: Lead) => void;
   user: User;
+  searchFilters: FilterState;
+  onSearchFiltersChange: (filters: FilterState) => void;
 }
 
 export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
   onMoveProposal,
   onProposalClick,
   onProposalLost,
-  user
+  user,
+  searchFilters: filters,
+  onSearchFiltersChange: setFilters
 }) => {
   const PAGE_SIZE = 30;
   const [columnData, setColumnData] = useState<Record<string, Lead[]>>({});
@@ -40,9 +44,6 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     }
   }, [user]);
 
-  const [filters, setFilters] = useState<FilterState>({
-    searchTerm: '', sellers: [], operators: [], dateRange: {}, status: [], source: [], valueRange: {}
-  });
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [deleteModalState, setDeleteModalState] = useState<{ isOpen: boolean; proposalId: number | null; proposalName: string }>({
@@ -150,7 +151,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
         onFiltersChange={setFilters}
         sellers={sellers}
         operators={operators}
-        statusOptions={KANBAN_COLUMNS.map(col => col.id)}
+        statusOptions={[]}
         sourceOptions={sourceOptions}
         showSellerFilter={user.role === 'ADMIN'}
         savedFilters={savedFilters}

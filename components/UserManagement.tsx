@@ -7,6 +7,7 @@ import { notificationService } from '../services/notificationService';
 import { SystemModal } from './SystemModal';
 import { Plus, Edit, Trash2, Save, X, Key, Shield, Users, Activity, TrendingUp, AlertCircle, CheckCircle, Clock, Settings } from 'lucide-react';
 import { Tooltip as AppTooltip } from './Tooltip';
+import { formatDateTime } from '../utils/formatters';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { SpeedDial } from 'primereact/speeddial';
@@ -646,7 +647,7 @@ export const UserManagement: React.FC = () => {
                   </div>
                   <div className="text-sm text-orange-900">
                     {userPerformance.lastActivity 
-                      ? new Date(userPerformance.lastActivity).toLocaleString('pt-BR')
+                      ? formatDateTime(userPerformance.lastActivity)
                       : 'Nunca'
                     }
                   </div>
@@ -694,7 +695,7 @@ export const UserManagement: React.FC = () => {
                       <div className="flex-1">
                         <div className="font-medium text-slate-800">{activity.description}</div>
                         <div className="text-sm text-slate-500 mt-1">
-                          {new Date(activity.created_at).toLocaleString('pt-BR')}
+                          {formatDateTime(activity.created_at)}
                         </div>
                       </div>
                     </div>
