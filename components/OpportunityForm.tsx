@@ -8,6 +8,7 @@ import { Button } from '../src/components/ui/Button';
 import { Card } from '../src/components/ui/Card';
 import { Select as UISelect } from '../src/components/ui/Select';
 import { maskPhone, unmask } from '../utils/masks';
+import { formatDateTime } from '../utils/formatters';
 import { SystemModal } from './SystemModal';
 import { NotesDialog } from './NotesDialog';
 
@@ -522,7 +523,7 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
                         Criado em
                       </label>
                       <p className="text-sm text-slate-600">
-                        {new Date(formData.created_at).toLocaleString('pt-BR')}
+                        {formatDateTime(formData.created_at)}
                       </p>
                     </div>
                     <div>
@@ -530,7 +531,7 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
                         Última atualização
                       </label>
                       <p className="text-sm text-slate-600">
-                        {new Date(formData.updated_at).toLocaleString('pt-BR')}
+                        {formatDateTime(formData.updated_at)}
                       </p>
                     </div>
                   </div>
@@ -576,6 +577,7 @@ export const OpportunityForm: React.FC<OpportunityFormProps> = ({ opportunityId,
                           </span>
                           <span className="text-xs text-slate-500">
                             {new Date(note.data + 'T' + note.horario).toLocaleString('pt-BR', {
+                              timeZone: 'America/Sao_Paulo',
                               day: '2-digit',
                               month: '2-digit',
                               year: 'numeric',

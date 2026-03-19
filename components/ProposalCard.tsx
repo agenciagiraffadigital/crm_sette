@@ -2,6 +2,7 @@ import React from 'react';
 import { Lead, KanbanStatus } from '../types';
 import { Phone, Mail, User, Calendar, ArrowRight, Building2, PersonStanding, DollarSign, Trash2, XCircle } from 'lucide-react';
 import { maskPhone } from '../utils/masks';
+import { formatDateTimeCard } from '../utils/formatters';
 import { KANBAN_COLUMNS } from '../constants';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
@@ -55,10 +56,6 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
     }).format(value);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
-
   return (
     <div 
       className="bg-white shadow-sm p-4 rounded-lg transition-shadow duration-200 hover:shadow-md group cursor-pointer relative transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg select-none"
@@ -101,6 +98,12 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onMove, on
             <span className="font-semibold text-green-600">{formatCurrency(proposal.valor_produto)}</span>
           </div>
         )}
+      </div>
+
+      {/* Entry date */}
+      <div className="flex items-center text-xs text-slate-400 mt-2 pt-2 border-t border-slate-100">
+        <Calendar className="w-3 h-3 mr-1.5 flex-shrink-0" />
+        <span>{formatDateTimeCard(proposal.created_at)}</span>
       </div>
 
       {/* Status Indicator */}

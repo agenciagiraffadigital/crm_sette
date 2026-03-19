@@ -19,22 +19,6 @@ import { getEnvironment } from '../utils/environment';
 import { Dialog } from 'primereact/dialog';
 import { Plus } from 'lucide-react';
 
-interface FilterState {
-  searchTerm: string;
-  sellers: string[];
-  operators: string[];
-  dateRange: {
-    start?: string;
-    end?: string;
-  };
-  status: string[];
-  source: string[];
-  valueRange: {
-    min?: number;
-    max?: number;
-  };
-}
-
 interface OpportunityFilters {
   search?: string;
   seller?: string;
@@ -52,9 +36,11 @@ interface OpportunitiesBoardProps {
   filters: OpportunityFilters;
   onFiltersChange: (filters: OpportunityFilters) => void;
   currentUser: User;
-  onDataChange?: () => void; // Add callback for data changes
+  onDataChange?: () => void;
   showNewOpportunityForm?: boolean;
   onShowNewOpportunityForm?: (show: boolean) => void;
+  searchFilters: FilterState;
+  onSearchFiltersChange: (filters: FilterState) => void;
 }
 
 interface ValueInputModalProps {
@@ -194,10 +180,10 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   currentUser,
   onDataChange,
   showNewOpportunityForm = false,
-  onShowNewOpportunityForm
+  onShowNewOpportunityForm,
+  searchFilters,
+  onSearchFiltersChange
 }) => {
-  const [searchFilters, setSearchFilters] = useState<FilterState>(defaultFilters);
-  
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
 
   const PAGE_SIZE = 30;
@@ -395,8 +381,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   }, [loadColumn, onDataChange, buildQueryFilters]);
 
   const handleFiltersChange = useCallback((newFilters: FilterState) => {
-    setSearchFilters(newFilters);
-  }, []);
+    onSearchFiltersChange(newFilters);
+  }, [onSearchFiltersChange]);
 
   const handleSaveFilter = useCallback((name: string, filterState: FilterState) => {
     const newFilter: SavedFilter = {
@@ -409,8 +395,8 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   }, []);
 
   const handleLoadFilter = useCallback((savedFilter: SavedFilter) => {
-    setSearchFilters(savedFilter.filters);
-  }, []);
+    onSearchFiltersChange(savedFilter.filters);
+  }, [onSearchFiltersChange]);
 
   const handleDeleteFilter = useCallback((filterId: string) => {
     setSavedFilters(prev => prev.filter(f => f.id !== filterId));
@@ -729,7 +715,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
         sellers={filterSellers}
         operators={operatorOptions}
         products={productOptions}
-        statusOptions={statusOptions}
+        statusOptions={[]}
         sourceOptions={sourceOptions}
         showSellerFilter={currentUser.role === 'ADMIN'}
         savedFilters={savedFilters}
@@ -754,9 +740,19 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
               <div className={`px-4 py-3 ${column.color.split(' ')[0]} border-b border-white/20`}>
                 <div className="flex justify-between items-center">
                   <h3 className={`font-bold text-sm ${column.color.split(' ')[1]}`}>{column.label}</h3>
-                  <span className={`text-xs font-bold px-2.5 py-1 bg-white/30 backdrop-blur-sm rounded-full ${column.color.split(' ')[1]}`}>
-                    {statusCounts[column.id as OpportunityStatus] || 0}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {column.id === 'NEGOCIACAO' && (() => {
+                      const total = columnData['NEGOCIACAO'].reduce((sum, o) => sum + (o.quoted_value || 0), 0);
+                      return total > 0 ? (
+                        <span className={`text-xs font-bold px-2.5 py-1 bg-white/30 backdrop-blur-sm rounded-full ${column.color.split(' ')[1]}`}>
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
+                        </span>
+                      ) : null;
+                    })()}
+                    <span className={`text-xs font-bold px-2.5 py-1 bg-white/30 backdrop-blur-sm rounded-full ${column.color.split(' ')[1]}`}>
+                      {statusCounts[column.id as OpportunityStatus] || 0}
+                    </span>
+                  </div>
                 </div>
               </div>
               

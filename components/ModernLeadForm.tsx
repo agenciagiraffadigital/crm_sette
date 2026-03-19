@@ -505,8 +505,6 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
     if (!formData.nome) errors.push('Nome');
     if (!formData.email) errors.push('E-mail');
     if (!formData.telefone) errors.push('Telefone');
-    if (!formData.operadora) errors.push('Operadora');
-    if (!formData.produto) errors.push('Produto');
     
     // Validar beneficiários
     formData.beneficiarios.forEach((ben, idx) => {
@@ -972,8 +970,8 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   console.error('Erro ao salvar:', error);
                 }
               }}
-              disabled={!formData.operadora || !formData.produto}
-              title={!formData.operadora || !formData.produto ? 'Preencha a Operadora e Produto' : ''}
+              disabled={false}
+              title=""
               className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Users className="w-4 h-4" />
@@ -1859,6 +1857,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                       </span>
                       <span className="text-xs text-gray-500">
                         {new Date(note.data + 'T' + note.horario).toLocaleString('pt-BR', {
+                          timeZone: 'America/Sao_Paulo',
                           day: '2-digit',
                           month: '2-digit',
                           year: 'numeric',
@@ -2309,6 +2308,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                 </span>
                 <span className="text-sm text-gray-600">
                   {new Date(viewNote.data + 'T' + viewNote.horario).toLocaleString('pt-BR', {
+                    timeZone: 'America/Sao_Paulo',
                     day: '2-digit',
                     month: '2-digit',
                     year: 'numeric',
@@ -2331,7 +2331,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
               <div className="flex justify-between items-center pt-4 border-t">
                 <span className="text-sm text-gray-500">Por: {viewNote.user_name}</span>
                 <span className="text-sm text-gray-500">
-                  Criado em: {new Date(viewNote.created_at).toLocaleString('pt-BR')}
+                  Criado em: {formatDateTime(viewNote.created_at)}
                 </span>
               </div>
             </div>

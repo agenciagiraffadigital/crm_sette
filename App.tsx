@@ -16,6 +16,7 @@ import { leadService } from './services/leadService';
 import { opportunityService } from './services/opportunityService';
 import { authService } from './services/authService';
 import { Lead, Opportunity, OpportunityStatus, KanbanStatus, User } from './types';
+import { FilterState, defaultFilters } from './components/SearchAndFilters';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -23,6 +24,9 @@ function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [opportunityFilters, setOpportunityFilters] = useState({});
+  const [opportunitySearchFilters, setOpportunitySearchFilters] = useState<FilterState>(defaultFilters);
+  const [proposalSearchFilters, setProposalSearchFilters] = useState<FilterState>(defaultFilters);
+  const [lostSearchFilters, setLostSearchFilters] = useState<FilterState>(defaultFilters);
   const [loadingData, setLoadingData] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
@@ -254,6 +258,8 @@ function App() {
           onDataChange={loadLeads}
           showNewOpportunityForm={showNewOpportunityForm}
           onShowNewOpportunityForm={setShowNewOpportunityForm}
+          searchFilters={opportunitySearchFilters}
+          onSearchFiltersChange={setOpportunitySearchFilters}
         />
       )}
       
@@ -263,11 +269,17 @@ function App() {
             user={user}
             onProposalClick={(l) => setSelectedLeadId(l.id)}
             onProposalLost={handleLeadLost}
+            searchFilters={proposalSearchFilters}
+            onSearchFiltersChange={setProposalSearchFilters}
         />
       )}
       
       {activeTab === 'lost' && (
-        <LostOpportunities currentUser={user} />
+        <LostOpportunities
+          currentUser={user}
+          searchFilters={lostSearchFilters}
+          onSearchFiltersChange={setLostSearchFilters}
+        />
       )}
       
       {activeTab === 'users' && user.role === 'ADMIN' && (

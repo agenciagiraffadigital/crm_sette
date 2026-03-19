@@ -4,28 +4,52 @@ import { User, Lead } from '../types';
 import { leadService, LeadQueryFilters } from '../services/leadService';
 import { supabase } from '../services/supabaseClient';
 import { SearchAndFilters, FilterState, defaultFilters } from './SearchAndFilters';
+import { formatDate } from '../utils/formatters';
 
 interface LostOpportunitiesProps {
   currentUser: User;
+  searchFilters: FilterState;
+  onSearchFiltersChange: (filters: FilterState) => void;
 }
 
-export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUser }) => {
+export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUser, searchFilters: filters, onSearchFiltersChange: setFilters }) => {
+  const PAGE_SIZE = 30;
   const [lostLeads, setLostLeads] = useState<Lead[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const loadLostLeads = useCallback(async (queryFilters?: LeadQueryFilters) => {
-    setLoading(true);
+  const buildQueryFilters = useCallback((): LeadQueryFilters | undefined => {
+    const hasActive = filters.searchTerm || filters.sellers.length || filters.operators.length || filters.source.length || filters.dateRange.start || filters.dateRange.end || (filters.sortBy && filters.sortBy !== 'date-desc');
+    if (!hasActive) return undefined;
+    return {
+      searchTerm: filters.searchTerm || undefined,
+      sellers: filters.sellers.length ? filters.sellers : undefined,
+      operators: filters.operators.length ? filters.operators : undefined,
+      sources: filters.source.length ? filters.source : undefined,
+      dateRange: (filters.dateRange.start || filters.dateRange.end) ? filters.dateRange : undefined,
+      sortBy: filters.sortBy || undefined,
+    };
+  }, [filters]);
+
+  const loadPage = useCallback(async (pageNum: number, queryFilters?: LeadQueryFilters) => {
+    const isFirstPage = pageNum === 0;
+    if (isFirstPage) setLoading(true);
+    else setLoadingMore(true);
+
     try {
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
       let query = supabase
         .from('leads')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('status_kanban', 'CANCELADA');
-      
+
       if (currentUser.role !== 'ADMIN') {
         query = query.eq('vendedor_id', currentUser.id);
       }
-
       if (queryFilters?.searchTerm) {
         const term = queryFilters.searchTerm;
         query = query.or(`nome.ilike.%${term}%,email.ilike.%${term}%,telefone.ilike.%${term}%`);
@@ -46,35 +70,35 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
         query = query.lte('created_at', queryFilters.dateRange.end + 'T23:59:59');
       }
 
-      query = query.order('updated_at', { ascending: false });
-      
-      const { data, error } = await query;
-      
+      if (queryFilters?.sortBy === 'name-asc') {
+        query = query.order('nome', { ascending: true });
+      } else if (queryFilters?.sortBy === 'name-desc') {
+        query = query.order('nome', { ascending: false });
+      } else if (queryFilters?.sortBy === 'date-asc') {
+        query = query.order('updated_at', { ascending: true });
+      } else {
+        query = query.order('updated_at', { ascending: false });
+      }
+
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
       if (error) throw error;
-      setLostLeads(data || []);
+
+      setLostLeads(prev => isFirstPage ? (data || []) : [...prev, ...(data || [])]);
+      setTotalCount(count || 0);
+      setPage(pageNum);
     } catch (error) {
       console.error('Erro ao carregar leads perdidos:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [currentUser]);
 
-  // Build query filters from filter state
-  const buildQueryFilters = useCallback((): LeadQueryFilters | undefined => {
-    const hasActive = filters.searchTerm || filters.sellers.length || filters.operators.length || filters.source.length || filters.dateRange.start || filters.dateRange.end;
-    if (!hasActive) return undefined;
-    return {
-      searchTerm: filters.searchTerm || undefined,
-      sellers: filters.sellers.length ? filters.sellers : undefined,
-      operators: filters.operators.length ? filters.operators : undefined,
-      sources: filters.source.length ? filters.source : undefined,
-      dateRange: (filters.dateRange.start || filters.dateRange.end) ? filters.dateRange : undefined,
-    };
-  }, [filters]);
-
   // Reload on mount and whenever filters change
   useEffect(() => {
-    loadLostLeads(buildQueryFilters());
+    loadPage(0, buildQueryFilters());
   }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Extract filter options from loaded data (for dropdown population)
@@ -99,10 +123,11 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
   const handleRecoverLead = async (leadId: number) => {
     try {
       setLostLeads(prev => prev.filter(l => l.id !== leadId));
+      setTotalCount(prev => prev - 1);
       await leadService.updateLeadStatus(leadId, 'OPORTUNIDADES', currentUser);
     } catch (error) {
       console.error('Erro ao recuperar lead:', error);
-      await loadLostLeads(buildQueryFilters());
+      await loadPage(0, buildQueryFilters());
     }
   };
 
@@ -188,12 +213,12 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
                     </span>
                     {lead.updated_at && (
                       <p className="text-xs text-slate-500 mt-2">
-                        {new Date(lead.updated_at).toLocaleDateString('pt-BR')}
+                        {formatDate(lead.updated_at)}
                       </p>
                     )}
                     {lead.followup_data && (
                       <p className="text-xs text-slate-600 mt-2 font-medium">
-                        Data de Follow Up: {new Date(lead.followup_data).toLocaleDateString('pt-BR')}
+                        Data de Follow Up: {formatDate(lead.followup_data)}
                       </p>
                     )}
                     <button
@@ -206,6 +231,22 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
                 </div>
               </div>
             ))}
+
+            {/* Carregar mais */}
+            {lostLeads.length < totalCount && (
+              <div className="text-center py-3">
+                <button
+                  onClick={() => loadPage(page + 1, buildQueryFilters())}
+                  disabled={loadingMore}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
+                >
+                  {loadingMore ? 'Carregando...' : `Carregar mais +${PAGE_SIZE}`}
+                </button>
+                <p className="text-xs text-slate-400 mt-1">
+                  Exibindo {lostLeads.length} de {totalCount}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
