@@ -166,14 +166,16 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
           </h1>
           <p className="text-slate-600 mt-1">Gerencie suas propostas e acompanhe o progresso</p>
         </div>
-        <Button
-          onClick={handleExport}
-          disabled={exporting}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" />
-          {exporting ? 'Exportando...' : 'Exportar Excel'}
-        </Button>
+        {user.role === 'ADMIN' && (
+          <Button
+            onClick={handleExport}
+            disabled={exporting}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            {exporting ? 'Exportando...' : 'Exportar Excel'}
+          </Button>
+        )}
       </div>
 
       <SearchAndFilters
