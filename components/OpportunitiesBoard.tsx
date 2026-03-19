@@ -16,8 +16,9 @@ import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { getEnvironment } from '../utils/environment';
+import { exportToExcel } from '../utils/exportToExcel';
 import { Dialog } from 'primereact/dialog';
-import { Plus } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 
 interface OpportunityFilters {
   search?: string;
@@ -286,6 +287,27 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [errorDialogMessage, setErrorDialogMessage] = useState('');
   const [showErrorToast, setShowErrorToast] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const qf = buildQueryFilters();
+      const rows = await opportunityService.getOpportunitiesForExport(currentUser, qf);
+      if (rows.length === 0) {
+        setErrorDialogMessage('Nenhum dado encontrado para exportar.');
+        setShowErrorDialog(true);
+        return;
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      exportToExcel(rows, `oportunidades_${today}`);
+    } catch (error) {
+      setErrorDialogMessage('Erro ao exportar: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      setShowErrorDialog(true);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Auto-hide success toast
   React.useEffect(() => {
@@ -684,19 +706,29 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
           <p className="text-slate-600 mt-1">Gerencie suas oportunidades e acompanhe o funil de vendas</p>
         </div>
         
-        <Button
-          onClick={async () => {
-            if (currentUser.role === 'ADMIN') {
-              const activeSellers = await authService.getActiveSellers();
-              setSellers(activeSellers);
-            }
-            setShowNewDialog(true);
-          }}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Oportunidade
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleExport}
+            disabled={exporting}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            {exporting ? 'Exportando...' : 'Exportar Excel'}
+          </Button>
+          <Button
+            onClick={async () => {
+              if (currentUser.role === 'ADMIN') {
+                const activeSellers = await authService.getActiveSellers();
+                setSellers(activeSellers);
+              }
+              setShowNewDialog(true);
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Oportunidade
+          </Button>
+        </div>
       </div>
       
       {/* Filters Section */}

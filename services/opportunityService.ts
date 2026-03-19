@@ -1,5 +1,6 @@
 import { Opportunity, OpportunityStatus, User, LossReason, ActivityLog, AssignmentHistory, Note } from '../types';
 import { supabase } from './supabaseClient';
+import { ExportRow } from '../utils/exportToExcel';
 
 export interface OpportunityQueryFilters {
   searchTerm?: string;
@@ -675,5 +676,45 @@ export const opportunityService = {
 
     if (error) throw error;
     return data || [];
+  },
+
+  // Exportar oportunidades para Excel (busca todos sem paginação, respeitando filtros)
+  getOpportunitiesForExport: async (currentUser: User, filters?: OpportunityQueryFilters): Promise<ExportRow[]> => {
+    const statuses: OpportunityStatus[] = ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'];
+    let query = supabase
+      .from('leads')
+      .select('nome, email, telefone, status_kanban, vendedor, operadora, produto, valor_produto, origem, created_at')
+      .in('status_kanban', statuses)
+      .order('created_at', { ascending: false });
+
+    if (currentUser.role !== 'ADMIN') {
+      query = query.eq('vendedor_id', currentUser.id);
+    }
+    if (filters?.searchTerm) {
+      const term = filters.searchTerm;
+      query = query.or(`nome.ilike.%${term}%,email.ilike.%${term}%,telefone.ilike.%${term}%`);
+    }
+    if (filters?.sellers?.length) query = query.in('vendedor', filters.sellers);
+    if (filters?.operators?.length) query = query.in('operadora', filters.operators);
+    if (filters?.products?.length) query = query.in('produto', filters.products);
+    if (filters?.sources?.length) query = query.in('origem', filters.sources);
+    if (filters?.dateRange?.start) query = query.gte('created_at', filters.dateRange.start);
+    if (filters?.dateRange?.end) query = query.lte('created_at', filters.dateRange.end + 'T23:59:59');
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data || []).map(row => ({
+      nome: row.nome,
+      telefone: row.telefone,
+      email: row.email,
+      status: row.status_kanban,
+      vendedor: row.vendedor,
+      operadora: row.operadora,
+      produto: row.produto,
+      valor: row.valor_produto,
+      origem: row.origem,
+      data_criacao: row.created_at,
+    }));
   },
 };
