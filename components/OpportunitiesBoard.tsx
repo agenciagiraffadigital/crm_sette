@@ -555,15 +555,7 @@ export const OpportunitiesBoard: React.FC<OpportunitiesBoardProps> = ({
     const errors: Record<string, string> = {};
     
     if (!newOppData.nome) errors.nome = 'Campo obrigatório';
-    if (!newOppData.email) errors.email = 'Campo obrigatório';
     if (!newOppData.telefone) errors.telefone = 'Campo obrigatório';
-    if (!newOppData.tipo_cliente) errors.tipo_cliente = 'Campo obrigatório';
-    if (!newOppData.cep) errors.cep = 'Campo obrigatório';
-    if (!newOppData.logradouro) errors.logradouro = 'Campo obrigatório';
-    if (!newOppData.numero) errors.numero = 'Campo obrigatório';
-    if (!newOppData.bairro) errors.bairro = 'Campo obrigatório';
-    if (!newOppData.cidade) errors.cidade = 'Campo obrigatório';
-    if (!newOppData.estado) errors.estado = 'Campo obrigatório';
     
     if (Object.keys(errors).length > 0) {
       setNewOppErrors(errors);
