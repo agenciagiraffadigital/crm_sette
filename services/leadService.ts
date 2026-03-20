@@ -86,7 +86,7 @@ export const leadService = {
   },
 
   getLeads: async (currentUser: User): Promise<Lead[]> => {
-    const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA', 'PROPOSTA'];
+    const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA', 'PROPOSTA'];
     const results = await Promise.all(statuses.map(s => leadService.getLeadsByStatus(currentUser, s, 0, 29)));
     return results.flatMap(r => r.data);
   },
@@ -95,7 +95,7 @@ export const leadService = {
     let query = supabase
       .from('leads')
       .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at')
-      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA', 'PROPOSTA'])
+      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA', 'PROPOSTA'])
       .order('created_at', { ascending: false })
       .range(0, 999);
     

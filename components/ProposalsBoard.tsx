@@ -61,7 +61,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     setExporting(true);
     try {
       const qf = buildQueryFilters();
-      const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'IMPLANTADA'];
+      const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA'];
       const rows = await leadService.getLeadsForExport(user, statuses, qf);
       if (rows.length === 0) {
         setSystemModal({ isOpen: true, type: 'alert', title: 'Exportação', message: 'Nenhum dado encontrado para exportar.' });

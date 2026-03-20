@@ -18,7 +18,7 @@ vi.mock('../../services/opportunityService', () => ({
 }));
 
 // Generators for property-based testing
-const kanbanStatusArb = fc.constantFrom('ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA');
+const kanbanStatusArb = fc.constantFrom('ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA');
 const opportunityStatusArb = fc.constantFrom('OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIAÇÃO');
 const roleArb = fc.constantFrom('ADMIN', 'SELLER');
 
