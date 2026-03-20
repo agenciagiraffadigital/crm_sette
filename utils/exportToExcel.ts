@@ -4,6 +4,8 @@ export interface ExportRow {
   nome: string;
   telefone: string;
   email: string;
+  tipo_cliente: string;
+  cpf_cnpj: string;
   status: string;
   vendedor: string;
   operadora: string;
@@ -18,7 +20,8 @@ const STATUS_LABELS: Record<string, string> = {
   'EM_CONTATO': 'Em Contato',
   'NEGOCIACAO': 'Negociação',
   'ENVIADA': 'Enviada',
-  'ANÁLISE': 'Em Análise',
+  'ANÁLISE': 'Em Análise (Adm)',
+  'ANÁLISE_OPERADORA': 'Análise Operadora',
   'IMPLANTADA': 'Implantada',
   'PROPOSTA': 'Proposta',
   'CANCELADA': 'Cancelada',
@@ -43,6 +46,8 @@ export function exportToExcel(rows: ExportRow[], fileName: string) {
     'Nome': row.nome || '',
     'Telefone': row.telefone || '',
     'Email': row.email || '',
+    'Tipo Pessoa': row.tipo_cliente || '',
+    'CPF/CNPJ': row.cpf_cnpj || '',
     'Status': STATUS_LABELS[row.status] || row.status || '',
     'Vendedor Responsável': row.vendedor || '',
     'Operadora': row.operadora || '',
