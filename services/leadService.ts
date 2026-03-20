@@ -1074,7 +1074,7 @@ export const leadService = {
   getLeadsForExport: async (currentUser: User, statuses: KanbanStatus[], filters?: LeadQueryFilters): Promise<ExportRow[]> => {
     let query = supabase
       .from('leads')
-      .select('nome, email, telefone, status_kanban, vendedor, operadora, produto, valor_produto, origem, created_at')
+      .select('nome, email, telefone, tipo_cliente, cpf_cnpj, status_kanban, vendedor, operadora, produto, valor_produto, origem, created_at')
       .in('status_kanban', statuses)
       .order('created_at', { ascending: false });
 
@@ -1101,6 +1101,8 @@ export const leadService = {
       nome: row.nome,
       telefone: row.telefone,
       email: row.email,
+      tipo_cliente: row.tipo_cliente || '',
+      cpf_cnpj: row.cpf_cnpj || '',
       status: row.status_kanban,
       vendedor: row.vendedor,
       operadora: row.operadora,
