@@ -161,6 +161,7 @@ export const dashboardService = {
     const completeByStatus: Record<KanbanStatus, number> = {
       'ENVIADA': byStatus['ENVIADA'] || 0,
       'ANÁLISE': byStatus['ANÁLISE'] || 0,
+      'ANÁLISE_OPERADORA': byStatus['ANÁLISE_OPERADORA'] || 0,
       'IMPLANTADA': byStatus['IMPLANTADA'] || 0,
       'CANCELADA': byStatus['CANCELADA'] || 0,
       'PROPOSTA': byStatus['PROPOSTA'] || 0,
@@ -169,8 +170,8 @@ export const dashboardService = {
       'NEGOCIACAO': byStatus['NEGOCIACAO'] || 0,
     };
 
-    // Conversion rate: ENVIADA, ANÁLISE, IMPLANTADA / total de TODOS os leads
-    const converted = (byStatus['ENVIADA'] || 0) + (byStatus['ANÁLISE'] || 0) + (byStatus['IMPLANTADA'] || 0);
+    // Conversion rate: ENVIADA, ANÁLISE, ANÁLISE_OPERADORA, IMPLANTADA / total de TODOS os leads
+    const converted = (byStatus['ENVIADA'] || 0) + (byStatus['ANÁLISE'] || 0) + (byStatus['ANÁLISE_OPERADORA'] || 0) + (byStatus['IMPLANTADA'] || 0);
     const conversionRate = total > 0 ? (converted / total) * 100 : 0;
 
     // Calculate average proposal value

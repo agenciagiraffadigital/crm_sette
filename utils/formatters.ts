@@ -5,7 +5,8 @@ export const formatStatus = (status: string): string => {
     'NEGOCIACAO': 'Negociação',
     'PROPOSTA': 'Proposta',
     'ENVIADA': 'Enviada',
-    'ANÁLISE': 'Análise',
+    'ANÁLISE': 'Análise (Adm)',
+    'ANÁLISE_OPERADORA': 'Análise Operadora',
     'IMPLANTADA': 'Implantada',
     'CANCELADA': 'Cancelada'
   };

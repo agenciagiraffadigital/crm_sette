@@ -45,7 +45,7 @@ vi.mock('../../src/components/ui/Select', () => ({
 }));
 
 // Generators for property-based testing
-const kanbanStatusArb = fc.constantFrom('ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA');
+const kanbanStatusArb = fc.constantFrom('ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA');
 const clientTypeArb = fc.constantFrom('PF', 'PJ', 'ADESAO');
 const roleArb = fc.constantFrom('ADMIN', 'SELLER');
 

@@ -60,7 +60,7 @@ const filterStateArb = fc.record({
     start: fc.option(fc.date().map(d => d.toISOString().split('T')[0]), { nil: undefined }),
     end: fc.option(fc.date().map(d => d.toISOString().split('T')[0]), { nil: undefined })
   }),
-  status: fc.array(fc.constantFrom('ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA'), { maxLength: 3 }),
+  status: fc.array(fc.constantFrom('ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA'), { maxLength: 3 }),
   source: fc.array(fc.constantFrom('SITE', 'INSTAGRAM', 'INDICAÇÃO'), { maxLength: 3 }),
   valueRange: fc.record({
     min: fc.option(fc.float({ min: 0, max: 5000 }), { nil: undefined }),
@@ -90,7 +90,7 @@ describe('SearchAndFilters Property Tests', () => {
     onFiltersChange: vi.fn(),
     sellers: ['Seller 1', 'Seller 2', 'Seller 3'],
     operators: ['Amil', 'Bradesco', 'SulAmérica'],
-    statusOptions: ['ENVIADA', 'ANÁLISE', 'IMPLANTADA', 'CANCELADA'],
+    statusOptions: ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA'],
     sourceOptions: ['SITE', 'INSTAGRAM', 'INDICAÇÃO'],
     showSellerFilter: true
   };

@@ -6,6 +6,9 @@ import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { SystemModal } from './SystemModal';
 import { KANBAN_COLUMNS } from '../constants';
 import { leadService, LeadQueryFilters } from '../services/leadService';
+import { exportToExcel } from '../utils/exportToExcel';
+import { Download } from 'lucide-react';
+import { Button } from '../src/components/ui/Button';
 
 interface ProposalsBoardProps {
   proposals?: Lead[];
@@ -52,6 +55,26 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
   const [systemModal, setSystemModal] = useState<{ isOpen: boolean; type: 'alert'|'confirm'|'success'|'error'; title: string; message: string }>(
     { isOpen: false, type: 'alert', title: '', message: '' }
   );
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const qf = buildQueryFilters();
+      const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA'];
+      const rows = await leadService.getLeadsForExport(user, statuses, qf);
+      if (rows.length === 0) {
+        setSystemModal({ isOpen: true, type: 'alert', title: 'Exportação', message: 'Nenhum dado encontrado para exportar.' });
+        return;
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      exportToExcel(rows, `propostas_${today}`);
+    } catch (error) {
+      setSystemModal({ isOpen: true, type: 'error', title: 'Erro na Exportação', message: 'Erro ao exportar: ' + (error instanceof Error ? error.message : 'Erro desconhecido') });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Convert filters to server query format
   const buildQueryFilters = React.useCallback((): LeadQueryFilters | undefined => {
@@ -143,6 +166,16 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
           </h1>
           <p className="text-slate-600 mt-1">Gerencie suas propostas e acompanhe o progresso</p>
         </div>
+        {user.role === 'ADMIN' && (
+          <Button
+            onClick={handleExport}
+            disabled={exporting}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            {exporting ? 'Exportando...' : 'Exportar Excel'}
+          </Button>
+        )}
       </div>
 
       <SearchAndFilters
