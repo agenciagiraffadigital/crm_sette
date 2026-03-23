@@ -5,6 +5,7 @@ export const KANBAN_COLUMNS = [
   { id: 'ANÁLISE', label: 'Em Análise (Adm)', color: 'bg-amber-100 text-amber-800 border-amber-200' },
   { id: 'ANÁLISE_OPERADORA', label: 'Análise Operadora', color: 'bg-orange-100 text-orange-800 border-orange-200' },
   { id: 'IMPLANTADA', label: 'Implantada', color: 'bg-green-100 text-green-800 border-green-200' },
+  { id: 'CANCELADA', label: 'Canceladas', color: 'bg-red-100 text-red-800 border-red-200' },
 ] as const;
 
 export const OPPORTUNITY_COLUMNS = [

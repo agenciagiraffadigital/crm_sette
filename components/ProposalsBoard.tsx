@@ -61,7 +61,7 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
     setExporting(true);
     try {
       const qf = buildQueryFilters();
-      const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA'];
+      const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA'];
       const rows = await leadService.getLeadsForExport(user, statuses, qf);
       if (rows.length === 0) {
         setSystemModal({ isOpen: true, type: 'alert', title: 'Exportação', message: 'Nenhum dado encontrado para exportar.' });
@@ -193,11 +193,11 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
         onDeleteFilter={(id) => setSavedFilters(prev => prev.filter(f => f.id !== id))}
       />
 
-      <div className="flex flex-col md:flex-row gap-4 pb-4 items-start">
+      <div className="flex gap-3 pb-4 items-start min-h-0">
         {KANBAN_COLUMNS.map((column) => {
           const columnProposals = columnData[column.id] || [];
           return (
-            <div key={column.id} className="flex flex-col w-full md:flex-1 md:min-w-[300px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+            <div key={column.id} className="flex flex-col flex-1 min-w-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
               onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, column.id as KanbanStatus)}>
               <div className={`px-4 py-3 ${column.color.split(' ')[0]} border-b border-white/20`}>
                 <div className="flex justify-between items-center">
