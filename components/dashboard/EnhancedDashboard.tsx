@@ -96,7 +96,7 @@ export const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({ currentUse
   }));
 
   const proposalStatusData: ChartData[] = Object.entries(metrics.proposals.byStatus)
-    .filter(([status]) => ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA'].includes(status))
+    .filter(([status]) => ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA'].includes(status))
     .map(([status, count]) => ({
       name: status,
       value: count,
