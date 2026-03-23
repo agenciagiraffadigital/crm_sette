@@ -5,7 +5,8 @@ import { leadService } from '../services/leadService';
 import { authService } from '../services/authService';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
 import { documentoConfigService } from '../services/documentoConfigService';
-import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
+import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask, maskRG } from '../utils/masks';
 import { maskCEP } from '../utils/cepMask';
 import { formatStatus, formatDateTime } from '../utils/formatters';
@@ -1775,15 +1776,37 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                 type="file" 
                 accept=".pdf,.png,.jpg,.jpeg" 
                 className="hidden"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
+                onChange={async (e) => {
+                  if (e.target.files && e.target.files[0] && formData) {
                     const file = e.target.files[0];
-                    // Simular upload - adicionar arquivo à lista
-                    const newDoc = { name: file.name, url: URL.createObjectURL(file) };
-                    setFormData(prev => prev ? {
-                      ...prev,
-                      documentos: [...prev.documentos, newDoc]
-                    } : null);
+                    try {
+                      const fileName = `${Date.now()}_${file.name}`;
+                      const filePath = `lead_${formData.id}/${fileName}`;
+                      
+                      const { error: uploadError } = await supabase.storage
+                        .from('beneficiario-documentos')
+                        .upload(filePath, file);
+                      
+                      if (uploadError) throw uploadError;
+                      
+                      const { data: urlData } = supabase.storage
+                        .from('beneficiario-documentos')
+                        .getPublicUrl(filePath);
+                      
+                      const newDoc = { name: file.name, url: urlData.publicUrl };
+                      setFormData(prev => prev ? {
+                        ...prev,
+                        documentos: [...prev.documentos, newDoc]
+                      } : null);
+                    } catch (err) {
+                      console.error('Erro no upload:', err);
+                      // Fallback: salvar só o nome
+                      const newDoc = { name: file.name, url: '' };
+                      setFormData(prev => prev ? {
+                        ...prev,
+                        documentos: [...prev.documentos, newDoc]
+                      } : null);
+                    }
                   }
                 }}
               />
@@ -1795,15 +1818,31 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                 Arquivos Anexados
               </h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {formData.documentos.map((doc, i) => (
-                  <div key={i} className="flex flex-col items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                    <FileText className="w-10 h-10 text-gray-400 mb-2" />
-                    <span className="text-xs font-medium text-gray-700 truncate w-full text-center" title={typeof doc === 'string' ? doc : doc.name}>
-                      {typeof doc === 'string' ? doc : doc.name}
-                    </span>
-                    <span className="text-[10px] text-gray-400 mb-3">Documento</span>
-                  </div>
-                ))}
+                {formData.documentos.map((doc, i) => {
+                  const docName = typeof doc === 'string' ? doc : doc.name;
+                  const docUrl = typeof doc === 'string' ? null : doc.url;
+                  return (
+                    <div key={i} className="flex flex-col items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                      <FileText className="w-10 h-10 text-gray-400 mb-2" />
+                      <span className="text-xs font-medium text-gray-700 truncate w-full text-center" title={docName}>
+                        {docName}
+                      </span>
+                      <span className="text-[10px] text-gray-400 mb-3">Documento</span>
+                      {docUrl && (
+                        <a
+                          href={docUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors"
+                        >
+                          <Download className="w-3 h-3" />
+                          Baixar
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
                 {formData.documentos.length === 0 && (
                   <div className="col-span-full text-center py-8 text-gray-500">
                     Nenhum documento anexado ainda.
