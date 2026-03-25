@@ -1822,7 +1822,34 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   const docName = typeof doc === 'string' ? doc : doc.name;
                   const docUrl = typeof doc === 'string' ? null : doc.url;
                   return (
-                    <div key={i} className="flex flex-col items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <div key={i} className="flex flex-col items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow relative group">
+                      <button
+                        onClick={() => {
+                          if (!confirm(`Excluir "${docName}"?`)) return;
+                          // Remover do storage se tiver URL
+                          if (docUrl) {
+                            try {
+                              const bucketName = 'beneficiario-documentos';
+                              const urlParts = docUrl.split(`/storage/v1/object/public/${bucketName}/`);
+                              if (urlParts.length > 1) {
+                                const filePath = decodeURIComponent(urlParts[1]);
+                                supabase.storage.from(bucketName).remove([filePath]);
+                              }
+                            } catch (err) {
+                              console.error('Erro ao remover do storage:', err);
+                            }
+                          }
+                          setFormData(prev => prev ? {
+                            ...prev,
+                            documentos: prev.documentos.filter((_, idx) => idx !== i)
+                          } : null);
+                          setHasChanges(true);
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                        title="Excluir documento"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                       <FileText className="w-10 h-10 text-gray-400 mb-2" />
                       <span className="text-xs font-medium text-gray-700 truncate w-full text-center" title={docName}>
                         {docName}

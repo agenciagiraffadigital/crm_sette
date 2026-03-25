@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { documentoConfigService, BeneficiarioDocumento } from '../services/documentoConfigService';
-import { FileText, Upload, Download, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { FileText, Upload, Download, CheckCircle, XCircle, Clock, AlertCircle, Trash2 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { RejectDocumentDialog } from './RejectDocumentDialog';
 
@@ -28,6 +28,7 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
   const [documentos, setDocumentos] = useState<BeneficiarioDocumento[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [rejectDialog, setRejectDialog] = useState<{ visible: boolean; docId: string; docName: string }>({ 
     visible: false, 
     docId: '', 
@@ -133,6 +134,22 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
     } catch (error) {
       console.error('Erro ao rejeitar:', error);
       alert('Erro ao rejeitar documento');
+    }
+  };
+
+  const handleExcluir = async (doc: BeneficiarioDocumento) => {
+    if (!confirm(`Tem certeza que deseja excluir o documento "${doc.documento_config?.nome_documento || 'Documento'}"?`)) return;
+    
+    setDeleting(doc.id);
+    try {
+      const updated = await documentoConfigService.excluirDocumento(doc.id, doc.arquivo_url);
+      setDocumentos(prev => prev.map(d => d.id === doc.id ? updated : d));
+      onStatusChange?.();
+    } catch (error) {
+      console.error('Erro ao excluir documento:', error);
+      alert('Erro ao excluir documento');
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -244,6 +261,19 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
                   <Download className="w-4 h-4" />
                   Baixar
                 </a>
+              )}
+
+              {/* Delete Button - visível quando tem arquivo e não está aprovado */}
+              {doc.arquivo_url && doc.status !== 'APROVADO' && (
+                <button
+                  onClick={() => handleExcluir(doc)}
+                  disabled={deleting === doc.id}
+                  className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
+                  title="Excluir documento"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {deleting === doc.id ? 'Excluindo...' : 'Excluir'}
+                </button>
               )}
 
               {/* Admin Actions */}
