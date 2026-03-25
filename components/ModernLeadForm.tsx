@@ -16,6 +16,7 @@ import { WinDialog } from './WinDialog';
 import { LostDialog } from './LostDialog';
 import { ErrorDialog } from './ErrorDialog';
 import { NotesDialog } from './NotesDialog';
+import { SystemModal } from './SystemModal';
 import { BeneficiarioDocumentos } from './BeneficiarioDocumentos';
 import { getBeneficiarioDocumentoStatus } from '../utils/documentoStatus';
 
@@ -163,6 +164,10 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [notes, setNotes] = useState<Note[]>([]);
   const [editNote, setEditNote] = useState<Note | null>(null);
   const [viewNote, setViewNote] = useState<Note | null>(null);
+  const [deleteDocDialog, setDeleteDocDialog] = useState<{ visible: boolean; index: number; name: string; url: string | null }>({
+    visible: false, index: -1, name: '', url: null
+  });
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -1765,20 +1770,36 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         {activeTab === 'docs' && (
           <div className="space-y-6">
             <label className="block">
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer">
-                <div className="bg-white p-4 rounded-full shadow-sm mb-4 w-16 h-16 mx-auto flex items-center justify-center">
-                  <Paperclip className="w-8 h-8 text-blue-500" />
-                </div>
-                <h4 className="font-semibold text-gray-700 mb-2">Clique para enviar documentos</h4>
-                <p className="text-sm text-gray-500">Aceita: PDF, PNG e JPEG (máx. 10MB)</p>
+              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                uploadingDoc 
+                  ? 'border-blue-400 bg-blue-50 cursor-wait' 
+                  : 'border-gray-300 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 cursor-pointer'
+              }`}>
+                {uploadingDoc ? (
+                  <>
+                    <img src="/loading.gif" className="w-12 h-12 mx-auto mb-4" alt="Enviando..." />
+                    <h4 className="font-semibold text-blue-700 mb-2">Enviando documento...</h4>
+                    <p className="text-sm text-blue-500">Aguarde enquanto o arquivo é carregado</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-white p-4 rounded-full shadow-sm mb-4 w-16 h-16 mx-auto flex items-center justify-center">
+                      <Paperclip className="w-8 h-8 text-blue-500" />
+                    </div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Clique para enviar documentos</h4>
+                    <p className="text-sm text-gray-500">Aceita: PDF, PNG e JPEG (máx. 10MB)</p>
+                  </>
+                )}
               </div>
               <input 
                 type="file" 
                 accept=".pdf,.png,.jpg,.jpeg" 
                 className="hidden"
+                disabled={uploadingDoc}
                 onChange={async (e) => {
                   if (e.target.files && e.target.files[0] && formData) {
                     const file = e.target.files[0];
+                    setUploadingDoc(true);
                     try {
                       const fileName = `${Date.now()}_${file.name}`;
                       const filePath = `lead_${formData.id}/${fileName}`;
@@ -1794,18 +1815,27 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                         .getPublicUrl(filePath);
                       
                       const newDoc = { name: file.name, url: urlData.publicUrl };
+                      const novosDocumentos = [...formData.documentos, newDoc];
+                      
+                      // Salvar no banco imediatamente
+                      await supabase
+                        .from('leads')
+                        .update({ documentos: novosDocumentos, updated_at: new Date().toISOString() })
+                        .eq('id', formData.id);
+                      
                       setFormData(prev => prev ? {
                         ...prev,
-                        documentos: [...prev.documentos, newDoc]
+                        documentos: novosDocumentos
+                      } : null);
+                      setOriginalData(prev => prev ? {
+                        ...prev,
+                        documentos: novosDocumentos
                       } : null);
                     } catch (err) {
                       console.error('Erro no upload:', err);
-                      // Fallback: salvar só o nome
-                      const newDoc = { name: file.name, url: '' };
-                      setFormData(prev => prev ? {
-                        ...prev,
-                        documentos: [...prev.documentos, newDoc]
-                      } : null);
+                      alert('Erro ao enviar documento');
+                    } finally {
+                      setUploadingDoc(false);
                     }
                   }
                 }}
@@ -1825,25 +1855,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                     <div key={i} className="flex flex-col items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow relative group">
                       <button
                         onClick={() => {
-                          if (!confirm(`Excluir "${docName}"?`)) return;
-                          // Remover do storage se tiver URL
-                          if (docUrl) {
-                            try {
-                              const bucketName = 'beneficiario-documentos';
-                              const urlParts = docUrl.split(`/storage/v1/object/public/${bucketName}/`);
-                              if (urlParts.length > 1) {
-                                const filePath = decodeURIComponent(urlParts[1]);
-                                supabase.storage.from(bucketName).remove([filePath]);
-                              }
-                            } catch (err) {
-                              console.error('Erro ao remover do storage:', err);
-                            }
-                          }
-                          setFormData(prev => prev ? {
-                            ...prev,
-                            documentos: prev.documentos.filter((_, idx) => idx !== i)
-                          } : null);
-                          setHasChanges(true);
+                          setDeleteDocDialog({ visible: true, index: i, name: docName, url: docUrl });
                         }}
                         className="absolute top-2 right-2 p-1.5 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-full opacity-0 group-hover:opacity-100 transition-all"
                         title="Excluir documento"
@@ -2461,6 +2473,44 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
           </div>
         </div>
       )}
+
+      <SystemModal
+        isOpen={deleteDocDialog.visible}
+        type="confirm"
+        title="Excluir Documento"
+        message={`Tem certeza que deseja excluir "${deleteDocDialog.name}"?`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={async () => {
+          const { index, url } = deleteDocDialog;
+          setDeleteDocDialog({ visible: false, index: -1, name: '', url: null });
+          
+          if (!formData) return;
+          const novosDocumentos = formData.documentos.filter((_, idx) => idx !== index);
+          
+          if (url) {
+            try {
+              const bucketName = 'beneficiario-documentos';
+              const urlParts = url.split(`/storage/v1/object/public/${bucketName}/`);
+              if (urlParts.length > 1) {
+                const filePath = decodeURIComponent(urlParts[1]);
+                await supabase.storage.from(bucketName).remove([filePath]);
+              }
+            } catch (err) {
+              console.error('Erro ao remover do storage:', err);
+            }
+          }
+          
+          await supabase
+            .from('leads')
+            .update({ documentos: novosDocumentos, updated_at: new Date().toISOString() })
+            .eq('id', formData.id);
+          
+          setFormData(prev => prev ? { ...prev, documentos: novosDocumentos } : null);
+          setOriginalData(prev => prev ? { ...prev, documentos: novosDocumentos } : null);
+        }}
+        onCancel={() => setDeleteDocDialog({ visible: false, index: -1, name: '', url: null })}
+      />
     </div>
   );
 };

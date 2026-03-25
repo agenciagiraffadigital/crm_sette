@@ -3,6 +3,7 @@ import { documentoConfigService, BeneficiarioDocumento } from '../services/docum
 import { FileText, Upload, Download, CheckCircle, XCircle, Clock, AlertCircle, Trash2 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { RejectDocumentDialog } from './RejectDocumentDialog';
+import { SystemModal } from './SystemModal';
 
 interface BeneficiarioDocumentosProps {
   beneficiarioId: string;
@@ -29,6 +30,10 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ visible: boolean; doc: BeneficiarioDocumento | null }>({
+    visible: false,
+    doc: null
+  });
   const [rejectDialog, setRejectDialog] = useState<{ visible: boolean; docId: string; docName: string }>({ 
     visible: false, 
     docId: '', 
@@ -138,8 +143,13 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
   };
 
   const handleExcluir = async (doc: BeneficiarioDocumento) => {
-    if (!confirm(`Tem certeza que deseja excluir o documento "${doc.documento_config?.nome_documento || 'Documento'}"?`)) return;
-    
+    setDeleteConfirm({ visible: true, doc });
+  };
+
+  const confirmExcluir = async () => {
+    const doc = deleteConfirm.doc;
+    if (!doc) return;
+    setDeleteConfirm({ visible: false, doc: null });
     setDeleting(doc.id);
     try {
       const updated = await documentoConfigService.excluirDocumento(doc.id, doc.arquivo_url);
@@ -147,7 +157,6 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
       onStatusChange?.();
     } catch (error) {
       console.error('Erro ao excluir documento:', error);
-      alert('Erro ao excluir documento');
     } finally {
       setDeleting(null);
     }
@@ -227,9 +236,14 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
               {/* Upload Button */}
               {doc.status !== 'APROVADO' && (
                 <label className="cursor-pointer">
-                  <div className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                  <div className={`px-3 py-2 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
+                      uploading === doc.id ? 'bg-blue-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700'
+                    }`}>
                     {uploading === doc.id ? (
-                      <>Enviando...</>
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Enviando...
+                      </>
                     ) : (
                       <>
                         <Upload className="w-4 h-4" />
@@ -307,6 +321,17 @@ export const BeneficiarioDocumentos: React.FC<BeneficiarioDocumentosProps> = ({
         documentName={rejectDialog.docName}
         onHide={() => setRejectDialog({ visible: false, docId: '', docName: '' })}
         onConfirm={handleRejeitar}
+      />
+
+      <SystemModal
+        isOpen={deleteConfirm.visible}
+        type="confirm"
+        title="Excluir Documento"
+        message={`Tem certeza que deseja excluir o documento "${deleteConfirm.doc?.documento_config?.nome_documento || 'Documento'}"?`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={confirmExcluir}
+        onCancel={() => setDeleteConfirm({ visible: false, doc: null })}
       />
     </div>
   );
