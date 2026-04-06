@@ -182,6 +182,42 @@ class DocumentoConfigService {
     return data as BeneficiarioDocumento;
   }
 
+  async excluirDocumento(docId: string, arquivoUrl?: string) {
+    // Remover arquivo do Storage se existir
+    if (arquivoUrl) {
+      try {
+        // Extrair o path do arquivo a partir da URL pública
+        const bucketName = 'beneficiario-documentos';
+        const urlParts = arquivoUrl.split(`/storage/v1/object/public/${bucketName}/`);
+        if (urlParts.length > 1) {
+          const filePath = decodeURIComponent(urlParts[1]);
+          await supabase.storage.from(bucketName).remove([filePath]);
+        }
+      } catch (err) {
+        console.error('Erro ao remover arquivo do storage:', err);
+      }
+    }
+
+    // Limpar dados do documento (voltar para PENDENTE)
+    const { data, error } = await supabase
+      .from('beneficiario_documentos')
+      .update({
+        arquivo_nome: null,
+        arquivo_url: null,
+        status: 'PENDENTE',
+        uploaded_at: null,
+        approved_by: null,
+        approved_at: null,
+        motivo_rejeicao: null
+      })
+      .eq('id', docId)
+      .select('*, documento_config:documento_configs(*)')
+      .single();
+
+    if (error) throw error;
+    return data as BeneficiarioDocumento;
+  }
+
   async checkDocumentosCompletos(leadId: number): Promise<{ completo: boolean; pendentes: string[] }> {
     // Buscar todos os beneficiários titulares do lead
     const { data: titulares, error: benError } = await supabase

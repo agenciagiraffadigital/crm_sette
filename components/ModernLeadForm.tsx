@@ -6,7 +6,7 @@ import { authService } from '../services/authService';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
 import { documentoConfigService } from '../services/documentoConfigService';
 import { supabase } from '../services/supabaseClient';
-import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X, ChevronDown, ChevronUp, Download, Upload } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask, maskRG } from '../utils/masks';
 import { maskCEP } from '../utils/cepMask';
 import { formatStatus, formatDateTime } from '../utils/formatters';
@@ -16,6 +16,7 @@ import { WinDialog } from './WinDialog';
 import { LostDialog } from './LostDialog';
 import { ErrorDialog } from './ErrorDialog';
 import { NotesDialog } from './NotesDialog';
+import { SystemModal } from './SystemModal';
 import { BeneficiarioDocumentos } from './BeneficiarioDocumentos';
 import { getBeneficiarioDocumentoStatus } from '../utils/documentoStatus';
 
@@ -163,6 +164,10 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
   const [notes, setNotes] = useState<Note[]>([]);
   const [editNote, setEditNote] = useState<Note | null>(null);
   const [viewNote, setViewNote] = useState<Note | null>(null);
+  const [deleteDocDialog, setDeleteDocDialog] = useState<{ visible: boolean; index: number; name: string; url: string | null }>({
+    visible: false, index: -1, name: '', url: null
+  });
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -1765,20 +1770,36 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
         {activeTab === 'docs' && (
           <div className="space-y-6">
             <label className="block">
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer">
-                <div className="bg-white p-4 rounded-full shadow-sm mb-4 w-16 h-16 mx-auto flex items-center justify-center">
-                  <Paperclip className="w-8 h-8 text-blue-500" />
-                </div>
-                <h4 className="font-semibold text-gray-700 mb-2">Clique para enviar documentos</h4>
-                <p className="text-sm text-gray-500">Aceita: PDF, PNG e JPEG (máx. 10MB)</p>
+              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                uploadingDoc 
+                  ? 'border-blue-400 bg-blue-50 cursor-wait' 
+                  : 'border-gray-300 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 cursor-pointer'
+              }`}>
+                {uploadingDoc ? (
+                  <>
+                    <img src="/loading.gif" className="w-12 h-12 mx-auto mb-4" alt="Enviando..." />
+                    <h4 className="font-semibold text-blue-700 mb-2">Enviando documento...</h4>
+                    <p className="text-sm text-blue-500">Aguarde enquanto o arquivo é carregado</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-white p-4 rounded-full shadow-sm mb-4 w-16 h-16 mx-auto flex items-center justify-center">
+                      <Paperclip className="w-8 h-8 text-blue-500" />
+                    </div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Clique para enviar documentos</h4>
+                    <p className="text-sm text-gray-500">Aceita: PDF, PNG e JPEG (máx. 10MB)</p>
+                  </>
+                )}
               </div>
               <input 
                 type="file" 
                 accept=".pdf,.png,.jpg,.jpeg" 
                 className="hidden"
+                disabled={uploadingDoc}
                 onChange={async (e) => {
                   if (e.target.files && e.target.files[0] && formData) {
                     const file = e.target.files[0];
+                    setUploadingDoc(true);
                     try {
                       const fileName = `${Date.now()}_${file.name}`;
                       const filePath = `lead_${formData.id}/${fileName}`;
@@ -1794,18 +1815,27 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                         .getPublicUrl(filePath);
                       
                       const newDoc = { name: file.name, url: urlData.publicUrl };
+                      const novosDocumentos = [...formData.documentos, newDoc];
+                      
+                      // Salvar no banco imediatamente
+                      await supabase
+                        .from('leads')
+                        .update({ documentos: novosDocumentos, updated_at: new Date().toISOString() })
+                        .eq('id', formData.id);
+                      
                       setFormData(prev => prev ? {
                         ...prev,
-                        documentos: [...prev.documentos, newDoc]
+                        documentos: novosDocumentos
+                      } : null);
+                      setOriginalData(prev => prev ? {
+                        ...prev,
+                        documentos: novosDocumentos
                       } : null);
                     } catch (err) {
                       console.error('Erro no upload:', err);
-                      // Fallback: salvar só o nome
-                      const newDoc = { name: file.name, url: '' };
-                      setFormData(prev => prev ? {
-                        ...prev,
-                        documentos: [...prev.documentos, newDoc]
-                      } : null);
+                      alert('Erro ao enviar documento');
+                    } finally {
+                      setUploadingDoc(false);
                     }
                   }
                 }}
@@ -1822,13 +1852,22 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                   const docName = typeof doc === 'string' ? doc : doc.name;
                   const docUrl = typeof doc === 'string' ? null : doc.url;
                   return (
-                    <div key={i} className="flex flex-col items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <div key={i} className="flex flex-col items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow relative group">
+                      <button
+                        onClick={() => {
+                          setDeleteDocDialog({ visible: true, index: i, name: docName, url: docUrl });
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                        title="Excluir documento"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                       <FileText className="w-10 h-10 text-gray-400 mb-2" />
                       <span className="text-xs font-medium text-gray-700 truncate w-full text-center" title={docName}>
                         {docName}
                       </span>
                       <span className="text-[10px] text-gray-400 mb-3">Documento</span>
-                      {docUrl && (
+                      {docUrl ? (
                         <a
                           href={docUrl}
                           target="_blank"
@@ -1839,6 +1878,54 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                           <Download className="w-3 h-3" />
                           Baixar
                         </a>
+                      ) : (
+                        <label className="cursor-pointer">
+                          <div className="flex items-center gap-1 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-medium transition-colors">
+                            <Upload className="w-3 h-3" />
+                            Reenviar
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept=".pdf,.png,.jpg,.jpeg"
+                            disabled={uploadingDoc}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file || !formData) return;
+                              setUploadingDoc(true);
+                              try {
+                                const fileName = `${Date.now()}_${file.name}`;
+                                const filePath = `lead_${formData.id}/${fileName}`;
+
+                                const { error: uploadError } = await supabase.storage
+                                  .from('beneficiario-documentos')
+                                  .upload(filePath, file);
+                                if (uploadError) throw uploadError;
+
+                                const { data: urlData } = supabase.storage
+                                  .from('beneficiario-documentos')
+                                  .getPublicUrl(filePath);
+
+                                const novosDocumentos = formData.documentos.map((d, idx) =>
+                                  idx === i ? { name: file.name, url: urlData.publicUrl } : d
+                                );
+
+                                await supabase
+                                  .from('leads')
+                                  .update({ documentos: novosDocumentos, updated_at: new Date().toISOString() })
+                                  .eq('id', formData.id);
+
+                                setFormData(prev => prev ? { ...prev, documentos: novosDocumentos } : null);
+                                setOriginalData(prev => prev ? { ...prev, documentos: novosDocumentos } : null);
+                              } catch (err) {
+                                console.error('Erro no reenvio:', err);
+                                alert('Erro ao reenviar documento');
+                              } finally {
+                                setUploadingDoc(false);
+                              }
+                            }}
+                          />
+                        </label>
                       )}
                     </div>
                   );
@@ -2434,6 +2521,44 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
           </div>
         </div>
       )}
+
+      <SystemModal
+        isOpen={deleteDocDialog.visible}
+        type="confirm"
+        title="Excluir Documento"
+        message={`Tem certeza que deseja excluir "${deleteDocDialog.name}"?`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={async () => {
+          const { index, url } = deleteDocDialog;
+          setDeleteDocDialog({ visible: false, index: -1, name: '', url: null });
+          
+          if (!formData) return;
+          const novosDocumentos = formData.documentos.filter((_, idx) => idx !== index);
+          
+          if (url) {
+            try {
+              const bucketName = 'beneficiario-documentos';
+              const urlParts = url.split(`/storage/v1/object/public/${bucketName}/`);
+              if (urlParts.length > 1) {
+                const filePath = decodeURIComponent(urlParts[1]);
+                await supabase.storage.from(bucketName).remove([filePath]);
+              }
+            } catch (err) {
+              console.error('Erro ao remover do storage:', err);
+            }
+          }
+          
+          await supabase
+            .from('leads')
+            .update({ documentos: novosDocumentos, updated_at: new Date().toISOString() })
+            .eq('id', formData.id);
+          
+          setFormData(prev => prev ? { ...prev, documentos: novosDocumentos } : null);
+          setOriginalData(prev => prev ? { ...prev, documentos: novosDocumentos } : null);
+        }}
+        onCancel={() => setDeleteDocDialog({ visible: false, index: -1, name: '', url: null })}
+      />
     </div>
   );
 };
