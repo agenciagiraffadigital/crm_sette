@@ -6,7 +6,7 @@ import { authService } from '../services/authService';
 import { operadoraService, Operadora, Produto } from '../services/operadoraService';
 import { documentoConfigService } from '../services/documentoConfigService';
 import { supabase } from '../services/supabaseClient';
-import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { ArrowLeft, Save, User as UserIcon, Mail, Phone, MapPin, Package, DollarSign, Edit3, Users, FileText, Plus, Trash2, Paperclip, MoreVertical, Trophy, XCircle, MessageCircle, UserPlus, Trash, RefreshCw, TrendingUp, AlertCircle, MessageSquare, X, ChevronDown, ChevronUp, Download, Upload } from 'lucide-react';
 import { maskPhone, maskCPFOrCNPJ, unmask, maskRG } from '../utils/masks';
 import { maskCEP } from '../utils/cepMask';
 import { formatStatus, formatDateTime } from '../utils/formatters';
@@ -1867,7 +1867,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                         {docName}
                       </span>
                       <span className="text-[10px] text-gray-400 mb-3">Documento</span>
-                      {docUrl && (
+                      {docUrl ? (
                         <a
                           href={docUrl}
                           target="_blank"
@@ -1878,6 +1878,54 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                           <Download className="w-3 h-3" />
                           Baixar
                         </a>
+                      ) : (
+                        <label className="cursor-pointer">
+                          <div className="flex items-center gap-1 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-medium transition-colors">
+                            <Upload className="w-3 h-3" />
+                            Reenviar
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept=".pdf,.png,.jpg,.jpeg"
+                            disabled={uploadingDoc}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file || !formData) return;
+                              setUploadingDoc(true);
+                              try {
+                                const fileName = `${Date.now()}_${file.name}`;
+                                const filePath = `lead_${formData.id}/${fileName}`;
+
+                                const { error: uploadError } = await supabase.storage
+                                  .from('beneficiario-documentos')
+                                  .upload(filePath, file);
+                                if (uploadError) throw uploadError;
+
+                                const { data: urlData } = supabase.storage
+                                  .from('beneficiario-documentos')
+                                  .getPublicUrl(filePath);
+
+                                const novosDocumentos = formData.documentos.map((d, idx) =>
+                                  idx === i ? { name: file.name, url: urlData.publicUrl } : d
+                                );
+
+                                await supabase
+                                  .from('leads')
+                                  .update({ documentos: novosDocumentos, updated_at: new Date().toISOString() })
+                                  .eq('id', formData.id);
+
+                                setFormData(prev => prev ? { ...prev, documentos: novosDocumentos } : null);
+                                setOriginalData(prev => prev ? { ...prev, documentos: novosDocumentos } : null);
+                              } catch (err) {
+                                console.error('Erro no reenvio:', err);
+                                alert('Erro ao reenviar documento');
+                              } finally {
+                                setUploadingDoc(false);
+                              }
+                            }}
+                          />
+                        </label>
                       )}
                     </div>
                   );
