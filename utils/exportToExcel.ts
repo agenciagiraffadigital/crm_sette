@@ -25,6 +25,7 @@ const STATUS_LABELS: Record<string, string> = {
   'IMPLANTADA': 'Implantada',
   'PROPOSTA': 'Proposta',
   'CANCELADA': 'Cancelada',
+  'PERDIDA': 'Perdida',
 };
 
 function formatDate(dateStr: string): string {

@@ -8,7 +8,8 @@ export const formatStatus = (status: string): string => {
     'ANÁLISE': 'Análise (Adm)',
     'ANÁLISE_OPERADORA': 'Análise Operadora',
     'IMPLANTADA': 'Implantada',
-    'CANCELADA': 'Cancelada'
+    'CANCELADA': 'Cancelada',
+    'PERDIDA': 'Perdida'
   };
   
   return statusMap[status] || status;

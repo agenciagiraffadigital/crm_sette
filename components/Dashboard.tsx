@@ -99,7 +99,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ leads, currentUser }) => {
         />
         <StatCard 
           title="Perdidos" 
-          value={(statusCounts['CANCELADA'] || 0).toString()} 
+          value={((statusCounts['PERDIDA'] || 0)).toString()} 
           icon={XCircle} 
           color="bg-red-500" 
         />
