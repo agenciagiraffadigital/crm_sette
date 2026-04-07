@@ -1,6 +1,6 @@
 export type ClientType = 'PF' | 'PJ' | 'ADESAO';
 
-export type KanbanStatus = 'ENVIADA' | 'ANÁLISE' | 'ANÁLISE_OPERADORA' | 'IMPLANTADA' | 'CANCELADA' | 'PROPOSTA';
+export type KanbanStatus = 'ENVIADA' | 'ANÁLISE' | 'ANÁLISE_OPERADORA' | 'IMPLANTADA' | 'CANCELADA' | 'PROPOSTA' | 'PERDIDA';
 
 export type OpportunityStatus = 'OPORTUNIDADES' | 'EM_CONTATO' | 'NEGOCIACAO';
 

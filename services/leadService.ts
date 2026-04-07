@@ -86,7 +86,7 @@ export const leadService = {
   },
 
   getLeads: async (currentUser: User): Promise<Lead[]> => {
-    const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA', 'PROPOSTA'];
+    const statuses: KanbanStatus[] = ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA', 'PERDIDA', 'PROPOSTA'];
     const results = await Promise.all(statuses.map(s => leadService.getLeadsByStatus(currentUser, s, 0, 29)));
     return results.flatMap(r => r.data);
   },
@@ -95,7 +95,7 @@ export const leadService = {
     let query = supabase
       .from('leads')
       .select('id, nome, email, telefone, tipo_cliente, operadora, produto, valor_produto, vendedor, vendedor_id, status_kanban, created_at')
-      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA', 'PROPOSTA'])
+      .in('status_kanban', ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA', 'PERDIDA', 'PROPOSTA'])
       .order('created_at', { ascending: false })
       .range(0, 999);
     
@@ -522,11 +522,11 @@ export const leadService = {
     if (currentUser && oldStatus) {
       const { formatStatus } = await import('../utils/formatters');
       
-      // Log especial para CANCELADA (perdida)
-      if (status === 'CANCELADA') {
+      // Log especial para CANCELADA ou PERDIDA
+      if (status === 'CANCELADA' || status === 'PERDIDA') {
         await leadService.addActivityLog(id, {
           tipo: 'LEAD_PERDIDO',
-          descricao: `Lead movido para Perdidas`,
+          descricao: `Lead movido para ${status === 'PERDIDA' ? 'Perdidas' : 'Canceladas'}`,
           usuario_id: currentUser.id,
           usuario_nome: currentUser.name,
           metadata: { status_anterior: oldStatus, status_novo: status }
@@ -542,11 +542,11 @@ export const leadService = {
           metadata: { status_anterior: oldStatus, status_novo: status }
         });
       }
-      // Log especial quando sai de CANCELADA
-      else if (oldStatus === 'CANCELADA') {
+      // Log especial quando sai de CANCELADA ou PERDIDA
+      else if (oldStatus === 'CANCELADA' || oldStatus === 'PERDIDA') {
         await leadService.addActivityLog(id, {
           tipo: 'LEAD_RECUPERADO',
-          descricao: `Lead recuperado de Perdidas para ${formatStatus(status)}`,
+          descricao: `Lead recuperado de ${oldStatus === 'PERDIDA' ? 'Perdidas' : 'Canceladas'} para ${formatStatus(status)}`,
           usuario_id: currentUser.id,
           usuario_nome: currentUser.name,
           metadata: { status_anterior: oldStatus, status_novo: status }
@@ -923,7 +923,7 @@ export const leadService = {
     const { error } = await supabase
       .from('leads')
       .update({
-        status_kanban: 'CANCELADA',
+        status_kanban: 'PERDIDA',
         motivo_perda: data.motivo,
         motivo_perda_detalhes: data.detalhes || null,
         data_perda: new Date().toISOString(),

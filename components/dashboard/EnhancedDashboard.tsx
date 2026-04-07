@@ -96,7 +96,7 @@ export const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({ currentUse
   }));
 
   const proposalStatusData: ChartData[] = Object.entries(metrics.proposals.byStatus)
-    .filter(([status]) => ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA'].includes(status))
+    .filter(([status]) => ['ENVIADA', 'ANÁLISE', 'ANÁLISE_OPERADORA', 'IMPLANTADA', 'CANCELADA', 'PERDIDA'].includes(status))
     .map(([status, count]) => ({
       name: status,
       value: count,
@@ -138,7 +138,7 @@ export const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({ currentUse
         
         <MetricCard
           title="Perdidos"
-          value={metrics.proposals.byStatus.CANCELADA || 0}
+          value={metrics.proposals.byStatus.PERDIDA || 0}
           icon={<XCircle className="w-6 h-6" />}
           color="bg-red-500"
         />
@@ -190,7 +190,7 @@ export const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({ currentUse
           
           <MetricCard
             title="Propostas Canceladas"
-            value={metrics.proposals.byStatus.CANCELADA}
+            value={(metrics.proposals.byStatus.CANCELADA || 0)}
             icon={<XCircle className="w-6 h-6" />}
             color="bg-red-500"
           />

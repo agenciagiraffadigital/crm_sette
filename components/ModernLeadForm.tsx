@@ -197,6 +197,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
 
   // Determine which status columns to use
   const isOpportunity = formData && ['OPORTUNIDADES', 'EM_CONTATO', 'NEGOCIACAO'].includes(formData.status_kanban);
+  const isPerdida = formData && formData.status_kanban === 'PERDIDA';
   const statusColumns = isOpportunity ? OPPORTUNITY_COLUMNS : KANBAN_COLUMNS;
   const canChangeSeller = currentUser.role === 'ADMIN';
 
@@ -675,6 +676,9 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                 {statusColumns.map(col => (
                   <option key={col.id} value={col.id}>{col.label}</option>
                 ))}
+                {isPerdida && (
+                  <option value="PERDIDA">Perdida</option>
+                )}
               </select>
 
               <div className="relative actions-menu-container">

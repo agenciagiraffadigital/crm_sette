@@ -164,6 +164,7 @@ export const dashboardService = {
       'ANÁLISE_OPERADORA': byStatus['ANÁLISE_OPERADORA'] || 0,
       'IMPLANTADA': byStatus['IMPLANTADA'] || 0,
       'CANCELADA': byStatus['CANCELADA'] || 0,
+      'PERDIDA': byStatus['PERDIDA'] || 0,
       'PROPOSTA': byStatus['PROPOSTA'] || 0,
       'OPORTUNIDADES': byStatus['OPORTUNIDADES'] || 0,
       'EM_CONTATO': byStatus['EM_CONTATO'] || 0,
@@ -372,14 +373,14 @@ export const dashboardService = {
     }
   },
 
-  // Get canceled leads
+  // Get canceled and lost leads
   getCanceledLeads: async (currentUser: User): Promise<Lead[]> => {
     const { supabase } = await import('./supabaseClient');
 
     let query = supabase
       .from('leads')
       .select('*')
-      .eq('status_kanban', 'CANCELADA')
+      .in('status_kanban', ['CANCELADA', 'PERDIDA'])
       .order('created_at', { ascending: false });
     
     if (currentUser.role !== 'ADMIN') {

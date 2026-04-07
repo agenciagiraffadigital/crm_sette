@@ -45,7 +45,7 @@ export const LostOpportunities: React.FC<LostOpportunitiesProps> = ({ currentUse
       let query = supabase
         .from('leads')
         .select('*', { count: 'exact' })
-        .eq('status_kanban', 'CANCELADA');
+        .eq('status_kanban', 'PERDIDA');
 
       if (currentUser.role !== 'ADMIN') {
         query = query.eq('vendedor_id', currentUser.id);
