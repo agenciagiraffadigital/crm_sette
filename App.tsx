@@ -190,11 +190,11 @@ function App() {
     }
   }, [user]);
 
-  const handleSaveLead = useCallback((updatedLead: Lead) => {
+  const handleSaveLead = useCallback(async (updatedLead: Lead) => {
       setLeads(current => current.map(l => l.id === updatedLead.id ? updatedLead : l));
       setSelectedLeadId(null); // Return to board after save
-      loadLeads(); // Reload data to ensure sync
-  }, [loadLeads]);
+      // Board components reload their own data on mount, no need to call loadLeads here
+  }, []);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);

@@ -55,13 +55,13 @@ export const leadService = {
     }
 
     if (filters?.sortBy === 'name-asc') {
-      query = query.order('nome', { ascending: true });
+      query = query.order('nome', { ascending: true }).order('id', { ascending: true });
     } else if (filters?.sortBy === 'name-desc') {
-      query = query.order('nome', { ascending: false });
+      query = query.order('nome', { ascending: false }).order('id', { ascending: true });
     } else if (filters?.sortBy === 'date-asc') {
-      query = query.order('created_at', { ascending: true });
+      query = query.order('created_at', { ascending: true }).order('id', { ascending: true });
     } else {
-      query = query.order('created_at', { ascending: false });
+      query = query.order('created_at', { ascending: false }).order('id', { ascending: false });
     }
 
     query = query.range(from, to);

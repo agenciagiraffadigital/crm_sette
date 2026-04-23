@@ -42,6 +42,9 @@ export const ProposalsBoard: React.FC<ProposalsBoardProps> = ({
       setColumnData(prev => ({ ...prev, [status]: page === 0 ? data : [...(prev[status] || []), ...data] }));
       setColumnCounts(prev => ({ ...prev, [status]: count }));
       setColumnPages(prev => ({ ...prev, [status]: page }));
+    } catch (error) {
+      console.error(`Erro ao carregar coluna ${status}:`, error);
+      // Manter dados anteriores em caso de erro (não limpar)
     } finally {
       setColumnLoading(prev => ({ ...prev, [status]: false }));
     }

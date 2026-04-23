@@ -940,7 +940,7 @@ export const ModernLeadForm: React.FC<ModernLeadFormProps> = ({
                 const newBen: Beneficiary = {
                   id: Math.random().toString(36).substr(2, 9),
                   nome: formData.nome,
-                  data_nascimento: "",
+                  data_nascimento: formData.data_nascimento_abertura || "",
                   parentesco: "Titular", // Mantido para compatibilidade
                   tipo_beneficiario: 'TITULAR',
                   type: 'TITULAR', // Mantido para compatibilidade
